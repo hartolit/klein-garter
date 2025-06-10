@@ -1,44 +1,126 @@
-mod terminal;
 mod level;
-mod snake;
-mod utils;
+mod player;
+mod global;
 
 use std::io::{self, Read};
-use terminal::Renderer;
-
-use snake::{Direction, Snake};
+use crossterm::{cursor::MoveTo, style::{Print, SetBackgroundColor, SetForegroundColor}, QueueableCommand};
+use player::{Direction, Snake, Player};
+use io::{stdout, Stdout, Write};
 use level::Level;
 
 pub fn start() {
     print!("\x1B[?25l"); // Removes cursor
     
     let mut level = Level::new(40, 20);
-    let mut snake = Snake::new(&level);
-    let mut render = Renderer::new();
+    let mut player = Player::new(level.rng_pos(Some(2)));
+    let mut stdout = stdout();
 
-    level.generate(&mut render);
-    level.food_vec.push(level.rng_food());
+    level.generate(&mut stdout).unwrap();
 
     let mut buf = [0u8; 1];
-    while snake.is_alive {
+    while player.snake.is_alive {
         io::stdin().read_exact(&mut buf).expect("Failed to read input");
 
         let input = buf[0] as char;
 
         match input {
-            'w' => snake.direction = Direction::Up,
-            's' => snake.direction = Direction::Down,
-            'd' => snake.direction = Direction::Right,
-            'a' => snake.direction = Direction::Left,
+            'w' => player.snake.direction = Direction::Up,
+            's' => player.snake.direction = Direction::Down,
+            'd' => player.snake.direction = Direction::Right,
+            'a' => player.snake.direction = Direction::Left,
             _ => {}
         }
         
-        snake.slither(&mut level, &mut render);
+        player.snake.slither();
 
-        render.flush();
+        level.rng_food(&mut stdout);
+
+        collision_check(&mut player.snake, &mut level);
+        draw(&mut player.snake, &level, &mut stdout).unwrap();
+        stdout.flush().unwrap();
     }
 }
 
-fn collision_check(){
+fn collision_check(snake: &mut Snake, level: &mut Level) {
+    if snake.head_pos.x < level.border_width
+        || snake.head_pos.x > level.total_width() - level.border_width - 1
+        || snake.head_pos.y < level.border_height 
+        || snake.head_pos.y > level.total_height() - level.border_height - 1 {
+        
+            snake.is_alive = false;
+        return;
+    }
+
+    for part in &snake.body_vec {
+        if snake.head_pos == *part {
+            snake.is_alive = false;
+        }
+    }
+
+    level.food_vec.retain(|food|{
+        if snake.head_pos == food.pos {
+            snake.meals += food.meals;
+            false
+        } else {
+            true
+        }
+
+    });
+}
+
+fn draw(snake: &mut Snake, level: &Level, stdout: &mut Stdout) -> io::Result<()> {
+    stdout
+        .queue(SetForegroundColor(snake.head_color))?
+        .queue(MoveTo(snake.head_pos.x, snake.head_pos.y))?
+        .queue(Print(snake.head))?;
+
+    // Draw first body
+    if let Some(firt_part) = &snake.body_vec.front().copied() {
+        if let Some(color_ref) = level.bg_color_range.get(firt_part.y as usize){
+            stdout.queue(SetBackgroundColor(*color_ref))?;
+        }
+
+        stdout
+            .queue(SetForegroundColor(snake.body_color))?
+            .queue(MoveTo(firt_part.x, firt_part.y))?
+            .queue(Print(&snake.body))?;
+    }
+
+    if snake.meals > 0 {
+        snake.meals -= 1;
+    } else if snake.meals < 0 {
+        let parts_to_remove = snake.meals.abs() as u16;
+
+        for _ in 0..parts_to_remove {
+            if snake.body_vec.len() <= 1 {
+                snake.is_alive = false;
+                break;
+            }
+
+            if let Some(last_part) = snake.body_vec.pop_back() {
+                if let Some(color_ref) = level.bg_color_range.get(last_part.y as usize){
+                    stdout.queue(SetBackgroundColor(*color_ref))?;
+                }
     
+                stdout
+                    .queue(MoveTo(last_part.x, last_part.y))?
+                    .queue(Print(&level.background))?;
+            }
+        }
+        snake.meals = 0;
+    } else {
+        if let Some(last_part) = snake.body_vec.pop_back() {
+            if let Some(color_ref) = level.bg_color_range.get(last_part.y as usize){
+                stdout.queue(SetBackgroundColor(*color_ref))?;
+            }
+
+            stdout
+                .queue(MoveTo(last_part.x, last_part.y))?
+                .queue(Print(&level.background))?;
+        }
+    }
+
+    snake.body_vec.push_front(snake.head_pos);
+
+    Ok(())
 }
