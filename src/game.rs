@@ -33,8 +33,6 @@ pub fn start() {
         
         player.snake.slither();
 
-        level.rng_food(&mut stdout);
-
         collision_check(&mut player.snake, &mut level);
         draw(&mut player.snake, &level, &mut stdout).unwrap();
         stdout.flush().unwrap();
@@ -69,20 +67,25 @@ fn collision_check(snake: &mut Snake, level: &mut Level) {
 }
 
 fn draw(snake: &mut Snake, level: &Level, stdout: &mut Stdout) -> io::Result<()> {
+    // Draw head
+    if let Some(color_ref) = level.bg_color_range.get(snake.head_pos.y as usize){
+        stdout.queue(SetBackgroundColor(*color_ref))?;
+    }
+
     stdout
         .queue(SetForegroundColor(snake.head_color))?
         .queue(MoveTo(snake.head_pos.x, snake.head_pos.y))?
         .queue(Print(snake.head))?;
 
-    // Draw first body
-    if let Some(firt_part) = &snake.body_vec.front().copied() {
-        if let Some(color_ref) = level.bg_color_range.get(firt_part.y as usize){
+    // Draw first_body_part
+    if let Some(firt_body_part) = &snake.body_vec.front().copied() {
+        if let Some(color_ref) = level.bg_color_range.get(firt_body_part.y as usize){
             stdout.queue(SetBackgroundColor(*color_ref))?;
         }
 
         stdout
             .queue(SetForegroundColor(snake.body_color))?
-            .queue(MoveTo(firt_part.x, firt_part.y))?
+            .queue(MoveTo(firt_body_part.x, firt_body_part.y))?
             .queue(Print(&snake.body))?;
     }
 
@@ -117,6 +120,13 @@ fn draw(snake: &mut Snake, level: &Level, stdout: &mut Stdout) -> io::Result<()>
             stdout
                 .queue(MoveTo(last_part.x, last_part.y))?
                 .queue(Print(&level.background))?;
+        }
+    }
+
+    if level.food_vec.len() < level.max_food{
+        let missing_food = level.food_vec.len() - level.max_food;
+
+        for _ in 0..missing_food {
         }
     }
 

@@ -48,7 +48,8 @@ pub struct Level {
     pub fg_color: Color,
     pub bg_color: Color,
     pub bg_color_range: Vec<Color>,
-    pub food_vec: Vec<Food>
+    pub food_vec: Vec<Food>,
+    pub max_food: usize
 }
 
 impl Level {
@@ -68,6 +69,7 @@ impl Level {
             bg_color: Color::Rgb{ r: 230, g: 40, b: 130 },
             bg_color_range: vec![],
             food_vec: vec![],
+            max_food: 4
         };
     }
 
@@ -110,12 +112,10 @@ impl Level {
             }
         }
 
-        self.rng_food(stdout);
-
         Ok(())
     }
 
-    pub fn rng_food(&mut self, stdout: &mut Stdout) {
+    pub fn rng_food(&mut self) -> Food {
         let rng_pos = self.rng_pos(None);
 
         let food = match rand::rng().random_range(0..=2) {
@@ -124,9 +124,7 @@ impl Level {
             _ => Food::new(FoodKind::Bomb, rng_pos),
         };
 
-        // TODO: Remove draw
-        queue!(stdout, MoveTo(rng_pos.x, rng_pos.y), SetForegroundColor(food.color), Print(food.symbol)).unwrap();
-        self.food_vec.push(food);
+        food
     }
 
     pub fn rng_pos(&self, offset: Option<u16>) -> Position {

@@ -29,8 +29,8 @@ impl Snake {
         return Self {
             is_alive: true,
             meals: 50,
-            head: '\u{2588}',
-            body: '\u{25FC}',
+            head: '\u{25FC}',
+            body: '\u{2588}',
             head_pos: pos,
             body_vec: VecDeque::new(),
             head_color: Color::Rgb { r: 50, g: 80, b: 120 },
