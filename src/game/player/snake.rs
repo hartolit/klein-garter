@@ -28,7 +28,7 @@ impl Snake {
     pub fn new(pos: Position) -> Self {        
         return Self {
             is_alive: true,
-            meals: 50,
+            meals: 1,
             head: '\u{25FC}',
             body: '\u{2588}',
             head_pos: pos,

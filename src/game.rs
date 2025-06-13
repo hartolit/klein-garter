@@ -2,11 +2,134 @@ mod level;
 mod player;
 mod global;
 
-use std::io::{self, Read};
+use std::{io::{self, Read}, time::{Duration, Instant}};
 use crossterm::{cursor::MoveTo, style::{Print, SetBackgroundColor, SetForegroundColor}, QueueableCommand};
-use player::{Direction, Snake, Player};
+use player::{Direction, Snake, Player, PlayerKind};
 use io::{stdout, Stdout, Write};
 use level::Level;
+use global::Position;
+
+pub enum State {
+    Init,
+    Run,
+    Stop,
+    Pause,
+}
+
+pub enum GameMode {
+    Local,
+    Online,
+}
+
+pub struct Game {
+    pub state: State,
+    pub kind: GameMode,
+    pub level: Level,
+    pub players: Vec<Player>,
+    pub stdout: Stdout,
+    pub tick_rate: Duration,
+    pub last_update: Instant,
+}
+
+impl Game {
+    pub fn new(kind: GameMode, player_count: u16) -> Self {
+        let level = Level::new(40, 20);
+        let players: Vec<Player> = Vec::new();
+
+        match kind {
+            GameMode::Local => {
+                for _ in 0..player_count {
+                    
+                }
+                let player_pos = self.level.rng_pos(Some(4));
+                self.players.push(Player::new(PlayerKind::Local, player_pos));
+            },
+            GameMode::Online => {
+                
+            }
+        }
+
+        Game { 
+            state: State::Init,
+            kind: kind,
+            level: level, 
+            players: vec![], 
+            stdout: stdout(),
+            tick_rate: Duration::new(0, 500),
+            last_update: Instant::now(),
+        }
+    }
+
+    pub fn start(&mut self) {
+        print!("\x1B[?25l"); // TODO - Fix() Removes cursor
+
+        match self.state {
+            State::Init => self.init(),
+            State::Run => self.run(),
+            State::Pause => self.pause(),
+            State::Stop => self.stop(),
+        }
+    }
+
+    fn init(&mut self) {
+        self.level.generate(&mut self.stdout).unwrap();
+
+        match self.kind {
+            GameMode::Local => {
+                let player_pos = self.level.rng_pos(Some(4));
+                self.players.push(Player::new(PlayerKind::Local, player_pos));
+            },
+            GameMode::Online => {
+
+            }
+        }
+
+        self.state = State::Run;
+    }
+    
+    fn pause (&mut self) {
+        
+    }
+
+    fn run(&mut self) {
+
+    }
+
+    fn stop(&mut self) {
+
+    }
+
+    fn generate_players(&mut self, player_count: u16) {
+        let offset: Position = Position { 
+            x: (self.level.total_width().div_ceil(player_count)), 
+            y: (self.level.total_height().div_ceil(player_count)) 
+        };
+
+        let mut curr_pos = offset;
+
+        for _ in 0..player_count{
+            self.players.push(Player::new(PlayerKind::Local, Position { 
+                x: curr_pos.x, 
+                y: curr_pos.y
+            }));
+
+            if curr_pos.x + offset.x >= self.level.total_width(){
+                curr_pos.x = offset.x;
+                curr_pos.y += offset.y;
+            } else {
+                curr_pos.x += offset.x;
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
 
 pub fn start() {
     print!("\x1B[?25l"); // Removes cursor
@@ -62,13 +185,12 @@ fn collision_check(snake: &mut Snake, level: &mut Level) {
         } else {
             true
         }
-
     });
 }
 
 fn draw(snake: &mut Snake, level: &Level, stdout: &mut Stdout) -> io::Result<()> {
     // Draw head
-    if let Some(color_ref) = level.bg_color_range.get(snake.head_pos.y as usize){
+    if let Some(color_ref) = level.bg_color_range.get(snake.head_pos.y as usize) {
         stdout.queue(SetBackgroundColor(*color_ref))?;
     }
 

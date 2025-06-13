@@ -1,6 +1,6 @@
 use crate::game::global::{Position};
 use std::io::{self, Stdout};
-use crossterm::{cursor::{self, MoveTo}, queue, style::{Color, Print, SetBackgroundColor, SetForegroundColor}, terminal::{Clear, ClearType}};
+use crossterm::{cursor::{self}, queue, style::{Color, Print, SetBackgroundColor, SetForegroundColor}, terminal::{Clear, ClearType}};
 use rand::Rng;
 
 #[derive(Debug, Copy, Clone)]
