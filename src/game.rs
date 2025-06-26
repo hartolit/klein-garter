@@ -1,123 +1,169 @@
-mod level;
-mod player;
-mod global;
+pub mod level;
+pub mod player;
+pub mod global;
+
 
 use std::{io::{self, Read}, time::{Duration, Instant}};
-use crossterm::{cursor::MoveTo, style::{Print, SetBackgroundColor, SetForegroundColor}, QueueableCommand};
-use player::{Direction, Snake, Player, PlayerKind};
-use io::{stdout, Stdout, Write};
+use crossterm::{cursor, event::{self, KeyCode}, execute, queue, terminal::{self, disable_raw_mode, enable_raw_mode}, QueueableCommand};
+
+use player::{Direction, Snake, Player};
+use io::{stdout, Stdout};
 use level::Level;
 use global::Position;
 
-pub enum State {
+enum State {
     Init,
     Run,
     Stop,
     Pause,
 }
 
-pub enum GameMode {
+pub enum GameKind {
     Local,
     Online,
 }
 
-pub struct Game {
-    pub state: State,
-    pub kind: GameMode,
-    pub level: Level,
+pub struct Game<'a> {
+    state: State,
+    kind: GameKind,
+    level: Level,
     pub players: Vec<Player>,
-    pub stdout: Stdout,
-    pub tick_rate: Duration,
-    pub last_update: Instant,
+    out: &'a mut Stdout,
+    tick_rate: Duration,
+    last_update: Instant,
 }
 
-impl Game {
-    pub fn new(kind: GameMode, player_count: u16) -> Self {
-        let level = Level::new(40, 20);
-        let players: Vec<Player> = Vec::new();
-
-        match kind {
-            GameMode::Local => {
-                for _ in 0..player_count {
-                    
-                }
-                let player_pos = self.level.rng_pos(Some(4));
-                self.players.push(Player::new(PlayerKind::Local, player_pos));
-            },
-            GameMode::Online => {
-                
-            }
-        }
-
+impl<'a> Game<'a> {
+    pub fn new(kind: GameKind, stdout: &'a mut Stdout) -> Self {
         Game { 
             state: State::Init,
             kind: kind,
-            level: level, 
+            level: Level::new(40, 20), 
             players: vec![], 
-            stdout: stdout(),
+            out: stdout,
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
         }
     }
 
-    pub fn start(&mut self) {
-        print!("\x1B[?25l"); // TODO - Fix() Removes cursor
+    pub fn start(&mut self) -> io::Result<()> {
+        enable_raw_mode()?;
+        queue!(self.out, cursor::Hide)?;
 
-        match self.state {
-            State::Init => self.init(),
-            State::Run => self.run(),
-            State::Pause => self.pause(),
-            State::Stop => self.stop(),
-        }
-    }
+        loop {
+            let now = Instant::now();
+            let delta = now.duration_since(self.last_update);
+            
+            // Player input
+            if event::poll(self.tick_rate.saturating_sub(delta))? {
+                if let event::Event::Key(key_event) = event::read()? {
+                    match key_event.code {
+                        event::KeyCode::Char('q') | event::KeyCode::Esc => {
+                            self.state = State::Stop;
+                        }
+                        event::KeyCode::Char('r') => { // TODO - Add restart state?
+                            self.state = State::Init;
+                        }
+                        event::KeyCode::Char('p') => {
+                            if let State::Pause = self.state {
+                                self.state = State::Pause
+                            } else {
+                                self.state = State::Run
+                            }
+                        }
+                        _ => {
+                            for player in self.players.iter_mut() {
+                                for key in player.keys.iter() {
+                                    if key_event.code == KeyCode::Char(*key.1){
+                                        player.snake.direction = *key.0;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if delta >= self.tick_rate {
+                self.last_update = now;
 
-    fn init(&mut self) {
-        self.level.generate(&mut self.stdout).unwrap();
-
-        match self.kind {
-            GameMode::Local => {
-                let player_pos = self.level.rng_pos(Some(4));
-                self.players.push(Player::new(PlayerKind::Local, player_pos));
-            },
-            GameMode::Online => {
-
+                match self.state {
+                    State::Init => self.init().unwrap(),
+                    State::Run => self.run().unwrap(),
+                    State::Pause => self.pause().unwrap(),
+                    State::Stop => break,
+                }
             }
         }
 
+        disable_raw_mode()?;
+        execute!(self.out, cursor::Hide)?;
+
+        Ok(())
+    }
+
+    fn init(&mut self) -> io::Result<()> {
+        queue!(self.out, terminal::Clear(terminal::ClearType::All));
+
+        self.level.generate(&mut self.out).unwrap();
+        self.calc_player_pos();
+
         self.state = State::Run;
+
+        Ok(())
     }
     
-    fn pause (&mut self) {
-        
+    fn pause(&mut self) -> io::Result<()> {
+        Ok(())
     }
 
-    fn run(&mut self) {
-
+    fn run(&mut self) -> io::Result<()> {
+        Ok(())
     }
 
-    fn stop(&mut self) {
+    // Generate players relative to level width/height and amount of players
+    // TODO: FIX POSITION
+    fn calc_player_pos(&mut self) {
+        if self.players.len() == 0 {
+            return;
+        }
 
-    }
-
-    fn generate_players(&mut self, player_count: u16) {
-        let offset: Position = Position { 
-            x: (self.level.total_width().div_ceil(player_count)), 
-            y: (self.level.total_height().div_ceil(player_count)) 
+        let offset = Position { 
+            x: (self.level.total_width().div_ceil(self.players.len() as u16)), 
+            y: (self.level.total_height().div_ceil(self.players.len() as u16)) 
         };
 
         let mut curr_pos = offset;
 
-        for _ in 0..player_count{
-            self.players.push(Player::new(PlayerKind::Local, Position { 
-                x: curr_pos.x, 
-                y: curr_pos.y
-            }));
+        for player in self.players.iter_mut() {
+            player.snake.head_pos = curr_pos;
 
             if curr_pos.x + offset.x >= self.level.total_width(){
                 curr_pos.x = offset.x;
                 curr_pos.y += offset.y;
             } else {
                 curr_pos.x += offset.x;
+            }
+        }
+    }
+
+    fn collision_check(&mut self) {
+        for player in self.players.iter_mut() {
+            if player.snake.head_pos.x < self.level.border_width
+                || player.snake.head_pos.x > self.level.total_width() - self.level.border_width - 1
+                || player.snake.head_pos.y < self.level.border_height 
+                || player.snake.head_pos.y > self.level.total_height() - self.level.border_height - 1 {
+                
+                player.snake.is_alive = false;
+                
+                return;
+            }
+
+            // Check body collision
+            for part in &player.snake.body_vec {
+                if player.snake.head_pos == *part {
+                    player.snake.is_alive = false;
+                }
             }
         }
     }

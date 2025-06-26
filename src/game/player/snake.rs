@@ -3,7 +3,7 @@ use std::collections::{VecDeque};
 use crate::game::global::{Position};
 use crossterm::style::Color;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Direction {
     Up,
     Down,
@@ -46,12 +46,5 @@ impl Snake {
             Direction::Left => self.head_pos.x -= 1,
             Direction::Right => self.head_pos.x += 1,
         };
-
-        // Collision check of body
-        for part in &self.body_vec {
-            if self.head_pos == *part {
-                self.is_alive = false;
-            }
-        }
     }
 }

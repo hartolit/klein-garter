@@ -1,6 +1,6 @@
 use crate::game::global::{Position};
 use std::io::{self, Stdout};
-use crossterm::{cursor::{self}, queue, style::{Color, Print, SetBackgroundColor, SetForegroundColor}, terminal::{Clear, ClearType}};
+use crossterm::{cursor::{self}, queue, style::{Color, Print, SetBackgroundColor, SetForegroundColor}};
 use rand::Rng;
 
 #[derive(Debug, Copy, Clone)]
@@ -81,9 +81,7 @@ impl Level {
         self.width + self.border_width * 2
     }
     
-    pub fn generate (&mut self, stdout: &mut Stdout) -> io::Result<()> {
-        queue!(stdout, Clear(ClearType::All))?;
-    
+    pub fn generate (&mut self, stdout: &mut Stdout) -> io::Result<()> {    
         // Generate bg_color_range
         {
             if let Color::Rgb { r, g, b} = self.bg_color {
