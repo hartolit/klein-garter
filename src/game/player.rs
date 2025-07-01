@@ -4,7 +4,7 @@ use std::{collections::HashMap};
 
 pub use snake::{Direction, Snake};
 
-use crate::game::global::Position;
+use crate::game::grid::Position;
 use uuid::Uuid;
 
 pub enum PlayerKind {

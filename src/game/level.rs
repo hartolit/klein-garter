@@ -1,4 +1,4 @@
-use crate::game::global::{Position};
+use crate::game::grid::{Position};
 use std::io::{self, Stdout};
 use crossterm::{cursor::{self}, queue, style::{Color, Print, SetBackgroundColor, SetForegroundColor}};
 use rand::Rng;

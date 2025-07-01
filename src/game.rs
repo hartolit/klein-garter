@@ -1,15 +1,14 @@
 pub mod level;
 pub mod player;
-pub mod global;
-
+pub mod grid;
 
 use std::{io::{self, Read}, time::{Duration, Instant}};
-use crossterm::{cursor, event::{self, KeyCode}, execute, queue, terminal::{self, disable_raw_mode, enable_raw_mode}, QueueableCommand};
+use crossterm::{cursor, event::{self, KeyCode}, execute, queue, terminal::{self}, QueueableCommand};
 
 use player::{Direction, Snake, Player};
 use io::{stdout, Stdout};
 use level::Level;
-use global::Position;
+use grid::Position;
 
 enum State {
     Init,
@@ -47,7 +46,7 @@ impl<'a> Game<'a> {
     }
 
     pub fn start(&mut self) -> io::Result<()> {
-        enable_raw_mode()?;
+        crossterm::terminal::enable_raw_mode()?;
         queue!(self.out, cursor::Hide)?;
 
         loop {
@@ -96,8 +95,8 @@ impl<'a> Game<'a> {
             }
         }
 
-        disable_raw_mode()?;
-        execute!(self.out, cursor::Hide)?;
+        crossterm::terminal::disable_raw_mode()?;
+        execute!(self.out, cursor::Show)?;
 
         Ok(())
     }

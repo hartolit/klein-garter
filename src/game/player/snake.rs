@@ -1,6 +1,6 @@
 use std::collections::{VecDeque};
 
-use crate::game::global::{Position};
+use crate::game::grid::{Position};
 use crossterm::style::Color;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
