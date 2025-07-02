@@ -1,41 +1,7 @@
-use crate::game::grid::{Position};
+use super::object::{Position};
 use std::io::{self, Stdout};
 use crossterm::{cursor::{self}, queue, style::{Color, Print, SetBackgroundColor, SetForegroundColor}};
 use rand::Rng;
-
-#[derive(Debug, Copy, Clone)]
-pub enum FoodKind {
-    Cherry,
-    Mouse,
-    Bomb,
-}
-
-#[derive(Debug)]
-pub struct Food {
-    pub kind: FoodKind,
-    pub meals: i16,
-    pub symbol: char,
-    pub color: Color,
-    pub pos: Position,
-}
-
-impl Food {
-    pub fn new(kind: FoodKind, pos: Position) -> Self {
-        let (meals, symbol, color) = match kind {
-            FoodKind::Cherry => (1, '🍒', Color::Rgb { r: 255, g: 0, b: 0 }),
-            FoodKind::Mouse => (2, '🐁', Color::Rgb { r: 50, g: 60, b: 70 }),
-            FoodKind::Bomb => (-10, '💣', Color::Rgb { r: 0, g: 0, b: 0 }),
-        };
-
-        Self {
-            kind,
-            pos,
-            meals,
-            symbol,
-            color,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Level {
@@ -48,7 +14,6 @@ pub struct Level {
     pub fg_color: Color,
     pub bg_color: Color,
     pub bg_color_range: Vec<Color>,
-    pub food_vec: Vec<Food>,
     pub max_food: usize
 }
 
@@ -68,7 +33,6 @@ impl Level {
             fg_color: Color::Rgb{ r: 10, g: 100, b: 120 },
             bg_color: Color::Rgb{ r: 230, g: 40, b: 130 },
             bg_color_range: vec![],
-            food_vec: vec![],
             max_food: 4
         };
     }
@@ -111,18 +75,6 @@ impl Level {
         }
 
         Ok(())
-    }
-
-    pub fn rng_food(&mut self) -> Food {
-        let rng_pos = self.rng_pos(None);
-
-        let food = match rand::rng().random_range(0..=2) {
-            0 => Food::new(FoodKind::Cherry, rng_pos),
-            1 => Food::new(FoodKind::Mouse, rng_pos),
-            _ => Food::new(FoodKind::Bomb, rng_pos),
-        };
-
-        food
     }
 
     pub fn rng_pos(&self, offset: Option<u16>) -> Position {

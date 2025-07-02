@@ -1,50 +1,5 @@
 use crossterm::style::Color;
-
-// Global struct, enums and traits
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Position {
-    pub x: u16,
-    pub y: u16,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ObjectId(u32);
-
-#[derive(Debug, Clone, Copy, Hash)]
-pub struct Item {
-    pub fg_clr: Option<Color>,
-    pub bg_clr: Option<Color>,
-    pub symbol: char,
-}
-
-#[derive(Debug, Clone, Copy, Hash)]
-pub struct Element {
-    pub item: Item,
-    pub pos: Position,
-}
-
-pub struct StateChange {
-    pub object_id: ObjectId,
-    pub old_positions: Vec<Position>,
-    pub new_elements: Vec<Element>,
-}
-
-pub struct Collision<'a> {
-    pub pos: Position,
-    pub kind: &'a CellKind,
-    pub colliders: &'a [ObjectRef],
-}
-
-pub trait Object {
-    fn id(&self) -> ObjectId;
-    fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
-    fn positions(&self) -> Box<dyn Iterator<Item = &Position> + '_>;
-    fn predict_next_pos(&self) -> Position;
-    fn update(&mut self, collision: Option<Collision>) -> Option<StateChange>;
-}
-
-// Grid structs, enums and traits
+use super::object::{ObjectId, Glyph, Position};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectRef {
@@ -73,25 +28,25 @@ pub enum CellKind {
 }
 
 impl CellKind {
-    pub fn appearance(&self) -> Item {
+    pub fn appearance(&self) -> Glyph {
         match self {
-            CellKind::Ground => Item {
+            CellKind::Ground => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::Black),
                 symbol: ' '
             },
-            CellKind::Water => Item {
+            CellKind::Water => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkBlue),
                 symbol: '≈'
             },
-            CellKind::Lava => Item {
+            CellKind::Lava => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkRed),
                 symbol: '#'
             },
-            CellKind::Border => Item {
-                bg_clr: Option::Some(Color::DarkGrey),
+            CellKind::Border => Glyph {
+                bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkGrey),
                 symbol: '█'
             }

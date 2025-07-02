@@ -1,6 +1,8 @@
+pub mod object;
+pub mod grid;
 pub mod level;
 pub mod player;
-pub mod grid;
+pub mod food;
 
 use std::{io::{self, Read}, time::{Duration, Instant}};
 use crossterm::{cursor, event::{self, KeyCode}, execute, queue, terminal::{self}, QueueableCommand};
@@ -8,7 +10,7 @@ use crossterm::{cursor, event::{self, KeyCode}, execute, queue, terminal::{self}
 use player::{Direction, Snake, Player};
 use io::{stdout, Stdout};
 use level::Level;
-use grid::Position;
+use object::Position;
 
 enum State {
     Init,
