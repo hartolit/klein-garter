@@ -37,11 +37,6 @@ impl Element {
     }
 }
 
-pub struct StateChange {
-    pub object_id: ObjectId,
-    pub old_positions: Vec<Position>,
-    pub new_elements: Vec<Element>,
-}
 
 pub struct Collision<'a> {
     pub pos: Position,
@@ -53,6 +48,22 @@ pub trait Object {
     fn id(&self) -> ObjectId;
     fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+}
+
+pub struct StateChange {
+    pub obj_id: ObjectId,
+    pub old_pos: Position,
+    pub new_element: Option<Element>,
+}
+
+impl StateChange {
+    pub fn new(obj_id: ObjectId, old_pos: Position, new_element: Option<Element>) -> Self {
+        Self {
+            obj_id,
+            old_pos,
+            new_element,
+        }
+    }
 }
 
 pub trait DynamicObject: Object {

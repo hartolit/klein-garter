@@ -5,7 +5,7 @@ use crate::game::object::{Element, Glyph, Object, ObjectId, Position};
 use rand::Rng;
 
 #[derive(Debug, Copy, Clone)]
-pub enum FoodKind {
+pub enum Kind {
     Cherry,
     Mouse,
     Bomb,
@@ -13,18 +13,18 @@ pub enum FoodKind {
 
 #[derive(Debug)]
 pub struct Food {
-    pub id: ObjectId,
-    pub kind: FoodKind,
-    pub meals: i16,
-    pub body: Element,
+    id: ObjectId,
+    kind: Kind,
+    meals: i16,
+    body: Element,
 }
 
 impl Food {
-    pub fn new(obj_id: ObjectId, kind: FoodKind, pos: Position) -> Self {
+    pub fn new(obj_id: ObjectId, kind: Kind, pos: Position) -> Self {
         let (meals, symbol, color) = match kind {
-            FoodKind::Cherry => (1, '🍒', Color::Rgb { r: 255, g: 0, b: 0 }),
-            FoodKind::Mouse => (2, '🐁', Color::Rgb { r: 50, g: 60, b: 70 }),
-            FoodKind::Bomb => (-10, '💣', Color::Rgb { r: 0, g: 0, b: 0 }),
+            Kind::Cherry => (1, '🍒', Color::Rgb { r: 255, g: 0, b: 0 }),
+            Kind::Mouse => (2, '🐁', Color::Rgb { r: 50, g: 60, b: 70 }),
+            Kind::Bomb => (-10, '💣', Color::Rgb { r: 0, g: 0, b: 0 }),
         };
 
         Self {
@@ -42,11 +42,15 @@ impl Food {
         }
     }
 
+    pub fn replace_meal(&mut self, meals: i16) {
+        self.meals = meals;
+    }
+
     pub fn rng_food(obj_id: ObjectId, pos: Position) -> Self {
         let food = match rand::rng().random_range(0..=2) {
-            0 => Food::new(obj_id, FoodKind::Cherry, pos),
-            1 => Food::new(obj_id, FoodKind::Mouse, pos),
-            _ => Food::new(obj_id, FoodKind::Bomb, pos),
+            0 => Food::new(obj_id, Kind::Cherry, pos),
+            1 => Food::new(obj_id, Kind::Mouse, pos),
+            _ => Food::new(obj_id, Kind::Bomb, pos),
         };
 
         food
