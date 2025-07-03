@@ -1,16 +1,24 @@
 use crossterm::style::Color;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum Kind {
+pub enum EffectStyle {
     Grow,
     Damage,
 }
 
-impl Kind {
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum EffectZone {
+    Head,
+    Body,
+    Tail,
+    All,
+}
+
+impl EffectStyle {
     fn color(&self) -> Option<Color> {
         match self {
-            Kind::Damage => Some(Color::Red),
-            Kind::Grow => None,
+            EffectStyle::Damage => Some(Color::Red),
+            EffectStyle::Grow => None,
         }
     }
 }
@@ -18,16 +26,18 @@ impl Kind {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Effect {
     duration: usize,
-    kind: Kind,
+    pub kind: EffectStyle,
+    pub zone: EffectZone,
     pub action_size: Option<usize>,
 }
 
 impl Effect {
-    pub fn new(duration: usize, kind: Kind, action_size: Option<usize>) -> Self {
-        Self { duration, kind, action_size }
+    pub fn new(duration: usize, kind: EffectStyle, action_size: Option<usize>, zone: EffectZone) -> Self {
+        Self { duration, kind, action_size, zone }
     }
 
     pub fn next_tick(&mut self) {
         self.duration = self.duration.saturating_sub(1);
     }
 }
+

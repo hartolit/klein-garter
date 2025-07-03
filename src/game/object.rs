@@ -2,13 +2,28 @@ use crossterm::style::Color;
 use super::grid::{CellKind, ObjectRef};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ResizeState {
+    Normal {size: usize},
+    Brief { new_size: usize, original_size: usize },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ObjectId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Position {
     pub x: u16,
     pub y: u16,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ObjectId(u32);
+impl Position {
+    pub fn new(x: u16, y: u16) -> Self {
+        Self {
+            x,
+            y,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Glyph {
@@ -17,7 +32,7 @@ pub struct Glyph {
     pub symbol: char,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Element {
     pub style: Glyph,
     pub pos: Position,

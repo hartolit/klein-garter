@@ -9,6 +9,7 @@ pub enum Kind {
     Cherry,
     Mouse,
     Bomb,
+    Grower,
 }
 
 #[derive(Debug)]
@@ -22,9 +23,10 @@ pub struct Food {
 impl Food {
     pub fn new(obj_id: ObjectId, kind: Kind, pos: Position) -> Self {
         let (meals, symbol, color) = match kind {
-            Kind::Cherry => (1, '🍒', Color::Rgb { r: 255, g: 0, b: 0 }),
-            Kind::Mouse => (2, '🐁', Color::Rgb { r: 50, g: 60, b: 70 }),
-            Kind::Bomb => (-10, '💣', Color::Rgb { r: 0, g: 0, b: 0 }),
+            Kind::Cherry => (1, '⧝', Color::Rgb { r: 169, g: 42, b: 69 }), 
+            Kind::Mouse => (2, '⦺', Color::Rgb { r: 42, g: 69, b: 69 }),
+            Kind::Bomb => (-10, '⍟', Color::Rgb { r: 169, g: 169, b: 169 }),
+            Kind::Grower => (0, '⌘', Color::Rgb { r: 242, g: 242, b: 69 })
         };
 
         Self {
@@ -56,6 +58,7 @@ impl Food {
         food
     }
 }
+
 
 impl Object for Food {
     fn id(&self) -> ObjectId {

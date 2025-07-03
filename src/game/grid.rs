@@ -7,7 +7,7 @@ use super::object::{ObjectId, Glyph, Position};
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectRef {
     Player(ObjectId),
-    Food(ObjectId, food::Kind, i16), // Last type is amount of meals
+    Food { obj_id: ObjectId, kind: food::Kind, meals: i16},
 }
 
 // PartialEq for ObjectId only
@@ -15,7 +15,7 @@ impl PartialEq for ObjectRef {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (ObjectRef::Player(id1), ObjectRef::Player(id2)) => id1 == id2,
-            (ObjectRef::Food(id1, _, _), ObjectRef::Food(id2, _, _)) => id1 == id2,
+            (ObjectRef::Food { obj_id: id1, kind: _, meals: _ }, ObjectRef::Food { obj_id: id2, kind: _, meals: _}) => id1 == id2,
             _ => false,
         }
     }
