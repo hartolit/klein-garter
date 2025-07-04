@@ -2,9 +2,25 @@ use crossterm::style::Color;
 use super::grid::{CellKind, ObjectRef};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ResizeState {
-    Normal {size: usize},
-    Brief { new_size: usize, original_size: usize },
+pub enum ResizeState {
+    Normal { size: usize },
+    Brief { size: usize, native_size: usize },
+}
+
+impl ResizeState {
+    pub fn size(&self) -> usize {
+        match self {
+            ResizeState::Normal { size } => *size,
+            ResizeState::Brief { size, ..} => *size,
+        }
+    }
+
+    pub fn native(&self) -> usize {
+        match self {
+            ResizeState::Normal { size } => *size,
+            ResizeState::Brief { native_size, ..} => *native_size,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

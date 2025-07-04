@@ -39,5 +39,9 @@ impl Effect {
     pub fn next_tick(&mut self) {
         self.duration = self.duration.saturating_sub(1);
     }
+
+    pub fn is_expired(&self) -> bool {
+        self.duration == 0
+    }
 }
 

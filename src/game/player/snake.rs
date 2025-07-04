@@ -4,9 +4,9 @@ use std::{collections::VecDeque};
 use crossterm::style::Color;
 
 use crate::game::player::snake::animation::EffectZone;
-use crate::game::{food};
+use crate::game::{food, State};
 use crate::game::grid::{CellKind, ObjectRef};
-use crate::game::object::{Collision, DynamicObject, Element, Glyph, Object, ObjectId, Position, StateChange};
+use crate::game::object::{Collision, DynamicObject, Element, Glyph, Object, ObjectId, Position, StateChange, ResizeState};
 use animation::{Effect, EffectStyle};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -20,8 +20,7 @@ pub enum Direction {
 #[derive(Debug)]
 pub struct Snake {
     id: ObjectId,
-    size: usize,
-    size_tmp: Option<usize>,
+    resize_state: ResizeState,
     effect: Option<Effect>,
     is_alive: bool,
     meals: i16,
@@ -39,8 +38,7 @@ impl Snake {
 
         let mut snake = Snake {
             id: obj_id,
-            size: 1, // Start as 1x1
-            size_tmp: None,
+            resize_state: ResizeState::Normal { size: 1 },
             effect: None,
             is_alive: true,
             meals: 1,
@@ -56,12 +54,10 @@ impl Snake {
     }
 
     fn resize_head(&mut self, new_size: usize) {
-        // Skip unnecessary resize call
-        if None == self.size_tmp && self.size == new_size {
+        if let ResizeState::Normal { size } = self.resize_state && size == new_size {
             return;
-        } else if let Some(tmp_size) = self.size_tmp && tmp_size == new_size {
-            self.size = tmp_size;
-            self.size_tmp = None;
+        } else if let ResizeState::Brief { size, .. } = self.resize_state && size == new_size {
+            self.resize_state = ResizeState::Normal { size };
             return;
         }
 
@@ -70,15 +66,11 @@ impl Snake {
         self.head.clear();
         self.head = resize;
 
-        // Reset temporary size (no longer valid)
-        if let Some(_) = self.size_tmp {
-            self.size_tmp = None; 
-        }
+        self.resize_state = ResizeState::Normal { size: new_size }
     }
 
-    fn resize_head_tmp(&mut self, new_size: usize) {
-        // Skip unnecessary resize call
-        if None == self.size_tmp && self.size == new_size || matches!(&self.size_tmp, Some(tmp_size) if *tmp_size == new_size){
+    fn resize_head_brief(&mut self, new_size: usize) {
+        if self.resize_state.size() == new_size {
             return;
         }
 
@@ -87,22 +79,16 @@ impl Snake {
         self.head.clear();
         self.head = resize;
         
-        self.size_tmp = Some(new_size);
+        self.resize_state = ResizeState::Brief { size: new_size, native_size: self.resize_state.native() };
     }
 
-    fn resize_head_restore(&mut self) {
-        // Skip unnecessary resize call
-        if None == self.size_tmp {
-            return;
+    fn resize_head_native(&mut self) {
+        if let ResizeState::Brief { native_size, .. } = self.resize_state {
+            let resize = self.set_size(native_size, true);
+            self.head.clear();
+            self.head = resize;
+            self.resize_state = ResizeState::Normal { size: native_size };
         }
-
-        let resize = self.set_size(self.size, true);
-
-        self.head.clear();
-        self.head = resize;
-        
-        // Reset temporary size (no longer valid)
-        self.size_tmp = None; 
     }
 
     fn get_resized_body_part(&mut self, new_size: usize) -> Vec<Element> {
@@ -115,10 +101,11 @@ impl Snake {
         let odd_size = if new_size % 2 == 0 { new_size.saturating_sub(1).max(1) } else { new_size };
         let new_buttom_left = {
             let tmp_pos = self.head.back().expect("Missing head vector!").first().expect("Missing head element!").pos;
+            let curr_size = self.resize_state.size();
 
             let center_pos = Position {
-                x: tmp_pos.x + self.size as u16 / 2,
-                y: tmp_pos.y + self.size as u16 / 2,
+                x: tmp_pos.x + curr_size as u16 / 2,
+                y: tmp_pos.y + curr_size as u16 / 2,
             };
 
             let buttom_left = Position {
@@ -174,6 +161,43 @@ impl Snake {
 
         changes
     }
+
+    // TODO - implement slither body (beware of effect implementation with resized body parts for a dynamic effect!)
+    fn slither_body (&mut self) -> Vec<StateChange> {
+        let mut changes: Vec<StateChange> = Vec::new();
+
+        changes
+    }
+
+    // TODO - Return Vec<StateChange> with option faster?
+    // TODO - implement EffectZone and EffectStyle
+    fn tick_effect(&mut self) -> Vec<StateChange> {
+        let mut changes: Vec<StateChange> = Vec::new();
+
+        let Some(mut effect) = self.effect.take() else {
+            return changes;
+        };
+
+        effect.next_tick();
+
+        if effect.is_expired() {
+            self.resize_head_native();
+            self.effect = None;
+        } else {
+            self.effect = Some(effect) // Put it back?
+        }
+
+        changes
+    }
+
+    fn apply_effect(&mut self, new_effect: Effect) {
+        if let Some(size) = new_effect.action_size {
+            self.resize_head_brief(size);
+        } else {
+            self.resize_head_native();
+        }
+        self.effect = Some(new_effect);
+    }
 }
 
 impl Object for Snake {
@@ -216,7 +240,6 @@ impl DynamicObject for Snake {
 
         let mut state_changes: Vec<StateChange> = Vec::new();
         let mut new_effect: Option<Effect> = None;
-        let mut is_resized = false; // Used to redraw head
 
         if let Some(cols) = collisions {
             for col in cols {
@@ -229,16 +252,14 @@ impl DynamicObject for Snake {
                     match obj_ref {
                         ObjectRef::Food { obj_id, kind, meals } => {
                             match &*kind {
-                                food::Kind::Bomb => new_effect = Some(Effect::new(2, EffectStyle::Damage, Some(self.size + 2), EffectZone::All)),
-                                food::Kind::Cherry => new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.size + 2), EffectZone::Body)),
-                                food::Kind::Mouse => new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.size + 2), EffectZone::Body)),
-                                food::Kind::Grower => { self.resize_head(self.size + 2); is_resized = true },
+                                food::Kind::Bomb => new_effect = Some(Effect::new(2, EffectStyle::Damage, Some(self.resize_state.size() + 2), EffectZone::All)),
+                                food::Kind::Cherry => new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.resize_state.size() + 2), EffectZone::Body)),
+                                food::Kind::Mouse => new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.resize_state.size() + 2), EffectZone::Body)),
+                                food::Kind::Grower => { self.resize_head(self.resize_state.size() + 2); },
                             }
                             self.meals += meals;
 
-                            if self.effect == None || matches!(&self.effect, Some(eff) if eff.kind != EffectStyle::Damage) {
-                                state_changes.push(StateChange::new(*obj_id, col.pos, None));
-                            }
+                            state_changes.push(StateChange::new(*obj_id, col.pos, None));
                         },
                         ObjectRef::Player(_) => {
                             self.is_alive = false;
@@ -249,27 +270,17 @@ impl DynamicObject for Snake {
             }
         }
 
-        // Add new effect
         if let Some(effect) = new_effect {
-            self.effect = Some(effect);
-
-            if let Some(size) = effect.action_size {
-                self.resize_head_tmp(size);
-            } else if None == effect.action_size {
-                self.resize_head_restore();
-            }
+            self.apply_effect(effect);
         }
 
-        if let Some(effect) = self.effect {
-            if let Some(size) = effect.action_size {
-                self.resize_head_tmp(size);
-            }
-        }
-
-        // Move head
-        state_changes.extend(self.slither_head());
-
-        // Move body
+        // TODO - Fix state_changes
+        // Effects could apply to the whole snake
+        // and potenially save stale data as the
+        // snake changes state.
+        state_changes.extend(self.tick_effect()); // Apply effects
+        state_changes.extend(self.slither_head()); // TODO - How to effectively apply EffectZone and EffectStyle for head
+        state_changes.extend(self.slither_body()); // TODO - How to effectively apply EffectZone and EffectStyle for body
 
         return Some(state_changes);
     }
