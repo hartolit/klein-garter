@@ -1,7 +1,7 @@
 use std::iter;
 
 use crossterm::style::Color;
-use crate::game::object::{Element, Glyph, Object, ObjectId, Position};
+use crate::game::object::{Element, Glyph, Object, Id, Position};
 use rand::Rng;
 
 #[derive(Debug, Copy, Clone)]
@@ -14,14 +14,14 @@ pub enum Kind {
 
 #[derive(Debug)]
 pub struct Food {
-    id: ObjectId,
+    id: Id,
     kind: Kind,
     meals: i16,
     body: Element,
 }
 
 impl Food {
-    pub fn new(obj_id: ObjectId, kind: Kind, pos: Position) -> Self {
+    pub fn new(obj_id: Id, kind: Kind, pos: Position) -> Self {
         let (meals, symbol, color) = match kind {
             Kind::Cherry => (1, '⧝', Color::Rgb { r: 169, g: 42, b: 69 }), 
             Kind::Mouse => (2, '⦺', Color::Rgb { r: 42, g: 69, b: 69 }),
@@ -34,6 +34,7 @@ impl Food {
             kind,
             meals,
             body: Element { 
+                id: Id::new(0),
                 style: Glyph { 
                     fg_clr: Some(color),
                     bg_clr: None,
@@ -48,7 +49,7 @@ impl Food {
         self.meals = meals;
     }
 
-    pub fn rng_food(obj_id: ObjectId, pos: Position) -> Self {
+    pub fn rng_food(obj_id: Id, pos: Position) -> Self {
         let food = match rand::rng().random_range(0..=2) {
             0 => Food::new(obj_id, Kind::Cherry, pos),
             1 => Food::new(obj_id, Kind::Mouse, pos),
@@ -61,7 +62,7 @@ impl Food {
 
 
 impl Object for Food {
-    fn id(&self) -> ObjectId {
+    fn id(&self) -> Id {
         self.id
     }
 

@@ -2,12 +2,12 @@ use crossterm::style::Color;
 
 use crate::game::food::{ self};
 
-use super::object::{ObjectId, Glyph, Position};
+use super::object::{Id, Glyph, Position};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectRef {
-    Player(ObjectId),
-    Food { obj_id: ObjectId, kind: food::Kind, meals: i16},
+    Player(Id),
+    Food { obj_id: Id, kind: food::Kind, meals: i16},
 }
 
 // PartialEq for ObjectId only

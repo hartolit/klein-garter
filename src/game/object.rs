@@ -1,6 +1,26 @@
 use crossterm::style::Color;
 use super::grid::{CellKind, ObjectRef};
 
+///
+/// BodySegment
+/// 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct BodySegment {
+    pub orientation: Orientation,
+    pub elements: Vec<Element>
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Orientation {
+    Horizontal,
+    Vertical
+}
+
+
+
+/// 
+/// RESIZESTATE
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ResizeState {
     Normal { size: usize },
@@ -23,9 +43,42 @@ impl ResizeState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ObjectId(u32);
 
+
+/// 
+/// ID AND ID GENERATION
+/// 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Id{ pub value: u64 }
+
+impl Id {
+    pub fn new(id: u64) -> Self {
+        Id { value: id }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IdCounter {
+    counter: Id
+}
+
+impl IdCounter {
+    pub fn new() -> Self {
+        Self { counter: Id::new(0) }
+    }
+
+    pub fn next(&mut self) -> Id {
+        let id = self.counter.value;
+        self.counter.value += 1;
+        Id::new(id)
+    }
+}
+
+
+
+/// 
+/// POSITION
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Position {
     pub x: u16,
@@ -41,6 +94,11 @@ impl Position {
     }
 }
 
+
+
+/// 
+/// ELEMENT AND OBJECT TRAIT
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Glyph {
     pub fg_clr: Option<Color>,
@@ -49,14 +107,16 @@ pub struct Glyph {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Element {
+pub struct  Element {
+    pub id: Id,
     pub style: Glyph,
     pub pos: Position,
 }
 
 impl Element {
-    pub fn new (style: Glyph, pos: Option<Position>) -> Self {
+    pub fn new (id: Id, style: Glyph, pos: Option<Position>) -> Self {
         Element { 
+            id,
             style,
             pos: {
                 match pos {
@@ -68,27 +128,31 @@ impl Element {
     }
 }
 
+pub trait Object {
+    fn id(&self) -> Id;
+    fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
+    fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+}
 
+
+
+/// 
+/// COLLISION AND STATECHANGE
+///
 pub struct Collision<'a> {
     pub pos: Position,
     pub kind: &'a CellKind,
     pub colliders: &'a [ObjectRef],
 }
 
-pub trait Object {
-    fn id(&self) -> ObjectId;
-    fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
-    fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-}
-
 pub struct StateChange {
-    pub obj_id: ObjectId,
-    pub old_pos: Position,
+    pub obj_id: Id,
+    pub old_pos: Option<Position>,
     pub new_element: Option<Element>,
 }
 
 impl StateChange {
-    pub fn new(obj_id: ObjectId, old_pos: Position, new_element: Option<Element>) -> Self {
+    pub fn new(obj_id: Id, old_pos: Option<Position>, new_element: Option<Element>) -> Self {
         Self {
             obj_id,
             old_pos,

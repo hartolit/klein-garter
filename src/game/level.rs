@@ -85,5 +85,3 @@ impl Level {
         Position { x: x, y: y }
     }
 }
-
-
