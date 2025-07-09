@@ -43,12 +43,12 @@ impl Direction {
 #[derive(Debug)]
 pub struct Snake {
     id: Id,
-    id_counter: IdCounter, // Id counter for elements (internal use only)
+    id_counter: IdCounter, // For element ids (internal)
     head_width: ResizeState,
     effect: Option<Effect>,
     is_alive: bool,
     meals: i16,
-    head: Vec<Element>,
+    head: Vec<Element>, // Unsorted 2d vec
     body: VecDeque<BodySegment>,
     head_style: Glyph,
     body_style: Glyph,
@@ -192,7 +192,7 @@ impl Snake {
     fn slither (&mut self) -> Vec<StateChange> {
         let mut changes: Vec<StateChange> = Vec::new();
 
-        // Calculate physical boundaries
+        // Get physical boundaries
         let mut min_x = u16::MAX;
         let mut max_x = u16::MIN;
         let mut min_y = u16::MAX;
@@ -206,53 +206,125 @@ impl Snake {
         }
 
         let (dx, dy) = self.direction.get_move();
-        let mut shed_slice: Vec<&Element> = Vec::new();
-        let mut orientation: Orientation;
 
+        let orientation: Orientation;
+        let mut shed_slice: Vec<Element> = Vec::new();
+
+        // TODO - use drain_filter when stable
+        // shed_slice = self.head.drain_filter(|e| e.pos.x == max_x).collect();
         match self.direction {
             Direction::Up => {
+                let mut new_head: Vec<Element> = Vec::new();
+                for element in std::mem::take(&mut self.head) {
+                    if element.pos.y == max_y {
+                        shed_slice.push(element);
+                    } else {
+                        new_head.push(element);
+                    }
+                }
+
+                let range = (max_x - min_x) as usize;
+                for i in 0..range {
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(min_x + i as u16, min_y + dy as u16)));
+                    changes.push(StateChange::new(self.id, None, Some(new_element)));
+                    new_head.push(new_element);
+                }
+
+                self.head = new_head;
                 orientation = Orientation::Horizontal;
-                let iter = max_x - min_x;
-                
             },
             Direction::Down => {
-                orientation = Orientation::Horizontal;
+                let mut new_head: Vec<Element> = Vec::new();
+                for element in std::mem::take(&mut self.head) {
+                    if element.pos.y == min_y {
+                        shed_slice.push(element);
+                    } else {
+                        new_head.push(element);
+                    }
+                }
 
+                let range = (max_x - min_x) as usize;
+                for i in 0..range {
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(min_x + i as u16, max_y + dy as u16)));
+                    changes.push(StateChange::new(self.id, None, Some(new_element)));
+                    new_head.push(new_element);
+                }
+
+                self.head = new_head;
+                orientation = Orientation::Horizontal;
             },
             Direction::Left => {
+                let mut new_head: Vec<Element> = Vec::new();
+                for element in std::mem::take(&mut self.head) {
+                    if element.pos.x == max_x {
+                        shed_slice.push(element);
+                    } else {
+                        new_head.push(element);
+                    }
+                }
+
+                let range = (max_x - min_x) as usize;
+                for i in 0..range {
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(min_x + dx as u16, min_y + i as u16)));
+                    changes.push(StateChange::new(self.id, None, Some(new_element)));
+                    new_head.push(new_element);
+                }
+
+                self.head = new_head;
                 orientation = Orientation::Vertical;
 
             },
             Direction::Right => {
-                orientation = Orientation::Vertical;
+                let mut new_head: Vec<Element> = Vec::new();
+                for element in std::mem::take(&mut self.head) {
+                    if element.pos.x == min_x {
+                        shed_slice.push(element);
+                    } else {
+                        new_head.push(element);
+                    }
+                }
 
+                let range = (max_x - min_x) as usize;
+                for i in 0..range {
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(max_x + dx as u16, min_y + i as u16)));
+                    changes.push(StateChange::new(self.id, None, Some(new_element)));
+                    new_head.push(new_element);
+                }
+
+                self.head = new_head;
+                orientation = Orientation::Vertical;
             },
         }
 
+        for element in shed_slice.iter_mut() {
+            element.style = self.body_style;
+            changes.push(StateChange::new(self.id, Some(element.pos), Some(*element)));
+        }
 
+        self.body.push_front(BodySegment::new(orientation, shed_slice));
 
-        // let mut new_head_row = if let Some(back_row) = self.head.front() {
-        //     back_row.clone() } else { return changes; };
-
-        // // Update with new positions and id's
-        // for e in new_head_row.iter_mut() {
-        //     e.id = self.id_counter.next();
-        //     e.pos = Position::new((e.pos.x as i16 + dx) as u16, (e.pos.y as i16 + dy) as u16);
-        //     changes.push(StateChange::new(self.id, None, Some(*e)));
-        // }
-
-        // self.head.push_front(new_head_row);
-
-        // let mut new_body_row = if let Some(old_head_row) = self.head.pop_back() {
-        //     old_head_row } else { return changes; };
-
-        // // Change style to body
-        // for e in new_body_row.iter_mut() {
-        //     e.style = self.body_style;
-        //     changes.push(StateChange::new(self.id, Some(e.pos), Some(*e)));
-        // }
-
-        // self.body.push_front(new_body_row);
+        if self.meals > 0 {
+            self.meals -= 1;
+        } else if self.meals < 0 {
+            let segments_to_remove = self.meals.abs() as u16;
+            for _ in 0..segments_to_remove {
+                if self.body.len() == 0 {
+                    self.is_alive = false;
+                    break;
+                }
+                if let Some(segment) = self.body.pop_back() {
+                    for element in segment.elements {
+                        changes.push(StateChange::new(self.id, Some(element.pos), None));
+                    }
+                }
+            }
+        } else {
+            if let Some(segment) = self.body.pop_back() {
+                for element in segment.elements {
+                        changes.push(StateChange::new(self.id, Some(element.pos), None));
+                }
+            }
+        }
 
         changes
     }

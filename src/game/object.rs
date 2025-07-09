@@ -10,6 +10,13 @@ pub struct BodySegment {
     pub elements: Vec<Element>
 }
 
+impl BodySegment {
+    pub fn new(orientation: Orientation, elements: Vec<Element>) -> Self {
+        Self { orientation, elements }
+    }
+    
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Orientation {
     Horizontal,
