@@ -1,14 +1,17 @@
 mod animation;
 
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::{collections::VecDeque};
 use crossterm::style::Color;
+use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::hash::Hash;
 
-use crate::game::player::snake::animation::EffectZone;
-use crate::game::{food};
+use crate::game::food;
 use crate::game::grid::{CellKind, ObjectRef};
-use crate::game::object::{Collision, DynamicObject, Element, Glyph, Id, IdCounter, Object, Position, ResizeState, StateChange, BodySegment, Orientation};
+use crate::game::object::{
+    BodySegment, Collision, DynamicObject, Element, Glyph, Id, IdCounter, Object, Orientation,
+    Position, ResizeState, StateChange,
+};
+use crate::game::player::snake::animation::EffectZone;
 use animation::{Effect, EffectStyle};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -45,7 +48,7 @@ impl Direction {
 pub struct Snake {
     id: Id,
     id_counter: IdCounter, // For element ids (internal)
-    head_width: ResizeState,
+    head_size: ResizeState,
     effect: Option<Effect>,
     is_alive: bool,
     meals: i16,
@@ -58,15 +61,23 @@ pub struct Snake {
 
 impl Snake {
     pub fn new(pos: Position, obj_id: Id, size: usize) -> Self {
-        let head_style = Glyph { fg_clr: Some(Color::DarkMagenta), bg_clr: None, symbol: '█' };
-        let body_style = Glyph { fg_clr: Some(Color::DarkYellow), bg_clr: None, symbol: 'S' };
+        let head_style = Glyph {
+            fg_clr: Some(Color::DarkMagenta),
+            bg_clr: None,
+            symbol: '█',
+        };
+        let body_style = Glyph {
+            fg_clr: Some(Color::DarkYellow),
+            bg_clr: None,
+            symbol: 'S',
+        };
         let mut id_counter = IdCounter::new();
         let first_id = id_counter.next();
 
         let mut snake = Snake {
             id: obj_id,
             id_counter: id_counter,
-            head_width: ResizeState::Normal { size: 1 },
+            head_size: ResizeState::Normal { size: 1 },
             effect: None,
             is_alive: true,
             meals: 1,
@@ -81,71 +92,72 @@ impl Snake {
         snake
     }
 
-    fn get_head_at(&self, pos: Position) -> Option<&Element> {
-        let width = self.head_width.size();
-        let pos = pos.y as usize * width + pos.x as usize;
-        self.head.get(pos)
-    }
-
-    fn resize_head(&mut self, new_size: usize) {
-        if let ResizeState::Normal { size } = self.head_width && size == new_size {
-            return;
-        } else if let ResizeState::Brief { size, .. } = self.head_width && size == new_size {
-            self.head_width = ResizeState::Normal { size };
-            return;
+    fn resize_head(&mut self, new_size: usize) -> Option<HashMap<(Id, Id), StateChange>> {
+        if let ResizeState::Normal { size } = self.head_size
+            && size == new_size
+        {
+            return None;
+        } else if let ResizeState::Brief { size, .. } = self.head_size
+            && size == new_size
+        {
+            self.head_size = ResizeState::Normal { size };
+            return None;
         }
 
-        let resize = match self.set_head_size(new_size) {
-            Some(elements) => elements,
-            None => return
+        let changes = match self.set_head_size(new_size) {
+            Some(result) => result,
+            None => return None,
         };
+        
+        self.head_size = ResizeState::Normal { size: new_size };
 
-        self.head.clear();
-        self.head = resize;
-
-        self.head_width = ResizeState::Normal { size: new_size }
+        Some(changes)
     }
 
-    fn resize_head_brief(&mut self, new_size: usize) {
-        if self.head_width.size() == new_size {
-            return;
+    fn resize_head_brief(&mut self, new_size: usize) -> Option<HashMap<(Id, Id), StateChange>> {
+        if self.head_size.size() == new_size {
+            return None
         }
-        
-        let resize = match self.set_head_size(new_size) {
-            Some(elements) => elements,
-            None => return
+
+        let changes = match self.set_head_size(new_size) {
+            Some(result) => result,
+            None => return None,
         };
-    
-        self.head.clear();
-        self.head = resize;
+
+        self.head_size = ResizeState::Brief {
+            size: new_size,
+            native_size: self.head_size.native(),
+        };
         
-        self.head_width = ResizeState::Brief { size: new_size, native_size: self.head_width.native() };
+        Some(changes)
     }
 
-    fn resize_head_native(&mut self) {
-        if let ResizeState::Brief { native_size, .. } = self.head_width {
-            let resize = match self.set_head_size(native_size) {
-                Some(elements) => elements,
-                None => return,
+    fn resize_head_native(&mut self) -> Option<HashMap<(Id, Id), StateChange>> {
+        if let ResizeState::Brief { native_size, .. } = self.head_size {
+            let changes = match self.set_head_size(native_size) {
+                Some(result) => result,
+                None => return None,
             };
 
-            self.head.clear();
-            self.head = resize;
-            self.head_width = ResizeState::Normal { size: native_size };
+            self.head_size = ResizeState::Normal { size: native_size };
+            Some(changes)
+        } else {
+            None
         }
     }
 
-    // TODO - CHANGE THIS
-    fn get_resized_body_part(&mut self, new_size: usize) -> Option<Vec<Element>> {
-        self.set_head_size(new_size)
-    }
-
-    fn set_head_size(&mut self, new_size: usize) -> Option<Vec<Element>> {
+    fn set_head_size(&mut self, new_size: usize) -> Option<HashMap<(Id, Id), StateChange>> {
         if self.head.is_empty() {
             return None;
         }
 
-        let odd_size = if new_size % 2 == 0 { new_size.saturating_sub(1).max(1) } else { new_size };
+        let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
+
+        let odd_size = if new_size % 2 == 0 {
+            new_size.saturating_sub(1).max(1)
+        } else {
+            new_size
+        };
 
         let center_pos = {
             // Calculate physical boundaries
@@ -159,6 +171,9 @@ impl Snake {
                 max_x = max_x.max(element.pos.x);
                 min_y = min_y.min(element.pos.y);
                 max_y = max_y.max(element.pos.y);
+
+                // Insert StateChanges for deletion of old head
+                changes.insert((self.id, element.id), StateChange::new(self.id, Some(element.pos), None));
             }
 
             Position {
@@ -169,24 +184,37 @@ impl Snake {
 
         let new_buttom_left = Position {
             x: center_pos.x.saturating_sub(odd_size as u16 / 2),
-            y: center_pos.y.saturating_sub(odd_size as u16 / 2)
+            y: center_pos.y.saturating_sub(odd_size as u16 / 2),
         };
 
         // Generates new elements
-        let mut new_elements: Vec<Element> = Vec::new();
+        self.head.clear();
         for row in 0..odd_size {
             for col in 0..odd_size {
                 let curr_pos = Position {
                     x: new_buttom_left.x + col as u16,
                     y: new_buttom_left.y - row as u16,
                 };
-                new_elements.push(Element::new(self.id_counter.next(), self.head_style, Some(curr_pos)));
+
+                let element = Element::new(
+                    self.id_counter.next(),
+                    self.head_style,
+                    Some(curr_pos),
+                );
+
+                changes.insert((self.id, element.id), StateChange::new(self.id, None, Some(element)));
+                self.head.push(element);
             }
         }
-        Some(new_elements)
+        Some(changes)
     }
 
-    fn slither (&mut self) -> HashMap<(Id, Id), StateChange> {
+    // TODO - CHANGE THIS
+    // fn get_resized_body_part(&mut self, new_size: usize) -> Option<Vec<Element>> {
+    //     self.set_head_size(new_size)
+    // }
+    
+    fn slither(&mut self) -> HashMap<(Id, Id), StateChange> {
         let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
 
         let mut min_x = u16::MAX;
@@ -224,16 +252,18 @@ impl Snake {
 
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_element =
+                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
                     let state_change = StateChange::new(self.id, None, Some(new_element));
-                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
-                        modify.new_element = Some(new_element)
-                    }).or_insert(state_change);
+                    changes
+                        .entry((self.id, new_element.id))
+                        .and_modify(|modify| modify.new_element = Some(new_element))
+                        .or_insert(state_change);
                     self.head.push(new_element);
                 }
 
                 orientation = Orientation::Horizontal;
-            },
+            }
             Direction::Down => {
                 self.head.retain(|e| {
                     if e.pos.y == min_y {
@@ -249,16 +279,18 @@ impl Snake {
 
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_element =
+                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
                     let state_change = StateChange::new(self.id, None, Some(new_element));
-                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
-                        modify.new_element = Some(new_element)
-                    }).or_insert(state_change);
+                    changes
+                        .entry((self.id, new_element.id))
+                        .and_modify(|modify| modify.new_element = Some(new_element))
+                        .or_insert(state_change);
                     self.head.push(new_element);
                 }
 
                 orientation = Orientation::Horizontal;
-            },
+            }
             Direction::Left => {
                 self.head.retain(|e| {
                     if e.pos.x == max_x {
@@ -274,16 +306,18 @@ impl Snake {
 
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_element =
+                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
                     let state_change = StateChange::new(self.id, None, Some(new_element));
-                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
-                        modify.new_element = Some(new_element)
-                    }).or_insert(state_change);
+                    changes
+                        .entry((self.id, new_element.id))
+                        .and_modify(|modify| modify.new_element = Some(new_element))
+                        .or_insert(state_change);
                     self.head.push(new_element);
                 }
 
                 orientation = Orientation::Vertical;
-            },
+            }
             Direction::Right => {
                 self.head.retain(|e| {
                     if e.pos.x == min_x {
@@ -299,27 +333,31 @@ impl Snake {
 
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_element =
+                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
                     let state_change = StateChange::new(self.id, None, Some(new_element));
-                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
-                        modify.new_element = Some(new_element)
-                    }).or_insert(state_change);
+                    changes
+                        .entry((self.id, new_element.id))
+                        .and_modify(|modify| modify.new_element = Some(new_element))
+                        .or_insert(state_change);
                     self.head.push(new_element);
                 }
-                
+
                 orientation = Orientation::Vertical;
-            },
+            }
         }
 
         for element in new_body.iter_mut() {
             element.style = self.body_style;
             let state_change = StateChange::new(self.id, Some(element.pos), Some(*element));
-            changes.entry((self.id, element.id)).and_modify(|modify| {
-                modify.new_element = Some(*element)
-            }).or_insert(state_change);
+            changes
+                .entry((self.id, element.id))
+                .and_modify(|modify| modify.new_element = Some(*element))
+                .or_insert(state_change);
         }
 
-        self.body.push_front(BodySegment::new(orientation, new_body));
+        self.body
+            .push_front(BodySegment::new(orientation, new_body));
 
         if self.meals > 0 {
             self.meals -= 1;
@@ -333,9 +371,10 @@ impl Snake {
                 if let Some(segment) = self.body.pop_back() {
                     for element in segment.elements {
                         let state_change = StateChange::new(self.id, Some(element.pos), None);
-                        changes.entry((self.id, element.id)).and_modify(|modify| {
-                            modify.new_element = Some(element)
-                        }).or_insert(state_change);
+                        changes
+                            .entry((self.id, element.id))
+                            .and_modify(|modify| modify.new_element = Some(element))
+                            .or_insert(state_change);
                     }
                 }
             }
@@ -343,9 +382,10 @@ impl Snake {
             if let Some(segment) = self.body.pop_back() {
                 for element in segment.elements {
                     let state_change = StateChange::new(self.id, Some(element.pos), None);
-                    changes.entry((self.id, element.id)).and_modify(|modify| {
-                        modify.new_element = Some(element)
-                    }).or_insert(state_change);
+                    changes
+                        .entry((self.id, element.id))
+                        .and_modify(|modify| modify.new_element = Some(element))
+                        .or_insert(state_change);
                 }
             }
         }
@@ -354,25 +394,34 @@ impl Snake {
     }
 
     // TODO! - UPDATE TO USE ELEMENT IDS
-    // TODO - Return Vec<StateChange> with option faster?
     // TODO - implement EffectZone and EffectStyle
     fn tick_effect(&mut self) -> Option<HashMap<(Id, Id), StateChange>> {
-        let mut changes: Vec<StateChange> = Vec::new();
+        let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
 
         let Some(mut effect) = self.effect.take() else {
-            return changes;
+            return None;
         };
 
         effect.next_tick();
 
         if effect.is_expired() {
-            self.resize_head_native();
+            let resize_head = self.resize_head_native();
+            if let Some(resize_change) = resize_head {
+                for (key, change) in resize_change {
+                    changes
+                    .entry(key)
+                    .and_modify(|existing| {
+                        existing.new_element = change.new_element;
+                    })
+                    .or_insert(change);
+                }
+            }
             self.effect = None;
         } else {
-            self.effect = Some(effect) // Put it back?
+            self.effect = Some(effect)
         }
 
-        changes
+        Some(changes)
     }
 
     fn apply_effect(&mut self, new_effect: Effect) {
@@ -392,15 +441,19 @@ impl Object for Snake {
 
     fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_> {
         Box::new(
-            self.head.iter()
-            .chain(self.body.iter().flat_map(|segment| &segment.elements))
+            self.head
+                .iter()
+                .chain(self.body.iter().flat_map(|segment| &segment.elements)),
         )
     }
 
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
         Box::new(
-            self.head.iter().map(|e| e.pos)
-            .chain(self.body.iter().flat_map(|segment| segment.elements.iter().map(|elem| elem.pos)))
+            self.head.iter().map(|e| e.pos).chain(
+                self.body
+                    .iter()
+                    .flat_map(|segment| segment.elements.iter().map(|elem| elem.pos)),
+            ),
         )
     }
 }
@@ -415,7 +468,10 @@ impl DynamicObject for Snake {
         }))
     }
 
-    fn update(&mut self, collisions: Option<Vec<Collision>>) -> Option<HashMap<(Id, Id), StateChange>> {
+    fn update(
+        &mut self,
+        collisions: Option<Vec<Collision>>,
+    ) -> Option<HashMap<(Id, Id), StateChange>> {
         if !self.is_alive {
             return None;
         }
@@ -432,21 +488,60 @@ impl DynamicObject for Snake {
 
                 for obj_ref in col.colliders {
                     match obj_ref {
-                        ObjectRef::Food { obj_id, kind, meals , elem_id} => {
+                        ObjectRef::Food {
+                            obj_id,
+                            kind,
+                            meals,
+                            elem_id,
+                        } => {
                             match &*kind {
-                                food::Kind::Bomb => new_effect = Some(Effect::new(2, EffectStyle::Damage, Some(self.head_width.size() + 2), EffectZone::All)),
-                                food::Kind::Cherry => new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.head_width.size() + 2), EffectZone::Body)),
-                                food::Kind::Mouse => new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.head_width.size() + 2), EffectZone::Body)),
-                                food::Kind::Grower => { self.resize_head(self.head_width.size() + 2); },
+                                food::Kind::Bomb => {
+                                    new_effect = Some(Effect::new(
+                                        2,
+                                        EffectStyle::Damage,
+                                        Some(self.head_size.size() + 2),
+                                        EffectZone::All,
+                                    ))
+                                }
+                                food::Kind::Cherry => {
+                                    new_effect = Some(Effect::new(
+                                        2,
+                                        EffectStyle::Grow,
+                                        Some(self.head_size.size() + 2),
+                                        EffectZone::Body,
+                                    ))
+                                }
+                                food::Kind::Mouse => {
+                                    new_effect = Some(Effect::new(
+                                        2,
+                                        EffectStyle::Grow,
+                                        Some(self.head_size.size() + 2),
+                                        EffectZone::Body,
+                                    ))
+                                }
+                                food::Kind::Grower => {
+                                    let resize_head = self.resize_head(self.head_size.size() + 2);
+                                    if let Some(resize_change) = resize_head {
+                                        for (key, change) in resize_change {
+                                            changes
+                                            .entry(key)
+                                            .and_modify(|existing| {
+                                                existing.new_element = change.new_element;
+                                            })
+                                            .or_insert(change);
+                                        }
+                                    }
+                                }
                             }
                             self.meals += meals;
 
                             let state_change = StateChange::new(*obj_id, Some(col.pos), None);
                             changes.insert((*obj_id, *elem_id), state_change);
-                        },
+                        }
                         ObjectRef::Player(_) => {
                             self.is_alive = false;
-                            new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
+                            new_effect =
+                                Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
                         }
                     }
                 }
@@ -455,10 +550,13 @@ impl DynamicObject for Snake {
 
         // Slither
         let incoming_changes = self.slither();
-        for (key, state_change) in incoming_changes {
-            changes.entry(key).and_modify(|existing| {
-                existing.new_element = state_change.new_element;
-            }).or_insert(state_change);
+        for (key, change) in incoming_changes {
+            changes
+                .entry(key)
+                .and_modify(|existing| {
+                    existing.new_element = change.new_element;
+                })
+                .or_insert(change);
         }
 
         if let Some(effect) = new_effect {

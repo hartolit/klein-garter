@@ -1,13 +1,18 @@
 use crossterm::style::Color;
 
-use crate::game::food::{ self};
+use crate::game::food::{self};
 
-use super::object::{Id, Glyph, Position};
+use super::object::{Glyph, Id, Position};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectRef {
     Player(Id),
-    Food { obj_id: Id, elem_id: Id, kind: food::Kind, meals: i16},
+    Food {
+        obj_id: Id,
+        elem_id: Id,
+        kind: food::Kind,
+        meals: i16,
+    },
 }
 
 // PartialEq for ObjectId only
@@ -15,7 +20,20 @@ impl PartialEq for ObjectRef {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (ObjectRef::Player(id1), ObjectRef::Player(id2)) => id1 == id2,
-            (ObjectRef::Food { obj_id: id1, kind: _, meals: _, elem_id: _ }, ObjectRef::Food { obj_id: id2, kind: _, meals: _, elem_id: _}) => id1 == id2,
+            (
+                ObjectRef::Food {
+                    obj_id: id1,
+                    kind: _,
+                    meals: _,
+                    elem_id: _,
+                },
+                ObjectRef::Food {
+                    obj_id: id2,
+                    kind: _,
+                    meals: _,
+                    elem_id: _,
+                },
+            ) => id1 == id2,
             _ => false,
         }
     }
@@ -37,23 +55,23 @@ impl CellKind {
             CellKind::Ground => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::Black),
-                symbol: ' '
+                symbol: ' ',
             },
             CellKind::Water => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkBlue),
-                symbol: '≈'
+                symbol: '≈',
             },
             CellKind::Lava => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkRed),
-                symbol: '#'
+                symbol: '#',
             },
             CellKind::Border => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkGrey),
-                symbol: '█'
-            }
+                symbol: '█',
+            },
         }
     }
 }
@@ -61,14 +79,14 @@ impl CellKind {
 #[derive(Debug, Clone)]
 pub struct GridCell {
     pub occ_by: Vec<ObjectRef>,
-    pub kind: CellKind
+    pub kind: CellKind,
 }
 
 impl GridCell {
     pub fn new(kind: CellKind) -> Self {
         GridCell {
             occ_by: Vec::new(),
-            kind
+            kind,
         }
     }
 }
@@ -83,7 +101,11 @@ impl SpatialGrid {
     pub fn new(width: u16, height: u16, kind: CellKind) -> Self {
         let size = (width * height) as usize;
         let cells = vec![GridCell::new(kind); size];
-        SpatialGrid { cells: cells, width, height }
+        SpatialGrid {
+            cells: cells,
+            width,
+            height,
+        }
     }
 
     pub fn get_index(&self, pos: Position) -> Option<usize> {
@@ -118,7 +140,12 @@ impl SpatialGrid {
         }
     }
 
-    pub fn move_object(&mut self, obj_ref: ObjectRef, old_positions: &[Position], new_positions: &[Position]) {
+    pub fn move_object(
+        &mut self,
+        obj_ref: ObjectRef,
+        old_positions: &[Position],
+        new_positions: &[Position],
+    ) {
         self.remove_object(&obj_ref, old_positions);
         self.add_object(obj_ref, new_positions);
     }

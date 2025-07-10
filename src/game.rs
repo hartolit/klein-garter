@@ -1,16 +1,24 @@
-pub mod object;
+pub mod food;
 pub mod grid;
 pub mod level;
+pub mod object;
 pub mod player;
-pub mod food;
 
-use std::{io::{self, Read}, time::{Duration, Instant}};
-use crossterm::{cursor, event::{self, KeyCode}, execute, queue, terminal::{self}, QueueableCommand};
+use crossterm::{
+    QueueableCommand, cursor,
+    event::{self, KeyCode},
+    execute, queue,
+    terminal::{self},
+};
+use std::{
+    io::{self, Read},
+    time::{Duration, Instant},
+};
 
-use player::{Direction, Snake, Player};
-use io::{stdout, Stdout};
+use io::{Stdout, stdout};
 use level::Level;
 use object::Position;
+use player::{Direction, Player, Snake};
 
 enum State {
     Init,
@@ -36,11 +44,11 @@ pub struct Game<'a> {
 
 impl<'a> Game<'a> {
     pub fn new(kind: GameKind, stdout: &'a mut Stdout) -> Self {
-        Game { 
+        Game {
             state: State::Init,
             kind: kind,
-            level: Level::new(40, 20), 
-            players: vec![], 
+            level: Level::new(40, 20),
+            players: vec![],
             out: stdout,
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
@@ -54,7 +62,7 @@ impl<'a> Game<'a> {
         loop {
             let now = Instant::now();
             let delta = now.duration_since(self.last_update);
-            
+
             // Player input
             if event::poll(self.tick_rate.saturating_sub(delta))? {
                 if let event::Event::Key(key_event) = event::read()? {
@@ -62,7 +70,8 @@ impl<'a> Game<'a> {
                         event::KeyCode::Char('q') | event::KeyCode::Esc => {
                             self.state = State::Stop;
                         }
-                        event::KeyCode::Char('r') => { // TODO - Add restart state?
+                        event::KeyCode::Char('r') => {
+                            // TODO - Add restart state?
                             self.state = State::Init;
                         }
                         event::KeyCode::Char('p') => {
@@ -75,7 +84,7 @@ impl<'a> Game<'a> {
                         _ => {
                             for player in self.players.iter_mut() {
                                 for key in player.keys.iter() {
-                                    if key_event.code == KeyCode::Char(*key.1){
+                                    if key_event.code == KeyCode::Char(*key.1) {
                                         player.snake.direction = *key.0;
                                     }
                                 }
@@ -84,7 +93,7 @@ impl<'a> Game<'a> {
                     }
                 }
             }
-            
+
             if delta >= self.tick_rate {
                 self.last_update = now;
 
@@ -113,7 +122,7 @@ impl<'a> Game<'a> {
 
         Ok(())
     }
-    
+
     fn pause(&mut self) -> io::Result<()> {
         Ok(())
     }
@@ -129,9 +138,12 @@ impl<'a> Game<'a> {
             return;
         }
 
-        let offset = Position { 
-            x: (self.level.total_width().div_ceil(self.players.len() as u16)), 
-            y: (self.level.total_height().div_ceil(self.players.len() as u16)) 
+        let offset = Position {
+            x: (self.level.total_width().div_ceil(self.players.len() as u16)),
+            y: (self
+                .level
+                .total_height()
+                .div_ceil(self.players.len() as u16)),
         };
 
         let mut curr_pos = offset;
@@ -139,7 +151,7 @@ impl<'a> Game<'a> {
         for player in self.players.iter_mut() {
             player.snake.head_pos = curr_pos;
 
-            if curr_pos.x + offset.x >= self.level.total_width(){
+            if curr_pos.x + offset.x >= self.level.total_width() {
                 curr_pos.x = offset.x;
                 curr_pos.y += offset.y;
             } else {
@@ -152,11 +164,12 @@ impl<'a> Game<'a> {
         for player in self.players.iter_mut() {
             if player.snake.head_pos.x < self.level.border_width
                 || player.snake.head_pos.x > self.level.total_width() - self.level.border_width - 1
-                || player.snake.head_pos.y < self.level.border_height 
-                || player.snake.head_pos.y > self.level.total_height() - self.level.border_height - 1 {
-                
+                || player.snake.head_pos.y < self.level.border_height
+                || player.snake.head_pos.y
+                    > self.level.total_height() - self.level.border_height - 1
+            {
                 player.snake.is_alive = false;
-                
+
                 return;
             }
 
@@ -170,17 +183,9 @@ impl<'a> Game<'a> {
     }
 }
 
-
-
-
-
-
-
-
-
 // pub fn start() {
 //     print!("\x1B[?25l"); // Removes cursor
-    
+
 //     let mut level = Level::new(40, 20);
 //     let mut player = Player::new(level.rng_pos(Some(2)));
 //     let mut stdout = stdout();
@@ -200,7 +205,7 @@ impl<'a> Game<'a> {
 //             'a' => player.snake.direction = Direction::Left,
 //             _ => {}
 //         }
-        
+
 //         player.snake.slither();
 
 //         collision_check(&mut player.snake, &mut level);
@@ -212,9 +217,9 @@ impl<'a> Game<'a> {
 // fn collision_check(snake: &mut Snake, level: &mut Level) {
 //     if snake.head_pos.x < level.border_width
 //         || snake.head_pos.x > level.total_width() - level.border_width - 1
-//         || snake.head_pos.y < level.border_height 
+//         || snake.head_pos.y < level.border_height
 //         || snake.head_pos.y > level.total_height() - level.border_height - 1 {
-        
+
 //             snake.is_alive = false;
 //         return;
 //     }
@@ -273,7 +278,7 @@ impl<'a> Game<'a> {
 //                 if let Some(color_ref) = level.bg_color_range.get(last_part.y as usize){
 //                     stdout.queue(SetBackgroundColor(*color_ref))?;
 //                 }
-    
+
 //                 stdout
 //                     .queue(MoveTo(last_part.x, last_part.y))?
 //                     .queue(Print(&level.background))?;

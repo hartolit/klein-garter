@@ -32,8 +32,18 @@ pub struct Effect {
 }
 
 impl Effect {
-    pub fn new(duration: usize, kind: EffectStyle, action_size: Option<usize>, zone: EffectZone) -> Self {
-        Self { duration, kind, action_size, zone }
+    pub fn new(
+        duration: usize,
+        kind: EffectStyle,
+        action_size: Option<usize>,
+        zone: EffectZone,
+    ) -> Self {
+        Self {
+            duration,
+            kind,
+            action_size,
+            zone,
+        }
     }
 
     pub fn next_tick(&mut self) {
@@ -44,4 +54,3 @@ impl Effect {
         self.duration == 0
     }
 }
-

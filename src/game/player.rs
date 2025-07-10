@@ -1,6 +1,6 @@
 mod snake;
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 pub use snake::{Direction, Snake};
 
@@ -23,13 +23,13 @@ pub struct Player {
 
 impl Player {
     pub fn new(kind: PlayerKind, keys: HashMap<Direction, char>) -> Self {
-        Player { 
+        Player {
             id: Uuid::new_v4(),
-            score: 0, 
+            score: 0,
             snake: Snake::new(Position { x: 0, y: 0 }), // Is calculated in game.init()
             kind,
             keys,
-            input: None 
+            input: None,
         }
     }
 }

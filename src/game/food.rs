@@ -1,7 +1,7 @@
 use std::iter;
 
+use crate::game::object::{Element, Glyph, Id, Object, Position};
 use crossterm::style::Color;
-use crate::game::object::{Element, Glyph, Object, Id, Position};
 use rand::Rng;
 
 #[derive(Debug, Copy, Clone)]
@@ -23,25 +23,57 @@ pub struct Food {
 impl Food {
     pub fn new(obj_id: Id, kind: Kind, pos: Position) -> Self {
         let (meals, symbol, color) = match kind {
-            Kind::Cherry => (1, '⧝', Color::Rgb { r: 169, g: 42, b: 69 }), 
-            Kind::Mouse => (2, '⦺', Color::Rgb { r: 42, g: 69, b: 69 }),
-            Kind::Bomb => (-10, '⍟', Color::Rgb { r: 169, g: 169, b: 169 }),
-            Kind::Grower => (0, '⌘', Color::Rgb { r: 242, g: 242, b: 69 })
+            Kind::Cherry => (
+                1,
+                '⧝',
+                Color::Rgb {
+                    r: 169,
+                    g: 42,
+                    b: 69,
+                },
+            ),
+            Kind::Mouse => (
+                2,
+                '⦺',
+                Color::Rgb {
+                    r: 42,
+                    g: 69,
+                    b: 69,
+                },
+            ),
+            Kind::Bomb => (
+                -10,
+                '⍟',
+                Color::Rgb {
+                    r: 169,
+                    g: 169,
+                    b: 169,
+                },
+            ),
+            Kind::Grower => (
+                0,
+                '⌘',
+                Color::Rgb {
+                    r: 242,
+                    g: 242,
+                    b: 69,
+                },
+            ),
         };
 
         Self {
             id: obj_id,
             kind,
             meals,
-            body: Element { 
+            body: Element {
                 id: Id::new(0),
-                style: Glyph { 
+                style: Glyph {
                     fg_clr: Some(color),
                     bg_clr: None,
-                    symbol
-                }, 
-                pos 
-            }
+                    symbol,
+                },
+                pos,
+            },
         }
     }
 
@@ -59,7 +91,6 @@ impl Food {
         food
     }
 }
-
 
 impl Object for Food {
     fn id(&self) -> Id {

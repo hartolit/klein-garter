@@ -1,33 +1,33 @@
 use std::collections::HashMap;
 
-use crossterm::style::Color;
 use super::grid::{CellKind, ObjectRef};
+use crossterm::style::Color;
 
 ///
 /// BodySegment
-/// 
+///
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BodySegment {
     pub orientation: Orientation,
-    pub elements: Vec<Element>
+    pub elements: Vec<Element>,
 }
 
 impl BodySegment {
     pub fn new(orientation: Orientation, elements: Vec<Element>) -> Self {
-        Self { orientation, elements }
+        Self {
+            orientation,
+            elements,
+        }
     }
-    
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Orientation {
     Horizontal,
-    Vertical
+    Vertical,
 }
 
-
-
-/// 
+///
 /// RESIZESTATE
 ///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -40,25 +40,25 @@ impl ResizeState {
     pub fn size(&self) -> usize {
         match self {
             ResizeState::Normal { size } => *size,
-            ResizeState::Brief { size, ..} => *size,
+            ResizeState::Brief { size, .. } => *size,
         }
     }
 
     pub fn native(&self) -> usize {
         match self {
             ResizeState::Normal { size } => *size,
-            ResizeState::Brief { native_size, ..} => *native_size,
+            ResizeState::Brief { native_size, .. } => *native_size,
         }
     }
 }
 
-
-
-/// 
+///
 /// ID AND ID GENERATION
-/// 
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Id{ pub value: u64 }
+pub struct Id {
+    pub value: u64,
+}
 
 impl Id {
     pub fn new(id: u64) -> Self {
@@ -68,12 +68,14 @@ impl Id {
 
 #[derive(Debug, Clone)]
 pub struct IdCounter {
-    counter: Id
+    counter: Id,
 }
 
 impl IdCounter {
     pub fn new() -> Self {
-        Self { counter: Id::new(0) }
+        Self {
+            counter: Id::new(0),
+        }
     }
 
     pub fn next(&mut self) -> Id {
@@ -83,9 +85,7 @@ impl IdCounter {
     }
 }
 
-
-
-/// 
+///
 /// POSITION
 ///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -96,16 +96,11 @@ pub struct Position {
 
 impl Position {
     pub fn new(x: u16, y: u16) -> Self {
-        Self {
-            x,
-            y,
-        }
+        Self { x, y }
     }
 }
 
-
-
-/// 
+///
 /// ELEMENT AND OBJECT TRAIT
 ///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -116,23 +111,23 @@ pub struct Glyph {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct  Element {
+pub struct Element {
     pub id: Id,
     pub style: Glyph,
     pub pos: Position,
 }
 
 impl Element {
-    pub fn new (id: Id, style: Glyph, pos: Option<Position>) -> Self {
-        Element { 
+    pub fn new(id: Id, style: Glyph, pos: Option<Position>) -> Self {
+        Element {
             id,
             style,
             pos: {
                 match pos {
                     Some(pos) => pos,
-                    None => Position { x: 0, y: 0 }
+                    None => Position { x: 0, y: 0 },
                 }
-            }
+            },
         }
     }
 }
@@ -143,9 +138,7 @@ pub trait Object {
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
 }
 
-
-
-/// 
+///
 /// COLLISION AND STATECHANGE
 ///
 pub struct Collision<'a> {
@@ -172,5 +165,8 @@ impl StateChange {
 
 pub trait DynamicObject: Object {
     fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-    fn update(&mut self, collisions: Option<Vec<Collision>>) -> Option<HashMap<(Id, Id), StateChange>>;
+    fn update(
+        &mut self,
+        collisions: Option<Vec<Collision>>,
+    ) -> Option<HashMap<(Id, Id), StateChange>>;
 }
