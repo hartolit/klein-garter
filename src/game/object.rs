@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crossterm::style::Color;
 use super::grid::{CellKind, ObjectRef};
 
@@ -170,5 +172,5 @@ impl StateChange {
 
 pub trait DynamicObject: Object {
     fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-    fn update(&mut self, collisions: Option<Vec<Collision>>) -> Option<Vec<StateChange>>;
+    fn update(&mut self, collisions: Option<Vec<Collision>>) -> Option<HashMap<(Id, Id), StateChange>>;
 }

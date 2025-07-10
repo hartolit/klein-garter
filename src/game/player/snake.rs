@@ -1,6 +1,7 @@
 mod animation;
 
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::{collections::VecDeque};
 use crossterm::style::Color;
 
@@ -94,7 +95,7 @@ impl Snake {
             return;
         }
 
-        let resize = match self.set_size(new_size, true) {
+        let resize = match self.set_head_size(new_size) {
             Some(elements) => elements,
             None => return
         };
@@ -110,7 +111,7 @@ impl Snake {
             return;
         }
         
-        let resize = match self.set_size(new_size, true) {
+        let resize = match self.set_head_size(new_size) {
             Some(elements) => elements,
             None => return
         };
@@ -123,7 +124,7 @@ impl Snake {
 
     fn resize_head_native(&mut self) {
         if let ResizeState::Brief { native_size, .. } = self.head_width {
-            let resize = match self.set_size(native_size, true) {
+            let resize = match self.set_head_size(native_size) {
                 Some(elements) => elements,
                 None => return,
             };
@@ -134,12 +135,12 @@ impl Snake {
         }
     }
 
-    // TODO - DELETE THIS
+    // TODO - CHANGE THIS
     fn get_resized_body_part(&mut self, new_size: usize) -> Option<Vec<Element>> {
-        self.set_size(new_size, false)
+        self.set_head_size(new_size)
     }
 
-    fn set_size(&mut self, new_size: usize, is_head: bool) -> Option<Vec<Element>> {
+    fn set_head_size(&mut self, new_size: usize) -> Option<Vec<Element>> {
         if self.head.is_empty() {
             return None;
         }
@@ -171,28 +172,23 @@ impl Snake {
             y: center_pos.y.saturating_sub(odd_size as u16 / 2)
         };
 
-        // Operations for head/body
-        let style = if is_head { self.head_style } else { self.body_style };
-        let rows_iter = if is_head { odd_size } else { 1 };
-
         // Generates new elements
         let mut new_elements: Vec<Element> = Vec::new();
-        for row in 0..rows_iter {
+        for row in 0..odd_size {
             for col in 0..odd_size {
                 let curr_pos = Position {
                     x: new_buttom_left.x + col as u16,
                     y: new_buttom_left.y - row as u16,
                 };
-                new_elements.push(Element::new(self.id_counter.next(), style, Some(curr_pos)));
+                new_elements.push(Element::new(self.id_counter.next(), self.head_style, Some(curr_pos)));
             }
         }
         Some(new_elements)
     }
 
-    fn slither (&mut self) -> Vec<StateChange> {
-        let mut changes: Vec<StateChange> = Vec::new();
+    fn slither (&mut self) -> HashMap<(Id, Id), StateChange> {
+        let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
 
-        // Get physical boundaries
         let mut min_x = u16::MAX;
         let mut max_x = u16::MIN;
         let mut min_y = u16::MAX;
@@ -208,100 +204,122 @@ impl Snake {
         let (dx, dy) = self.direction.get_move();
 
         let orientation: Orientation;
-        let mut shed_slice: Vec<Element> = Vec::new();
+        let mut new_body: Vec<Element> = Vec::new();
 
         // TODO - use drain_filter when stable
         // shed_slice = self.head.drain_filter(|e| e.pos.x == max_x).collect();
         match self.direction {
             Direction::Up => {
-                let mut new_head: Vec<Element> = Vec::new();
-                for element in std::mem::take(&mut self.head) {
-                    if element.pos.y == max_y {
-                        shed_slice.push(element);
+                self.head.retain(|e| {
+                    if e.pos.y == max_y {
+                        new_body.push(*e);
+                        false
                     } else {
-                        new_head.push(element);
+                        true
                     }
+                });
+
+                let new_pos_y = min_y + dy as u16;
+                let head_width = (max_x - min_x) + 1;
+
+                for i in 0..head_width {
+                    let new_pos = Position::new(min_x + i, new_pos_y);
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let state_change = StateChange::new(self.id, None, Some(new_element));
+                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
+                        modify.new_element = Some(new_element)
+                    }).or_insert(state_change);
+                    self.head.push(new_element);
                 }
 
-                let range = (max_x - min_x) as usize;
-                for i in 0..range {
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(min_x + i as u16, min_y + dy as u16)));
-                    changes.push(StateChange::new(self.id, None, Some(new_element)));
-                    new_head.push(new_element);
-                }
-
-                self.head = new_head;
                 orientation = Orientation::Horizontal;
             },
             Direction::Down => {
-                let mut new_head: Vec<Element> = Vec::new();
-                for element in std::mem::take(&mut self.head) {
-                    if element.pos.y == min_y {
-                        shed_slice.push(element);
+                self.head.retain(|e| {
+                    if e.pos.y == min_y {
+                        new_body.push(*e);
+                        false
                     } else {
-                        new_head.push(element);
+                        true
                     }
+                });
+
+                let new_pos_y = max_y + dy as u16;
+                let head_width = (max_x - min_x) + 1;
+
+                for i in 0..head_width {
+                    let new_pos = Position::new(min_x + i, new_pos_y);
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let state_change = StateChange::new(self.id, None, Some(new_element));
+                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
+                        modify.new_element = Some(new_element)
+                    }).or_insert(state_change);
+                    self.head.push(new_element);
                 }
 
-                let range = (max_x - min_x) as usize;
-                for i in 0..range {
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(min_x + i as u16, max_y + dy as u16)));
-                    changes.push(StateChange::new(self.id, None, Some(new_element)));
-                    new_head.push(new_element);
-                }
-
-                self.head = new_head;
                 orientation = Orientation::Horizontal;
             },
             Direction::Left => {
-                let mut new_head: Vec<Element> = Vec::new();
-                for element in std::mem::take(&mut self.head) {
-                    if element.pos.x == max_x {
-                        shed_slice.push(element);
+                self.head.retain(|e| {
+                    if e.pos.x == max_x {
+                        new_body.push(*e);
+                        false
                     } else {
-                        new_head.push(element);
+                        true
                     }
+                });
+
+                let new_pos_x = min_x + dx as u16;
+                let head_height = (max_y - min_y) + 1;
+
+                for i in 0..head_height {
+                    let new_pos = Position::new(new_pos_x, min_y + i);
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let state_change = StateChange::new(self.id, None, Some(new_element));
+                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
+                        modify.new_element = Some(new_element)
+                    }).or_insert(state_change);
+                    self.head.push(new_element);
                 }
 
-                let range = (max_x - min_x) as usize;
-                for i in 0..range {
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(min_x + dx as u16, min_y + i as u16)));
-                    changes.push(StateChange::new(self.id, None, Some(new_element)));
-                    new_head.push(new_element);
-                }
-
-                self.head = new_head;
                 orientation = Orientation::Vertical;
-
             },
             Direction::Right => {
-                let mut new_head: Vec<Element> = Vec::new();
-                for element in std::mem::take(&mut self.head) {
-                    if element.pos.x == min_x {
-                        shed_slice.push(element);
+                self.head.retain(|e| {
+                    if e.pos.x == min_x {
+                        new_body.push(*e);
+                        false
                     } else {
-                        new_head.push(element);
+                        true
                     }
-                }
+                });
 
-                let range = (max_x - min_x) as usize;
-                for i in 0..range {
-                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(Position::new(max_x + dx as u16, min_y + i as u16)));
-                    changes.push(StateChange::new(self.id, None, Some(new_element)));
-                    new_head.push(new_element);
-                }
+                let new_pos_x = max_x + dx as u16;
+                let head_height = (max_y - min_y) + 1;
 
-                self.head = new_head;
+                for i in 0..head_height {
+                    let new_pos = Position::new(new_pos_x, min_y + i);
+                    let new_element = Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let state_change = StateChange::new(self.id, None, Some(new_element));
+                    changes.entry((self.id, new_element.id)).and_modify(|modify| {
+                        modify.new_element = Some(new_element)
+                    }).or_insert(state_change);
+                    self.head.push(new_element);
+                }
+                
                 orientation = Orientation::Vertical;
             },
         }
 
-        for element in shed_slice.iter_mut() {
+        for element in new_body.iter_mut() {
             element.style = self.body_style;
-            changes.push(StateChange::new(self.id, Some(element.pos), Some(*element)));
+            let state_change = StateChange::new(self.id, Some(element.pos), Some(*element));
+            changes.entry((self.id, element.id)).and_modify(|modify| {
+                modify.new_element = Some(*element)
+            }).or_insert(state_change);
         }
 
-        self.body.push_front(BodySegment::new(orientation, shed_slice));
+        self.body.push_front(BodySegment::new(orientation, new_body));
 
         if self.meals > 0 {
             self.meals -= 1;
@@ -314,14 +332,20 @@ impl Snake {
                 }
                 if let Some(segment) = self.body.pop_back() {
                     for element in segment.elements {
-                        changes.push(StateChange::new(self.id, Some(element.pos), None));
+                        let state_change = StateChange::new(self.id, Some(element.pos), None);
+                        changes.entry((self.id, element.id)).and_modify(|modify| {
+                            modify.new_element = Some(element)
+                        }).or_insert(state_change);
                     }
                 }
             }
         } else {
             if let Some(segment) = self.body.pop_back() {
                 for element in segment.elements {
-                        changes.push(StateChange::new(self.id, Some(element.pos), None));
+                    let state_change = StateChange::new(self.id, Some(element.pos), None);
+                    changes.entry((self.id, element.id)).and_modify(|modify| {
+                        modify.new_element = Some(element)
+                    }).or_insert(state_change);
                 }
             }
         }
@@ -332,7 +356,7 @@ impl Snake {
     // TODO! - UPDATE TO USE ELEMENT IDS
     // TODO - Return Vec<StateChange> with option faster?
     // TODO - implement EffectZone and EffectStyle
-    fn tick_effect(&mut self) -> Vec<StateChange> {
+    fn tick_effect(&mut self) -> Option<HashMap<(Id, Id), StateChange>> {
         let mut changes: Vec<StateChange> = Vec::new();
 
         let Some(mut effect) = self.effect.take() else {
@@ -391,17 +415,14 @@ impl DynamicObject for Snake {
         }))
     }
 
-    // TODO! - UPDATE TO USE ELEMENT IDS (HASHMAP)
-    fn update(&mut self, collisions: Option<Vec<Collision>>) -> Option<Vec<StateChange>> {
+    fn update(&mut self, collisions: Option<Vec<Collision>>) -> Option<HashMap<(Id, Id), StateChange>> {
         if !self.is_alive {
             return None;
         }
 
-        let mut state_changes: Vec<StateChange> = Vec::new();
-        let mut hashmappy: HashMap<Position, StateChange> = HashMap::new();
+        let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
         let mut new_effect: Option<Effect> = None;
 
-        // Collision
         if let Some(cols) = collisions {
             for col in cols {
                 if let CellKind::Border | CellKind::Lava = col.kind {
@@ -411,7 +432,7 @@ impl DynamicObject for Snake {
 
                 for obj_ref in col.colliders {
                     match obj_ref {
-                        ObjectRef::Food { obj_id, kind, meals } => {
+                        ObjectRef::Food { obj_id, kind, meals , elem_id} => {
                             match &*kind {
                                 food::Kind::Bomb => new_effect = Some(Effect::new(2, EffectStyle::Damage, Some(self.head_width.size() + 2), EffectZone::All)),
                                 food::Kind::Cherry => new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.head_width.size() + 2), EffectZone::Body)),
@@ -420,7 +441,8 @@ impl DynamicObject for Snake {
                             }
                             self.meals += meals;
 
-                            state_changes.push(StateChange::new(*obj_id, Some(col.pos), None));
+                            let state_change = StateChange::new(*obj_id, Some(col.pos), None);
+                            changes.insert((*obj_id, *elem_id), state_change);
                         },
                         ObjectRef::Player(_) => {
                             self.is_alive = false;
@@ -431,14 +453,20 @@ impl DynamicObject for Snake {
             }
         }
 
+        // Slither
+        let incoming_changes = self.slither();
+        for (key, state_change) in incoming_changes {
+            changes.entry(key).and_modify(|existing| {
+                existing.new_element = state_change.new_element;
+            }).or_insert(state_change);
+        }
+
         if let Some(effect) = new_effect {
             self.apply_effect(effect);
         }
 
-        // TODO - Fix state_changes
-        state_changes.extend(self.slither()); // TODO - How to effectively apply EffectZone and EffectStyle for head
-        state_changes.extend(self.tick_effect()); // Apply effects
+        //state_changes.extend(self.tick_effect());
 
-        return Some(state_changes);
+        return Some(changes);
     }
 }
