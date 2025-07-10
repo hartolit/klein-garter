@@ -146,6 +146,7 @@ impl Snake {
         }
     }
 
+    // TODO! - SIMPLIFY
     fn set_head_size(&mut self, new_size: usize) -> Option<HashMap<(Id, Id), StateChange>> {
         if self.head.is_empty() {
             return None;
@@ -214,6 +215,7 @@ impl Snake {
     //     self.set_head_size(new_size)
     // }
     
+    // TODO! - SIMPLIFY
     fn slither(&mut self) -> HashMap<(Id, Id), StateChange> {
         let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
 
@@ -421,16 +423,34 @@ impl Snake {
             self.effect = Some(effect)
         }
 
+        if changes.is_empty() {
+            return None;
+        }
+
         Some(changes)
     }
 
-    fn apply_effect(&mut self, new_effect: Effect) {
+    fn apply_effect(&mut self, new_effect: Effect) -> Option<HashMap<(Id, Id), StateChange>> {
+        let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
         if let Some(size) = new_effect.action_size {
-            self.resize_head_brief(size);
+            let resize_head = self.resize_head_brief(size);
+            
+            if let Some(change) = resize_head {
+                changes.extend(change);
+            }
         } else {
-            self.resize_head_native();
+            let resize_head = self.resize_head_native();
+            if let Some(change) = resize_head {
+                changes.extend(change);
+            }
         }
         self.effect = Some(new_effect);
+
+        if changes.is_empty() {
+            return None;
+        }
+        
+        Some(changes)
     }
 }
 
@@ -563,7 +583,17 @@ impl DynamicObject for Snake {
             self.apply_effect(effect);
         }
 
-        //state_changes.extend(self.tick_effect());
+        let effect_changes = self.tick_effect();
+        if let Some(effect_change) = effect_changes {
+            for (key, change) in effect_change {
+                changes
+                .entry(key)
+                .and_modify(|existing| {
+                    existing.new_element = change.new_element;
+                })
+                .or_insert(change);
+            }
+        }
 
         return Some(changes);
     }
