@@ -44,6 +44,7 @@ impl Direction {
     }
 }
 
+// TODO! - ADD STATECHANGE TO STRUCT (PERFORMANCE)
 #[derive(Debug)]
 pub struct Snake {
     id: Id,
@@ -56,7 +57,7 @@ pub struct Snake {
     body: VecDeque<BodySegment>,
     head_style: Glyph,
     body_style: Glyph,
-    direction: Direction,
+    pub direction: Direction,
 }
 
 impl Snake {
@@ -108,7 +109,7 @@ impl Snake {
             Some(result) => result,
             None => return None,
         };
-        
+
         self.head_size = ResizeState::Normal { size: new_size };
 
         Some(changes)
@@ -116,7 +117,7 @@ impl Snake {
 
     fn resize_head_brief(&mut self, new_size: usize) -> Option<HashMap<(Id, Id), StateChange>> {
         if self.head_size.size() == new_size {
-            return None
+            return None;
         }
 
         let changes = match self.set_head_size(new_size) {
@@ -128,7 +129,7 @@ impl Snake {
             size: new_size,
             native_size: self.head_size.native(),
         };
-        
+
         Some(changes)
     }
 
@@ -174,7 +175,10 @@ impl Snake {
                 max_y = max_y.max(element.pos.y);
 
                 // Insert StateChanges for deletion of old head
-                changes.insert((self.id, element.id), StateChange::new(self.id, Some(element.pos), None));
+                changes.insert(
+                    (self.id, element.id),
+                    StateChange::new(self.id, Some(element.pos), None),
+                );
             }
 
             Position {
@@ -197,13 +201,12 @@ impl Snake {
                     y: new_buttom_left.y - row as u16,
                 };
 
-                let element = Element::new(
-                    self.id_counter.next(),
-                    self.head_style,
-                    Some(curr_pos),
-                );
+                let element = Element::new(self.id_counter.next(), self.head_style, Some(curr_pos));
 
-                changes.insert((self.id, element.id), StateChange::new(self.id, None, Some(element)));
+                changes.insert(
+                    (self.id, element.id),
+                    StateChange::new(self.id, None, Some(element)),
+                );
                 self.head.push(element);
             }
         }
@@ -214,7 +217,7 @@ impl Snake {
     // fn get_resized_body_part(&mut self, new_size: usize) -> Option<Vec<Element>> {
     //     self.set_head_size(new_size)
     // }
-    
+
     // TODO! - SIMPLIFY
     fn slither(&mut self) -> HashMap<(Id, Id), StateChange> {
         let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
@@ -411,11 +414,11 @@ impl Snake {
             if let Some(resize_change) = resize_head {
                 for (key, change) in resize_change {
                     changes
-                    .entry(key)
-                    .and_modify(|existing| {
-                        existing.new_element = change.new_element;
-                    })
-                    .or_insert(change);
+                        .entry(key)
+                        .and_modify(|existing| {
+                            existing.new_element = change.new_element;
+                        })
+                        .or_insert(change);
                 }
             }
             self.effect = None;
@@ -434,7 +437,7 @@ impl Snake {
         let mut changes: HashMap<(Id, Id), StateChange> = HashMap::new();
         if let Some(size) = new_effect.action_size {
             let resize_head = self.resize_head_brief(size);
-            
+
             if let Some(change) = resize_head {
                 changes.extend(change);
             }
@@ -449,7 +452,7 @@ impl Snake {
         if changes.is_empty() {
             return None;
         }
-        
+
         Some(changes)
     }
 }
@@ -544,11 +547,11 @@ impl DynamicObject for Snake {
                                     if let Some(resize_change) = resize_head {
                                         for (key, change) in resize_change {
                                             changes
-                                            .entry(key)
-                                            .and_modify(|existing| {
-                                                existing.new_element = change.new_element;
-                                            })
-                                            .or_insert(change);
+                                                .entry(key)
+                                                .and_modify(|existing| {
+                                                    existing.new_element = change.new_element;
+                                                })
+                                                .or_insert(change);
                                         }
                                     }
                                 }
@@ -587,11 +590,11 @@ impl DynamicObject for Snake {
         if let Some(effect_change) = effect_changes {
             for (key, change) in effect_change {
                 changes
-                .entry(key)
-                .and_modify(|existing| {
-                    existing.new_element = change.new_element;
-                })
-                .or_insert(change);
+                    .entry(key)
+                    .and_modify(|existing| {
+                        existing.new_element = change.new_element;
+                    })
+                    .or_insert(change);
             }
         }
 

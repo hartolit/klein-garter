@@ -1,24 +1,23 @@
 pub mod food;
 pub mod grid;
-pub mod level;
 pub mod object;
 pub mod player;
 
 use crossterm::{
-    QueueableCommand, cursor,
+    cursor,
     event::{self, KeyCode},
     execute, queue,
     terminal::{self},
 };
 use std::{
-    io::{self, Read},
+    io::{self},
     time::{Duration, Instant},
 };
 
-use io::{Stdout, stdout};
-use level::Level;
+use grid::{CellKind, SpatialGrid};
+use io::Stdout;
 use object::Position;
-use player::{Direction, Player, Snake};
+use player::Player;
 
 enum State {
     Init,
@@ -33,25 +32,26 @@ pub enum GameKind {
 }
 
 pub struct Game<'a> {
+    pub players: Vec<Player>,
     state: State,
     kind: GameKind,
-    level: Level,
-    pub players: Vec<Player>,
     out: &'a mut Stdout,
     tick_rate: Duration,
     last_update: Instant,
+    spatial_grid: SpatialGrid,
 }
 
+// TODO - Add threads for (players, gameloop)
 impl<'a> Game<'a> {
     pub fn new(kind: GameKind, stdout: &'a mut Stdout) -> Self {
         Game {
             state: State::Init,
             kind: kind,
-            level: Level::new(40, 20),
             players: vec![],
             out: stdout,
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
+            spatial_grid: SpatialGrid::new(40, 20, 2, CellKind::Ground),
         }
     }
 
@@ -85,7 +85,9 @@ impl<'a> Game<'a> {
                             for player in self.players.iter_mut() {
                                 for key in player.keys.iter() {
                                     if key_event.code == KeyCode::Char(*key.1) {
-                                        player.snake.direction = *key.0;
+                                        if let Some(snake) = player.snake.as_mut() {
+                                            snake.direction = *key.0;
+                                        }
                                     }
                                 }
                             }
@@ -114,12 +116,8 @@ impl<'a> Game<'a> {
 
     fn init(&mut self) -> io::Result<()> {
         queue!(self.out, terminal::Clear(terminal::ClearType::All));
-
-        self.level.generate(&mut self.out).unwrap();
-        self.calc_player_pos();
-
+        self.generate_snakes();
         self.state = State::Run;
-
         Ok(())
     }
 
@@ -133,17 +131,14 @@ impl<'a> Game<'a> {
 
     // Generate players relative to level width/height and amount of players
     // TODO: FIX POSITION
-    fn calc_player_pos(&mut self) {
+    fn generate_snakes(&mut self) {
         if self.players.len() == 0 {
             return;
         }
 
         let offset = Position {
-            x: (self.level.total_width().div_ceil(self.players.len() as u16)),
-            y: (self
-                .level
-                .total_height()
-                .div_ceil(self.players.len() as u16)),
+            x: (self.spatial_grid.width.div_ceil(self.players.len() as u16)),
+            y: (self.spatial_grid.height.div_ceil(self.players.len() as u16)),
         };
 
         let mut curr_pos = offset;

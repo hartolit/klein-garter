@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crossterm::style::Color;
 
 use crate::game::food::{self};
@@ -98,13 +100,30 @@ pub struct SpatialGrid {
 }
 
 impl SpatialGrid {
-    pub fn new(width: u16, height: u16, kind: CellKind) -> Self {
-        let size = (width * height) as usize;
-        let cells = vec![GridCell::new(kind); size];
+    pub fn new(width: u16, height: u16, border: u16, kind: CellKind) -> Self {
+        let total_width = width + border * 2;
+        let total_height = height + border * 2;
+        let total_size = total_height * total_width;
+
+        let mut cells = vec![GridCell::new(kind); total_size as usize];
+
+        for (index, cell) in cells.iter_mut().enumerate() {
+            let x = index % total_width as usize;
+            let y = index / total_height as usize;
+
+            if x < (border as usize)
+                || x >= (width + border) as usize
+                || y < (border as usize)
+                || y >= (height + border) as usize
+            {
+                cell.kind = CellKind::Border;
+            }
+        }
+
         SpatialGrid {
             cells: cells,
-            width,
-            height,
+            width: total_width,
+            height: total_height,
         }
     }
 

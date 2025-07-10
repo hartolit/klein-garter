@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 pub use snake::{Direction, Snake};
 
-use crate::game::grid::Position;
+use crate::game::object::{Id, Position};
 use uuid::Uuid;
 
 pub enum PlayerKind {
@@ -15,10 +15,9 @@ pub enum PlayerKind {
 pub struct Player {
     pub id: Uuid,
     pub score: u16,
-    pub snake: Snake,
+    pub snake: Option<Snake>,
     pub kind: PlayerKind,
     pub keys: HashMap<Direction, char>,
-    pub input: Option<[u8; 1]>,
 }
 
 impl Player {
@@ -26,10 +25,13 @@ impl Player {
         Player {
             id: Uuid::new_v4(),
             score: 0,
-            snake: Snake::new(Position { x: 0, y: 0 }), // Is calculated in game.init()
+            snake: None,
             kind,
             keys,
-            input: None,
         }
+    }
+
+    pub fn add_snake(&mut self, pos: Position, obj_id: Id, size: usize) {
+        self.snake = Some(Snake::new(pos, obj_id, size));
     }
 }
