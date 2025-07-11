@@ -82,6 +82,7 @@ impl Food {
         self.meals = meals;
     }
 
+    // TODO - Include new food type
     pub fn rng_food(obj_id: Id, pos: Position) -> Self {
         let food = match rand::rng().random_range(0..=2) {
             0 => Food::new(obj_id, Kind::Cherry, pos),

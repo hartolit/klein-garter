@@ -147,6 +147,7 @@ pub struct Collision<'a> {
     pub colliders: &'a [ObjectRef],
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StateChange {
     pub obj_id: Id,
     pub old_pos: Option<Position>,

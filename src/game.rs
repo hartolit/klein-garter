@@ -119,6 +119,7 @@ impl<'a> Game<'a> {
     fn init(&mut self) -> io::Result<()> {
         queue!(self.out, terminal::Clear(terminal::ClearType::All));
         self.generate_snakes();
+        // TODO - Get elements from generated objects
         self.state = State::Run;
         Ok(())
     }
