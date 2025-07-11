@@ -148,20 +148,10 @@ pub struct Collision<'a> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct StateChange {
-    pub obj_id: Id,
-    pub old_pos: Option<Position>,
-    pub new_element: Option<Element>,
-}
-
-impl StateChange {
-    pub fn new(obj_id: Id, old_pos: Option<Position>, new_element: Option<Element>) -> Self {
-        Self {
-            obj_id,
-            old_pos,
-            new_element,
-        }
-    }
+pub enum StateChange {
+    Update {  obj_id: Id, element_id: Id, element: Element, old_pos: Position },
+    Delete { obj_id: Id, element_id: Id, old_pos: Position },
+    Create { obj_id: Id, element_id: Id, new_element: Element },
 }
 
 pub trait DynamicObject: Object {

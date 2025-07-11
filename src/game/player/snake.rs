@@ -1,6 +1,7 @@
 mod animation;
 
 use crossterm::style::Color;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
@@ -84,13 +85,49 @@ impl Snake {
         snake
     }
 
-    // Updates only with new element or inserts a new state record
-    fn upsert_change(changes: &mut HashMap<(Id, Id), StateChange>, change: StateChange, element_id: Id) {
-        let key = (change.obj_id, element_id);
-        changes
-            .entry(key)
-            .and_modify(|existing| existing.new_element = change.new_element)
-            .or_insert(change);
+    fn upsert_change(changes: &mut HashMap<(Id, Id), StateChange>, new_state: StateChange) {
+        let key = match new_state {
+            StateChange::Create { obj_id, element_id, .. } => (obj_id, element_id),
+            StateChange::Update { obj_id, element_id, .. } => (obj_id, element_id),
+            StateChange::Delete { obj_id, element_id, .. } => (obj_id, element_id),
+        };
+
+        match changes.entry(key) {
+            Entry::Occupied(mut entry) => {
+                let curr_state = entry.get_mut();
+
+                match (curr_state, new_state) {
+                    // Create has no purpose - remove
+                    (StateChange::Create { .. }, StateChange::Delete { .. }) => {
+                        entry.remove();
+                        return;
+                    },
+
+                    // Delete dominates all
+                    (_, StateChange::Delete { .. }) => new_state,
+
+                    // Update new create
+                    (StateChange::Create { obj_id, element_id, .. }, StateChange::Update { element, .. }) => {
+                        StateChange::Create { obj_id: *obj_id, element_id: *element_id, new_element: element }
+                    }
+
+                    // Update
+                    (_, StateChange::Update { element, .. }) => {
+                        if let StateChange::Update { element: ref mut curr_element, .. } = entry.into_mut() {
+                            *curr_element = element;
+                            return;
+                        }
+                        new_state // Fallback
+                    },
+
+                    // Logic error - creation shouldn't happen twice
+                    (_, StateChange::Create { .. }) => new_state,
+                };
+            },
+            Entry::Vacant(entry) => {
+                entry.insert(new_state);
+            },
+        }
     }
 
     // TODO! - SIMPLIFY
