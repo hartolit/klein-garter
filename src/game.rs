@@ -117,8 +117,8 @@ impl<'a> Game<'a> {
     }
 
     fn init(&mut self) -> io::Result<()> {
-        queue!(self.out, terminal::Clear(terminal::ClearType::All));
-        self.generate_snakes();
+        queue!(self.out, terminal::Clear(terminal::ClearType::All)).unwrap();
+        self.generate_players();
         // TODO - Get elements from generated objects
         self.state = State::Run;
         Ok(())
@@ -133,28 +133,34 @@ impl<'a> Game<'a> {
     }
 
     // Generate players relative to level width/height and amount of players
-    // TODO: FIX POSITION
-    fn generate_snakes(&mut self) {
-        if self.players.len() == 0 {
+    fn generate_players(&mut self) {
+        let num_players = self.players.len();
+        if num_players == 0 {
             return;
         }
 
-        let offset = Position {
-            x: (self.spatial_grid.width.div_ceil(self.players.len() as u16)),
-            y: (self.spatial_grid.height.div_ceil(self.players.len() as u16)),
-        };
+        let border = self.spatial_grid.border;
+        let playable_width = self.spatial_grid.width.saturating_sub(border * 2);
+        let playable_height = self.spatial_grid.height.saturating_sub(border * 2);
 
-        let mut curr_pos = offset;
+        let step_x = playable_width as f32 / (num_players as f32 + 1.0);
+        let step_y = playable_height as f32 / (num_players as f32 + 1.0);
 
-        for player in self.players.iter_mut() {
-            player.add_snake(curr_pos, self.id_counter.next(), 2);
+        for (index, player) in self.players.iter_mut().enumerate() {
+            let relative_x = ((index + 1) as f32 * step_x).round() as u16;
+            let relative_y = ((index + 1) as f32 * step_y).round() as u16;
 
-            if curr_pos.x + offset.x >= self.spatial_grid.width {
-                curr_pos.x = offset.x;
-                curr_pos.y += offset.y;
-            } else {
-                curr_pos.x += offset.x;
-            }
+            let final_pos = Position {
+                x: border + relative_x,
+                y: border + relative_y,
+            };
+
+            let clamped_pos = Position {
+                x: final_pos.x.clamp(border, self.spatial_grid.width - 1 - border),
+                y: final_pos.y.clamp(border, self.spatial_grid.height - 1 - border),
+            };
+
+            player.add_snake(clamped_pos, self.id_counter.next(), 2);
         }
     }
 
