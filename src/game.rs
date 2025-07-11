@@ -16,7 +16,7 @@ use std::{
 
 use grid::{CellKind, SpatialGrid};
 use io::Stdout;
-use object::Position;
+use object::{Position, IdCounter, Id};
 use player::Player;
 
 enum State {
@@ -38,6 +38,7 @@ pub struct Game<'a> {
     out: &'a mut Stdout,
     tick_rate: Duration,
     last_update: Instant,
+    id_counter: IdCounter,
     spatial_grid: SpatialGrid,
 }
 
@@ -51,6 +52,7 @@ impl<'a> Game<'a> {
             out: stdout,
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
+            id_counter: IdCounter::new(),
             spatial_grid: SpatialGrid::new(40, 20, 2, CellKind::Ground),
         }
     }
@@ -144,9 +146,9 @@ impl<'a> Game<'a> {
         let mut curr_pos = offset;
 
         for player in self.players.iter_mut() {
-            player.snake.head_pos = curr_pos;
+            player.add_snake(curr_pos, self.id_counter.next(), 2);
 
-            if curr_pos.x + offset.x >= self.level.total_width() {
+            if curr_pos.x + offset.x >= self.spatial_grid.width {
                 curr_pos.x = offset.x;
                 curr_pos.y += offset.y;
             } else {
@@ -155,28 +157,15 @@ impl<'a> Game<'a> {
         }
     }
 
+    // TODO - add collision
     fn collision_check(&mut self) {
-        for player in self.players.iter_mut() {
-            if player.snake.head_pos.x < self.level.border_width
-                || player.snake.head_pos.x > self.level.total_width() - self.level.border_width - 1
-                || player.snake.head_pos.y < self.level.border_height
-                || player.snake.head_pos.y
-                    > self.level.total_height() - self.level.border_height - 1
-            {
-                player.snake.is_alive = false;
-
-                return;
-            }
-
-            // Check body collision
-            for part in &player.snake.body_vec {
-                if player.snake.head_pos == *part {
-                    player.snake.is_alive = false;
-                }
-            }
-        }
+        
     }
+
+    // TODO - add drawing
 }
+
+
 
 // pub fn start() {
 //     print!("\x1B[?25l"); // Removes cursor

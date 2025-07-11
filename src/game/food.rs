@@ -12,6 +12,7 @@ pub enum Kind {
     Grower,
 }
 
+// TODO - Change food to contain multiple elements (requires update loop and collision checks)
 #[derive(Debug)]
 pub struct Food {
     id: Id,

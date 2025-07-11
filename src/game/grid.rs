@@ -97,12 +97,17 @@ pub struct SpatialGrid {
     cells: Vec<GridCell>,
     pub width: u16,
     pub height: u16,
+    pub border: u16,
 }
 
 impl SpatialGrid {
-    pub fn new(width: u16, height: u16, border: u16, kind: CellKind) -> Self {
-        let total_width = width + border * 2;
-        let total_height = height + border * 2;
+    pub fn new(inner_width: u16, inner_height: u16, mut border: u16, kind: CellKind) -> Self {
+        if border < 1 {
+            border = 1
+        }
+
+        let total_width = inner_width + border * 2;
+        let total_height = inner_height + border * 2;
         let total_size = total_height * total_width;
 
         let mut cells = vec![GridCell::new(kind); total_size as usize];
@@ -112,9 +117,9 @@ impl SpatialGrid {
             let y = index / total_height as usize;
 
             if x < (border as usize)
-                || x >= (width + border) as usize
+                || x >= (inner_width + border) as usize
                 || y < (border as usize)
-                || y >= (height + border) as usize
+                || y >= (inner_height + border) as usize
             {
                 cell.kind = CellKind::Border;
             }
@@ -124,6 +129,7 @@ impl SpatialGrid {
             cells: cells,
             width: total_width,
             height: total_height,
+            border
         }
     }
 
@@ -158,6 +164,17 @@ impl SpatialGrid {
             }
         }
     }
+
+    // TODO - create safe random position
+    // pub fn rng_pos(&self, offset: Option<u16>) -> Position {
+    //     let off = offset.unwrap_or(0);
+    //     let x =
+    //         rand::rng().random_range(self.border_width + off..self.width + self.border_width - off);
+    //     let y = rand::rng()
+    //         .random_range(self.border_height + off..self.height + self.border_height - off);
+
+    //     Position { x: x, y: y }
+    // }
 
     pub fn move_object(
         &mut self,
