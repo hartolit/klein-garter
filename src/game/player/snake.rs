@@ -1,13 +1,13 @@
 mod animation;
 
 use crossterm::style::Color;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
 
 use crate::game::food;
 use crate::game::grid::{CellKind, ObjectRef};
+use crate::game::object::StateManager;
 use crate::game::object::{
     BodySegment, Collision, DynamicObject, Element, Glyph, Id, IdCounter, Object, Orientation,
     Position, ResizeState, StateChange,
@@ -47,7 +47,7 @@ pub struct Snake {
     body: VecDeque<BodySegment>,
     head_style: Glyph,
     body_style: Glyph,
-    changes: HashMap<(Id, Id), StateChange>,
+    state_manager: StateManager,
     pub direction: Direction,
 }
 
@@ -77,61 +77,12 @@ impl Snake {
             body: VecDeque::new(),
             head_style,
             body_style,
-            changes: HashMap::new(),
+            state_manager: StateManager::new(),
             direction: Direction::Down,
         };
 
         snake.resize_head(size);
         snake
-    }
-
-    fn upsert_change(changes: &mut HashMap<(Id, Id), StateChange>, new_state: StateChange) {
-        let key = match new_state {
-            StateChange::Create { obj_id, element_id, .. } => (obj_id, element_id),
-            StateChange::Update { obj_id, element_id, .. } => (obj_id, element_id),
-            StateChange::Delete { obj_id, element_id, .. } => (obj_id, element_id),
-        };
-
-        match changes.entry(key) {
-            Entry::Occupied(mut entry) => {
-                let curr_state = entry.get_mut();
-
-                match curr_state {
-                    StateChange::Create { new_element: curr_element, .. } => {
-                        match new_state {
-                            StateChange::Create { new_element, .. } => {
-                                *curr_element = new_element;
-                            },
-                            StateChange::Update { element, .. } => {
-                                *curr_element = element;
-                            },
-                            StateChange::Delete { .. } => {
-                                entry.remove();
-                            }
-                        }
-                    },
-
-                    StateChange::Update { element: curr_element, old_pos: curr_old_pos, .. } => {
-                        match new_state {
-                            StateChange::Create { new_element, .. } => {
-                                *curr_element = new_element;
-                            },
-                            StateChange::Update { element, .. } => {
-                                *curr_element = element;
-                            },
-                            StateChange::Delete { obj_id, element_id , .. } => {
-                                *curr_state = StateChange::Delete { obj_id, element_id, old_pos: *curr_old_pos };
-                            }
-                        }
-                    }
-
-                    StateChange::Delete { .. } => { }
-                }
-            },
-            Entry::Vacant(entry) => {
-                entry.insert(new_state);
-            },
-        }
     }
 
     // TODO! - SIMPLIFY
@@ -193,7 +144,9 @@ impl Snake {
                 max_x = max_x.max(element.pos.x);
                 min_y = min_y.min(element.pos.y);
                 max_y = max_y.max(element.pos.y);
-                Self::upsert_change(&mut self.changes, StateChange::new(self.id, Some(element.pos), None), element.id);
+
+                let delete = StateChange::Delete { obj_id: self.id, element_id: element.id, old_pos: element.pos };
+                self.state_manager.upsert_change(delete);
             }
 
             Position {
@@ -217,7 +170,9 @@ impl Snake {
                 };
 
                 let element = Element::new(self.id_counter.next(), self.head_style, Some(curr_pos));
-                Self::upsert_change(&mut self.changes, StateChange::new(self.id, None, Some(element)), element.id);
+                let create = StateChange::Create { obj_id: self.id, element_id: element.id, new_element: element };
+                self.state_manager.upsert_change(create);
+
                 self.head.push(element);
             }
         }
@@ -267,7 +222,9 @@ impl Snake {
                     let new_pos = Position::new(min_x + i, new_pos_y);
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
-                    Self::upsert_change(&mut self.changes, StateChange::new(self.id, None, Some(new_element)), new_element.id);
+
+                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+                    self.state_manager.upsert_change(create);
                     self.head.push(new_element);
                 }
 
@@ -290,7 +247,10 @@ impl Snake {
                     let new_pos = Position::new(min_x + i, new_pos_y);
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
-                    Self::upsert_change(&mut self.changes, StateChange::new(self.id, None, Some(new_element)), new_element.id);
+
+                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+                    self.state_manager.upsert_change(create);
+
                     self.head.push(new_element);
                 }
 
@@ -313,7 +273,10 @@ impl Snake {
                     let new_pos = Position::new(new_pos_x, min_y + i);
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
-                    Self::upsert_change(&mut self.changes, StateChange::new(self.id, None, Some(new_element)), new_element.id);
+                    
+                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+                    self.state_manager.upsert_change(create);
+                    
                     self.head.push(new_element);
                 }
 
@@ -336,7 +299,10 @@ impl Snake {
                     let new_pos = Position::new(new_pos_x, min_y + i);
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
-                    Self::upsert_change(&mut self.changes, StateChange::new(self.id, None, Some(new_element)), new_element.id);
+
+                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+                    self.state_manager.upsert_change(create);
+
                     self.head.push(new_element);
                 }
 
@@ -346,7 +312,9 @@ impl Snake {
 
         for element in new_body.iter_mut() {
             element.style = self.body_style;
-            Self::upsert_change(&mut self.changes, StateChange::new(self.id, Some(element.pos), Some(*element)), element.id);
+
+            let update = StateChange::Update { obj_id: self.id, element_id: element.id, element: *element, old_pos: element.pos };
+            self.state_manager.upsert_change(update);
         }
 
         self.body
@@ -363,14 +331,16 @@ impl Snake {
                 }
                 if let Some(segment) = self.body.pop_back() {
                     for element in segment.elements {
-                        Self::upsert_change(&mut self.changes, StateChange::new(self.id, Some(element.pos), None), element.id);
+                        let delete = StateChange::Delete { obj_id: self.id, element_id: element.id, old_pos: element.pos };
+                        self.state_manager.upsert_change(delete);
                     }
                 }
             }
         } else {
             if let Some(segment) = self.body.pop_back() {
                 for element in segment.elements {
-                    Self::upsert_change(&mut self.changes, StateChange::new(self.id, Some(element.pos), None), element.id);
+                    let delete = StateChange::Delete { obj_id: self.id, element_id: element.id, old_pos: element.pos };
+                    self.state_manager.upsert_change(delete);
                 }
             }
         }
@@ -445,17 +415,17 @@ impl DynamicObject for Snake {
             return None;
         }
 
-        self.changes.clear();
+        self.state_manager.changes.clear();
 
         let mut new_effect: Option<Effect> = None;
-        if let Some(cols) = collisions {
-            for col in cols {
-                if let CellKind::Border | CellKind::Lava = col.kind {
+        if let Some(col) = collisions {
+            for hit in col {
+                if let CellKind::Border | CellKind::Lava = hit.kind {
                     self.is_alive = false;
                     new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
                 }
 
-                for obj_ref in col.colliders {
+                for obj_ref in hit.colliders {
                     match obj_ref {
                         ObjectRef::Food {
                             obj_id,
@@ -494,7 +464,8 @@ impl DynamicObject for Snake {
                             }
                             self.meals += meals;
 
-                            Self::upsert_change(&mut self.changes, StateChange::new(*obj_id, Some(col.pos), None), *elem_id);
+                            let delete = StateChange::Delete { obj_id: *obj_id, element_id: *elem_id, old_pos: hit.pos };
+                            self.state_manager.upsert_change(delete);
                         }
                         ObjectRef::Player(_) => {
                             self.is_alive = false;
@@ -510,12 +481,13 @@ impl DynamicObject for Snake {
         if let Some(effect) = new_effect {
             self.apply_effect(effect);
         }
+
         self.tick_effect();
 
-        if self.changes.is_empty() {
+        if self.state_manager.changes.is_empty() {
             None
         } else {
-            Some(std::mem::take(&mut self.changes))
+            Some(std::mem::take(&mut self.state_manager.changes))
         }
     }
 }

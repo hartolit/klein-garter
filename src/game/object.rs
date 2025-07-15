@@ -168,12 +168,17 @@ pub enum StateChange {
     },
 }
 
-pub struct State {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateManager {
     pub changes: HashMap<(Id, Id), StateChange>,
 }
 
-impl State {
-    fn upsert_change(&mut self, new_state: StateChange) {
+impl StateManager {
+    pub fn new () -> Self {
+        Self { changes: HashMap::new() }
+    }
+
+    pub fn upsert_change(&mut self, new_state: StateChange) {
         let key = match new_state {
             StateChange::Create { obj_id, element_id, .. } => (obj_id, element_id),
             StateChange::Update { obj_id, element_id, .. } => (obj_id, element_id),
