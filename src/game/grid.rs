@@ -129,7 +129,7 @@ impl SpatialGrid {
             cells: cells,
             width: total_width,
             height: total_height,
-            border
+            border,
         }
     }
 

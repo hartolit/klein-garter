@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use super::grid::{CellKind, ObjectRef};
 use crossterm::style::Color;
@@ -149,9 +150,77 @@ pub struct Collision<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateChange {
-    Update {  obj_id: Id, element_id: Id, element: Element, old_pos: Position },
-    Delete { obj_id: Id, element_id: Id, old_pos: Position },
-    Create { obj_id: Id, element_id: Id, new_element: Element },
+    Update {
+        obj_id: Id,
+        element_id: Id,
+        element: Element,
+        old_pos: Position,
+    },
+    Delete {
+        obj_id: Id,
+        element_id: Id,
+        old_pos: Position,
+    },
+    Create {
+        obj_id: Id,
+        element_id: Id,
+        new_element: Element,
+    },
+}
+
+pub struct State {
+    pub changes: HashMap<(Id, Id), StateChange>,
+}
+
+impl State {
+    fn upsert_change(&mut self, new_state: StateChange) {
+        let key = match new_state {
+            StateChange::Create { obj_id, element_id, .. } => (obj_id, element_id),
+            StateChange::Update { obj_id, element_id, .. } => (obj_id, element_id),
+            StateChange::Delete { obj_id, element_id, .. } => (obj_id, element_id),
+        };
+
+        match self.changes.entry(key) {
+            Entry::Occupied(mut entry) => {
+                let curr_state = entry.get_mut();
+
+                match curr_state {
+                    StateChange::Create { new_element: curr_element, .. } => {
+                        match new_state {
+                            StateChange::Create { new_element, .. } => {
+                                *curr_element = new_element;
+                            },
+                            StateChange::Update { element, .. } => {
+                                *curr_element = element;
+                            },
+                            StateChange::Delete { .. } => {
+                                entry.remove();
+                            }
+                        }
+                    },
+
+                    StateChange::Update { element: curr_element, old_pos: curr_old_pos, .. } => {
+                        match new_state {
+                            StateChange::Create { new_element, .. } => {
+                                *curr_element = new_element;
+                            },
+                            StateChange::Update { element, .. } => {
+                                *curr_element = element;
+                            },
+                            StateChange::Delete { obj_id, element_id , .. } => {
+                                *curr_state = StateChange::Delete { obj_id, element_id, old_pos: *curr_old_pos };
+                            }
+                        }
+                    }
+
+                    StateChange::Delete { .. } => { }
+                }
+            },
+            Entry::Vacant(entry) => {
+                entry.insert(new_state);
+            },
+        }
+    }
 }
 
 pub trait DynamicObject: Object {

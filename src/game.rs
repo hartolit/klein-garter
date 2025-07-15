@@ -16,7 +16,7 @@ use std::{
 
 use grid::{CellKind, SpatialGrid};
 use io::Stdout;
-use object::{Position, IdCounter, Id};
+use object::{Id, IdCounter, Position};
 use player::Player;
 
 enum State {
@@ -156,8 +156,12 @@ impl<'a> Game<'a> {
             };
 
             let clamped_pos = Position {
-                x: final_pos.x.clamp(border, self.spatial_grid.width - 1 - border),
-                y: final_pos.y.clamp(border, self.spatial_grid.height - 1 - border),
+                x: final_pos
+                    .x
+                    .clamp(border, self.spatial_grid.width - 1 - border),
+                y: final_pos
+                    .y
+                    .clamp(border, self.spatial_grid.height - 1 - border),
             };
 
             player.add_snake(clamped_pos, self.id_counter.next(), 2);
@@ -165,14 +169,10 @@ impl<'a> Game<'a> {
     }
 
     // TODO - add collision
-    fn collision_check(&mut self) {
-        
-    }
+    fn collision_check(&mut self) {}
 
     // TODO - add drawing
 }
-
-
 
 // pub fn start() {
 //     print!("\x1B[?25l"); // Removes cursor

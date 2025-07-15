@@ -96,33 +96,37 @@ impl Snake {
             Entry::Occupied(mut entry) => {
                 let curr_state = entry.get_mut();
 
-                match (curr_state, new_state) {
-                    // Create has no purpose - remove
-                    (StateChange::Create { .. }, StateChange::Delete { .. }) => {
-                        entry.remove();
-                        return;
+                match curr_state {
+                    StateChange::Create { new_element: curr_element, .. } => {
+                        match new_state {
+                            StateChange::Create { new_element, .. } => {
+                                *curr_element = new_element;
+                            },
+                            StateChange::Update { element, .. } => {
+                                *curr_element = element;
+                            },
+                            StateChange::Delete { .. } => {
+                                entry.remove();
+                            }
+                        }
                     },
 
-                    // Delete dominates all
-                    (_, StateChange::Delete { .. }) => new_state,
-
-                    // Update new create
-                    (StateChange::Create { obj_id, element_id, .. }, StateChange::Update { element, .. }) => {
-                        StateChange::Create { obj_id: *obj_id, element_id: *element_id, new_element: element }
+                    StateChange::Update { element: curr_element, old_pos: curr_old_pos, .. } => {
+                        match new_state {
+                            StateChange::Create { new_element, .. } => {
+                                *curr_element = new_element;
+                            },
+                            StateChange::Update { element, .. } => {
+                                *curr_element = element;
+                            },
+                            StateChange::Delete { obj_id, element_id , .. } => {
+                                *curr_state = StateChange::Delete { obj_id, element_id, old_pos: *curr_old_pos };
+                            }
+                        }
                     }
 
-                    // Update
-                    (_, StateChange::Update { element, .. }) => {
-                        if let StateChange::Update { element: ref mut curr_element, .. } = entry.into_mut() {
-                            *curr_element = element;
-                            return;
-                        }
-                        new_state // Fallback
-                    },
-
-                    // Logic error - creation shouldn't happen twice
-                    (_, StateChange::Create { .. }) => new_state,
-                };
+                    StateChange::Delete { .. } => { }
+                }
             },
             Entry::Vacant(entry) => {
                 entry.insert(new_state);
