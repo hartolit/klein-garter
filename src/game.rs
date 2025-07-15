@@ -14,11 +14,15 @@ use std::{
     time::{Duration, Instant},
 };
 
+use food::Food;
 use grid::{CellKind, SpatialGrid};
 use io::Stdout;
 use object::{Id, IdCounter, Position};
 use player::Player;
 
+use crate::game::object::Object;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum State {
     Init,
     Run,
@@ -33,6 +37,8 @@ pub enum GameKind {
 
 pub struct Game<'a> {
     pub players: Vec<Player>,
+    foods: Vec<Food>,
+    food_spawns: usize,
     state: State,
     kind: GameKind,
     out: &'a mut Stdout,
@@ -48,7 +54,9 @@ impl<'a> Game<'a> {
         Game {
             state: State::Init,
             kind: kind,
-            players: vec![],
+            players: Vec::new(),
+            foods: Vec::new(),
+            food_spawns: 5,
             out: stdout,
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
@@ -119,6 +127,27 @@ impl<'a> Game<'a> {
     fn init(&mut self) -> io::Result<()> {
         queue!(self.out, terminal::Clear(terminal::ClearType::All)).unwrap();
         self.generate_players();
+        self.generate_food();
+
+        for player in self.players.iter() {
+            if let Some(snake) = player.snake {
+                self.spatial_grid
+                    .add_object(ObjectRef::Player(snake.id()), snake.positions());
+            }
+        }
+
+        for food in self.foods.iter() {
+            self.spatial_grid.add_object(
+                ObjectRef::Food {
+                    obj_id: food.id(),
+                    elem_id: (),
+                    kind: (),
+                    meals: (),
+                },
+                positions,
+            );
+        }
+
         // TODO - Get elements from generated objects
         self.state = State::Run;
         Ok(())
@@ -132,7 +161,15 @@ impl<'a> Game<'a> {
         Ok(())
     }
 
-    // Generate players relative to level width/height and amount of players
+    fn generate_food(&mut self) {
+        let missing_food = self.food_spawns - self.foods.len();
+
+        for food in 0..missing_food {
+            let pos = self.spatial_grid.rng_empty_pos(None);
+            self.foods.push(Food::rng_food(self.id_counter.next(), pos));
+        }
+    }
+
     fn generate_players(&mut self) {
         let num_players = self.players.len();
         if num_players == 0 {
@@ -140,8 +177,8 @@ impl<'a> Game<'a> {
         }
 
         let border = self.spatial_grid.border;
-        let playable_width = self.spatial_grid.width.saturating_sub(border * 2);
-        let playable_height = self.spatial_grid.height.saturating_sub(border * 2);
+        let playable_width = self.spatial_grid.full_width.saturating_sub(border * 2);
+        let playable_height = self.spatial_grid.full_height.saturating_sub(border * 2);
 
         let step_x = playable_width as f32 / (num_players as f32 + 1.0);
         let step_y = playable_height as f32 / (num_players as f32 + 1.0);
@@ -158,14 +195,18 @@ impl<'a> Game<'a> {
             let clamped_pos = Position {
                 x: final_pos
                     .x
-                    .clamp(border, self.spatial_grid.width - 1 - border),
+                    .clamp(border, self.spatial_grid.full_width - 1 - border),
                 y: final_pos
                     .y
-                    .clamp(border, self.spatial_grid.height - 1 - border),
+                    .clamp(border, self.spatial_grid.full_height - 1 - border),
             };
 
             player.add_snake(clamped_pos, self.id_counter.next(), 2);
         }
+    }
+
+    fn draw(&self) {
+        if State::Init == self.state {}
     }
 
     // TODO - add collision

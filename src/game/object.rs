@@ -154,17 +154,22 @@ pub enum StateChange {
         obj_id: Id,
         element_id: Id,
         element: Element,
-        old_pos: Position,
+        init_pos: Position,
     },
     Delete {
         obj_id: Id,
         element_id: Id,
-        old_pos: Position,
+        init_pos: Position,
     },
     Create {
         obj_id: Id,
         element_id: Id,
         new_element: Element,
+    },
+    Consume {
+        obj_id: Id,
+        element_id: Id,
+        pos: Position,
     },
 }
 
@@ -174,15 +179,26 @@ pub struct StateManager {
 }
 
 impl StateManager {
-    pub fn new () -> Self {
-        Self { changes: HashMap::new() }
+    pub fn new() -> Self {
+        Self {
+            changes: HashMap::new(),
+        }
     }
 
     pub fn upsert_change(&mut self, new_state: StateChange) {
         let key = match new_state {
-            StateChange::Create { obj_id, element_id, .. } => (obj_id, element_id),
-            StateChange::Update { obj_id, element_id, .. } => (obj_id, element_id),
-            StateChange::Delete { obj_id, element_id, .. } => (obj_id, element_id),
+            StateChange::Create {
+                obj_id, element_id, ..
+            } => (obj_id, element_id),
+            StateChange::Update {
+                obj_id, element_id, ..
+            } => (obj_id, element_id),
+            StateChange::Delete {
+                obj_id, element_id, ..
+            } => (obj_id, element_id),
+            StateChange::Consume {
+                obj_id, element_id, ..
+            } => (obj_id, element_id),
         };
 
         match self.changes.entry(key) {
@@ -190,40 +206,52 @@ impl StateManager {
                 let curr_state = entry.get_mut();
 
                 match curr_state {
-                    StateChange::Create { new_element: curr_element, .. } => {
-                        match new_state {
-                            StateChange::Create { new_element, .. } => {
-                                *curr_element = new_element;
-                            },
-                            StateChange::Update { element, .. } => {
-                                *curr_element = element;
-                            },
-                            StateChange::Delete { .. } => {
-                                entry.remove();
-                            }
+                    StateChange::Create {
+                        new_element: curr_element,
+                        ..
+                    } => match new_state {
+                        StateChange::Create { new_element, .. } => {
+                            *curr_element = new_element;
+                        }
+                        StateChange::Update { element, .. } => {
+                            *curr_element = element;
+                        }
+                        StateChange::Consume { .. } => {}
+                        StateChange::Delete { .. } => {
+                            entry.remove();
                         }
                     },
 
-                    StateChange::Update { element: curr_element, old_pos: curr_old_pos, .. } => {
-                        match new_state {
-                            StateChange::Create { new_element, .. } => {
-                                *curr_element = new_element;
-                            },
-                            StateChange::Update { element, .. } => {
-                                *curr_element = element;
-                            },
-                            StateChange::Delete { obj_id, element_id , .. } => {
-                                *curr_state = StateChange::Delete { obj_id, element_id, old_pos: *curr_old_pos };
-                            }
+                    StateChange::Update {
+                        element: curr_element,
+                        init_pos: curr_old_pos,
+                        ..
+                    } => match new_state {
+                        StateChange::Create { new_element, .. } => {
+                            *curr_element = new_element;
                         }
-                    }
+                        StateChange::Update { element, .. } => {
+                            *curr_element = element;
+                        }
+                        StateChange::Consume { .. } => {}
+                        StateChange::Delete {
+                            obj_id, element_id, ..
+                        } => {
+                            *curr_state = StateChange::Delete {
+                                obj_id,
+                                element_id,
+                                init_pos: *curr_old_pos,
+                            };
+                        }
+                    },
 
-                    StateChange::Delete { .. } => { }
+                    StateChange::Consume { .. } => {}
+                    StateChange::Delete { .. } => {}
                 }
-            },
+            }
             Entry::Vacant(entry) => {
                 entry.insert(new_state);
-            },
+            }
         }
     }
 }
@@ -235,3 +263,7 @@ pub trait DynamicObject: Object {
         collisions: Option<Vec<Collision>>,
     ) -> Option<HashMap<(Id, Id), StateChange>>;
 }
+
+// pub trait InteractObject: Object {
+
+// }

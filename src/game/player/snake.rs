@@ -145,7 +145,11 @@ impl Snake {
                 min_y = min_y.min(element.pos.y);
                 max_y = max_y.max(element.pos.y);
 
-                let delete = StateChange::Delete { obj_id: self.id, element_id: element.id, old_pos: element.pos };
+                let delete = StateChange::Delete {
+                    obj_id: self.id,
+                    element_id: element.id,
+                    init_pos: element.pos,
+                };
                 self.state_manager.upsert_change(delete);
             }
 
@@ -170,7 +174,11 @@ impl Snake {
                 };
 
                 let element = Element::new(self.id_counter.next(), self.head_style, Some(curr_pos));
-                let create = StateChange::Create { obj_id: self.id, element_id: element.id, new_element: element };
+                let create = StateChange::Create {
+                    obj_id: self.id,
+                    element_id: element.id,
+                    new_element: element,
+                };
                 self.state_manager.upsert_change(create);
 
                 self.head.push(element);
@@ -223,7 +231,11 @@ impl Snake {
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
-                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+                    let create = StateChange::Create {
+                        obj_id: self.id,
+                        element_id: new_element.id,
+                        new_element: new_element,
+                    };
                     self.state_manager.upsert_change(create);
                     self.head.push(new_element);
                 }
@@ -248,7 +260,11 @@ impl Snake {
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
-                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+                    let create = StateChange::Create {
+                        obj_id: self.id,
+                        element_id: new_element.id,
+                        new_element: new_element,
+                    };
                     self.state_manager.upsert_change(create);
 
                     self.head.push(new_element);
@@ -273,10 +289,14 @@ impl Snake {
                     let new_pos = Position::new(new_pos_x, min_y + i);
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
-                    
-                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+
+                    let create = StateChange::Create {
+                        obj_id: self.id,
+                        element_id: new_element.id,
+                        new_element: new_element,
+                    };
                     self.state_manager.upsert_change(create);
-                    
+
                     self.head.push(new_element);
                 }
 
@@ -300,7 +320,11 @@ impl Snake {
                     let new_element =
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
-                    let create = StateChange::Create { obj_id: self.id, element_id: new_element.id, new_element: new_element };
+                    let create = StateChange::Create {
+                        obj_id: self.id,
+                        element_id: new_element.id,
+                        new_element: new_element,
+                    };
                     self.state_manager.upsert_change(create);
 
                     self.head.push(new_element);
@@ -313,7 +337,12 @@ impl Snake {
         for element in new_body.iter_mut() {
             element.style = self.body_style;
 
-            let update = StateChange::Update { obj_id: self.id, element_id: element.id, element: *element, old_pos: element.pos };
+            let update = StateChange::Update {
+                obj_id: self.id,
+                element_id: element.id,
+                element: *element,
+                init_pos: element.pos,
+            };
             self.state_manager.upsert_change(update);
         }
 
@@ -331,7 +360,11 @@ impl Snake {
                 }
                 if let Some(segment) = self.body.pop_back() {
                     for element in segment.elements {
-                        let delete = StateChange::Delete { obj_id: self.id, element_id: element.id, old_pos: element.pos };
+                        let delete = StateChange::Delete {
+                            obj_id: self.id,
+                            element_id: element.id,
+                            init_pos: element.pos,
+                        };
                         self.state_manager.upsert_change(delete);
                     }
                 }
@@ -339,7 +372,11 @@ impl Snake {
         } else {
             if let Some(segment) = self.body.pop_back() {
                 for element in segment.elements {
-                    let delete = StateChange::Delete { obj_id: self.id, element_id: element.id, old_pos: element.pos };
+                    let delete = StateChange::Delete {
+                        obj_id: self.id,
+                        element_id: element.id,
+                        init_pos: element.pos,
+                    };
                     self.state_manager.upsert_change(delete);
                 }
             }
@@ -348,7 +385,6 @@ impl Snake {
 
     // TODO - implement EffectZone and EffectStyle
     fn tick_effect(&mut self) {
-
         let Some(mut effect) = self.effect.take() else {
             return;
         };
@@ -464,8 +500,12 @@ impl DynamicObject for Snake {
                             }
                             self.meals += meals;
 
-                            let delete = StateChange::Delete { obj_id: *obj_id, element_id: *elem_id, old_pos: hit.pos };
-                            self.state_manager.upsert_change(delete);
+                            let consume = StateChange::Consume {
+                                obj_id: *obj_id,
+                                element_id: *elem_id,
+                                pos: hit.pos,
+                            };
+                            self.state_manager.upsert_change(consume);
                         }
                         ObjectRef::Player(_) => {
                             self.is_alive = false;

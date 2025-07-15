@@ -1,6 +1,5 @@
-use std::cell::Cell;
-
 use crossterm::style::Color;
+use rand::Rng;
 
 use crate::game::food::{self};
 
@@ -80,46 +79,45 @@ impl CellKind {
 
 #[derive(Debug, Clone)]
 pub struct GridCell {
-    pub occ_by: Vec<ObjectRef>,
+    pub occ_by: Option<ObjectRef>,
     pub kind: CellKind,
 }
 
 impl GridCell {
     pub fn new(kind: CellKind) -> Self {
-        GridCell {
-            occ_by: Vec::new(),
-            kind,
-        }
+        GridCell { occ_by: None, kind }
     }
 }
 
 pub struct SpatialGrid {
     cells: Vec<GridCell>,
-    pub width: u16,
-    pub height: u16,
+    pub full_width: u16,
+    pub full_height: u16,
+    pub game_width: u16,
+    pub game_height: u16,
     pub border: u16,
 }
 
 impl SpatialGrid {
-    pub fn new(inner_width: u16, inner_height: u16, mut border: u16, kind: CellKind) -> Self {
+    pub fn new(game_width: u16, game_height: u16, mut border: u16, kind: CellKind) -> Self {
         if border < 1 {
             border = 1
         }
 
-        let total_width = inner_width + border * 2;
-        let total_height = inner_height + border * 2;
-        let total_size = total_height * total_width;
+        let full_width = game_width + border * 2;
+        let full_height = game_height + border * 2;
+        let full_size = full_height * full_width;
 
-        let mut cells = vec![GridCell::new(kind); total_size as usize];
+        let mut cells = vec![GridCell::new(kind); full_size as usize];
 
         for (index, cell) in cells.iter_mut().enumerate() {
-            let x = index % total_width as usize;
-            let y = index / total_height as usize;
+            let x = index % full_width as usize;
+            let y = index / full_height as usize;
 
             if x < (border as usize)
-                || x >= (inner_width + border) as usize
+                || x >= (game_width + border) as usize
                 || y < (border as usize)
-                || y >= (inner_height + border) as usize
+                || y >= (game_height + border) as usize
             {
                 cell.kind = CellKind::Border;
             }
@@ -127,15 +125,17 @@ impl SpatialGrid {
 
         SpatialGrid {
             cells: cells,
-            width: total_width,
-            height: total_height,
+            full_width,
+            full_height,
+            game_width,
+            game_height,
             border,
         }
     }
 
     pub fn get_index(&self, pos: Position) -> Option<usize> {
-        if pos.x < self.width && pos.y < self.height {
-            Some((pos.y * self.width + pos.x) as usize)
+        if pos.x < self.full_width && pos.y < self.full_height {
+            Some((pos.y * self.full_width + pos.x) as usize)
         } else {
             None
         }
@@ -152,7 +152,10 @@ impl SpatialGrid {
     pub fn add_object(&mut self, obj_ref: ObjectRef, positions: &[Position]) {
         for &pos in positions {
             if let Some(cell) = self.get_cell_mut(pos) {
-                cell.occ_by.push(obj_ref);
+                // TODO - handle collisions?
+                if cell.occ_by.is_none() {
+                    cell.occ_by = Some(obj_ref);
+                }
             }
         }
     }
@@ -160,21 +163,30 @@ impl SpatialGrid {
     pub fn remove_object(&mut self, obj_ref: &ObjectRef, positions: &[Position]) {
         for &pos in positions {
             if let Some(cell) = self.get_cell_mut(pos) {
-                cell.occ_by.retain(|r| r != obj_ref);
+                cell.occ_by = None;
             }
         }
     }
 
-    // TODO - create safe random position
-    // pub fn rng_pos(&self, offset: Option<u16>) -> Position {
-    //     let off = offset.unwrap_or(0);
-    //     let x =
-    //         rand::rng().random_range(self.border_width + off..self.width + self.border_width - off);
-    //     let y = rand::rng()
-    //         .random_range(self.border_height + off..self.height + self.border_height - off);
+    // TODO - make better
+    pub fn rng_empty_pos(&self, offset: Option<u16>) -> Position {
+        let off = offset.unwrap_or(0);
+        let mut pos = Position::new(0, 0);
 
-    //     Position { x: x, y: y }
-    // }
+        // !DEAD LOOP WHEN NO EMPTY SPOTS ARE FOUND
+        loop {
+            pos.x = rand::rng().random_range(self.border + off..self.game_width - off);
+            pos.y = rand::rng().random_range(self.border + off..self.game_height - off);
+
+            if let Some(cell) = self.get_cell(pos) {
+                if cell.occ_by.is_none() {
+                    break;
+                }
+            };
+        }
+
+        pos
+    }
 
     pub fn move_object(
         &mut self,
