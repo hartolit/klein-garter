@@ -14,11 +14,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use food::Food;
 use grid::{CellKind, SpatialGrid};
 use io::Stdout;
 use object::{Id, IdCounter, Position};
 use player::Player;
+use food::Food;
 
 use crate::game::object::Object;
 
@@ -131,24 +131,14 @@ impl<'a> Game<'a> {
 
         for player in self.players.iter() {
             if let Some(snake) = player.snake {
-                self.spatial_grid
-                    .add_object(ObjectRef::Player(snake.id()), snake.positions());
+                self.spatial_grid.add_object(ObjectRef::Player(snake.id()), snake.positions());
             }
         }
 
         for food in self.foods.iter() {
-            self.spatial_grid.add_object(
-                ObjectRef::Food {
-                    obj_id: food.id(),
-                    elem_id: (),
-                    kind: (),
-                    meals: (),
-                },
-                positions,
-            );
+            self.spatial_grid.add_object(ObjectRef::Food { obj_id: food.id(), elem_id: (), kind: (), meals: () }, positions);
         }
 
-        // TODO - Get elements from generated objects
         self.state = State::Run;
         Ok(())
     }
@@ -164,7 +154,7 @@ impl<'a> Game<'a> {
     fn generate_food(&mut self) {
         let missing_food = self.food_spawns - self.foods.len();
 
-        for food in 0..missing_food {
+        for _ in 0..missing_food {
             let pos = self.spatial_grid.rng_empty_pos(None);
             self.foods.push(Food::rng_food(self.id_counter.next(), pos));
         }
@@ -206,7 +196,9 @@ impl<'a> Game<'a> {
     }
 
     fn draw(&self) {
-        if State::Init == self.state {}
+        if State::Init == self.state {
+
+        }
     }
 
     // TODO - add collision
