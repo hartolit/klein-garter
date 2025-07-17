@@ -1,19 +1,18 @@
-mod animation;
-
 use crossterm::style::Color;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
+use std::any::Any;
 
-use crate::game::food;
-use crate::game::grid::{CellKind, ObjectRef};
-use crate::game::object::StateManager;
-use crate::game::object::{
+use super::animation;
+use super::food;
+use super::grid::{CellKind, ObjectRef};
+use super::object::{
     BodySegment, Collision, DynamicObject, Element, Glyph, Id, IdCounter, Object, Orientation,
-    Position, ResizeState, StateChange,
+    Position, ResizeState, StateChange, ObjectKind, StateManager
 };
-use crate::game::player::snake::animation::EffectZone;
-use animation::{Effect, EffectStyle};
+
+use animation::{Effect, EffectStyle, EffectZone};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Direction {
@@ -430,6 +429,18 @@ impl Object for Snake {
                     .flat_map(|segment| segment.elements.iter().map(|elem| elem.pos)),
             ),
         )
+    }
+
+    fn kind(&self) -> ObjectKind {
+        ObjectKind::Snake
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

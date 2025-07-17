@@ -1,6 +1,6 @@
 use std::iter;
 
-use crate::game::object::{Element, Glyph, Id, Object, Position};
+use crate::game::object::{Element, Glyph, Id, Object, ObjectKind, Position};
 use crossterm::style::Color;
 use rand::Rng;
 
@@ -105,5 +105,9 @@ impl Object for Food {
 
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
         Box::new(iter::once(self.body.pos))
+    }
+
+    fn kind(&self) -> ObjectKind {
+        ObjectKind::Food
     }
 }

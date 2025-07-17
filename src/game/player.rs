@@ -1,10 +1,7 @@
-mod snake;
-
 use std::collections::HashMap;
 
-pub use snake::{Direction, Snake};
-
-use crate::game::object::{Id, Position};
+use super::object::Id;
+use super::snake::Direction;
 use uuid::Uuid;
 
 pub enum PlayerKind {
@@ -15,7 +12,7 @@ pub enum PlayerKind {
 pub struct Player {
     pub id: Uuid,
     pub score: u16,
-    pub snake: Option<Snake>,
+    pub snake: Option<Id>,
     pub kind: PlayerKind,
     pub keys: HashMap<Direction, char>,
 }
@@ -29,9 +26,5 @@ impl Player {
             kind,
             keys,
         }
-    }
-
-    pub fn add_snake(&mut self, pos: Position, obj_id: Id, size: usize) {
-        self.snake = Some(Snake::new(pos, obj_id, size));
     }
 }

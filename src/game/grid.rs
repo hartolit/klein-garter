@@ -160,7 +160,7 @@ impl SpatialGrid {
         }
     }
 
-    pub fn remove_object(&mut self, obj_ref: &ObjectRef, positions: &[Position]) {
+    pub fn remove_object(&mut self, positions: &[Position]) {
         for &pos in positions {
             if let Some(cell) = self.get_cell_mut(pos) {
                 cell.occ_by = None;
@@ -194,7 +194,7 @@ impl SpatialGrid {
         old_positions: &[Position],
         new_positions: &[Position],
     ) {
-        self.remove_object(&obj_ref, old_positions);
+        self.remove_object( old_positions);
         self.add_object(obj_ref, new_positions);
     }
 }

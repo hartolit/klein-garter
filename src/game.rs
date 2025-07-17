@@ -1,3 +1,5 @@
+pub mod animation;
+pub mod snake;
 pub mod food;
 pub mod grid;
 pub mod object;
@@ -10,8 +12,7 @@ use crossterm::{
     terminal::{self},
 };
 use std::{
-    io::{self},
-    time::{Duration, Instant},
+    collections::HashMap, hash::Hash, io::{self}, time::{Duration, Instant}
 };
 
 use grid::{CellKind, SpatialGrid};
@@ -20,7 +21,7 @@ use object::{Id, IdCounter, Position};
 use player::Player;
 use food::Food;
 
-use crate::game::object::Object;
+use crate::game::{object::{Object, ObjectKind}, snake::Snake};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum State {
@@ -37,7 +38,7 @@ pub enum GameKind {
 
 pub struct Game<'a> {
     pub players: Vec<Player>,
-    foods: Vec<Food>,
+    objects: HashMap<Id, Box<dyn Object>>,
     food_spawns: usize,
     state: State,
     kind: GameKind,
@@ -52,11 +53,11 @@ pub struct Game<'a> {
 impl<'a> Game<'a> {
     pub fn new(kind: GameKind, stdout: &'a mut Stdout) -> Self {
         Game {
+            players: Vec::new(),
+            objects: HashMap::new(),
+            food_spawns: 5,
             state: State::Init,
             kind: kind,
-            players: Vec::new(),
-            foods: Vec::new(),
-            food_spawns: 5,
             out: stdout,
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
@@ -129,16 +130,6 @@ impl<'a> Game<'a> {
         self.generate_players();
         self.generate_food();
 
-        for player in self.players.iter() {
-            if let Some(snake) = player.snake {
-                self.spatial_grid.add_object(ObjectRef::Player(snake.id()), snake.positions());
-            }
-        }
-
-        for food in self.foods.iter() {
-            self.spatial_grid.add_object(ObjectRef::Food { obj_id: food.id(), elem_id: (), kind: (), meals: () }, positions);
-        }
-
         self.state = State::Run;
         Ok(())
     }
@@ -152,11 +143,12 @@ impl<'a> Game<'a> {
     }
 
     fn generate_food(&mut self) {
-        let missing_food = self.food_spawns - self.foods.len();
+        let missing_food = self.food_spawns - self.object_count(ObjectKind::Food);
 
         for _ in 0..missing_food {
             let pos = self.spatial_grid.rng_empty_pos(None);
-            self.foods.push(Food::rng_food(self.id_counter.next(), pos));
+            let food = Food::rng_food(self.id_counter.next(), pos);
+            self.objects.insert(food.id(), Box::new(food));
         }
     }
 
@@ -191,8 +183,21 @@ impl<'a> Game<'a> {
                     .clamp(border, self.spatial_grid.full_height - 1 - border),
             };
 
-            player.add_snake(clamped_pos, self.id_counter.next(), 2);
+            let snake = Snake::new(clamped_pos, self.id_counter.next(), 2);
+            player.snake = Some(snake.id());
+
+            self.objects.insert(snake.id(), Box::new(snake));
         }
+    }
+
+    fn object_count(&self, kind: ObjectKind) -> usize {
+        let mut count: usize = 0;
+        for object in self.objects.values() {
+            if object.kind() == kind {
+                count += 1;
+            }
+        }
+        count
     }
 
     fn draw(&self) {

@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::fmt::Debug;
+use std::{any::Any, collections::HashMap};
 use std::collections::hash_map::Entry;
 
 use super::grid::{CellKind, ObjectRef};
@@ -133,11 +134,39 @@ impl Element {
     }
 }
 
-pub trait Object {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ObjectKind {
+    Food,
+    Snake,
+    Wall,
+}
+
+pub trait Object: Any + Debug {
     fn id(&self) -> Id;
     fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+    fn kind(&self) -> ObjectKind;
+
+    // Methods for downcasting
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
+
+pub trait ObjectExt {
+    fn get<T: 'static>(&self) -> Option<&T>;
+    fn get_mut<T: 'static>(&mut self) -> Option<&mut T>;
+}
+
+impl ObjectExt for dyn Object {
+    fn get<T: 'static>(&self) -> Option<&T> {
+        self.as_any().downcast_ref::<T>()
+    }
+
+    fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        self.as_any_mut().downcast_mut::<T>()
+    }
+}
+
 
 ///
 /// COLLISION AND STATECHANGE
