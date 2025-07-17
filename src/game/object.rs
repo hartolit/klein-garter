@@ -138,7 +138,6 @@ impl Element {
 pub enum ObjectKind {
     Food,
     Snake,
-    Wall,
 }
 
 pub trait Object: Any + Debug {

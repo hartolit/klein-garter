@@ -21,7 +21,7 @@ use object::{Id, IdCounter, Position};
 use player::Player;
 use food::Food;
 
-use crate::game::{object::{Object, ObjectKind}, snake::Snake};
+use crate::game::{grid::ObjectRef, object::{Object, ObjectExt, ObjectKind}, snake::Snake};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum State {
@@ -94,10 +94,14 @@ impl<'a> Game<'a> {
                         }
                         _ => {
                             for player in self.players.iter_mut() {
-                                for key in player.keys.iter() {
-                                    if key_event.code == KeyCode::Char(*key.1) {
-                                        if let Some(snake) = player.snake.as_mut() {
-                                            snake.direction = *key.0;
+                                for (direction, key) in player.keys.iter() {
+                                    if key_event.code == KeyCode::Char(*key) {
+                                        if let Some(snake_id) = player.snake {
+                                            if let Some(object) = self.objects.get_mut(&snake_id) {
+                                                if let Some(snake) = object.get_mut::<Snake>() {
+                                                    snake.direction = *direction;
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -129,6 +133,20 @@ impl<'a> Game<'a> {
         queue!(self.out, terminal::Clear(terminal::ClearType::All)).unwrap();
         self.generate_players();
         self.generate_food();
+
+        for object in self.objects.values() {
+            let obj_ref = match object.kind() {
+                ObjectKind::Food => {
+                    if let Some(food) = object.get::<Food>() {
+                        ObjectRef::Food { obj_id: food.id(), elem_id: food.elements(), kind: (), meals: () }
+                    }
+                },
+                ObjectKind::Snake => {
+
+                },
+            };
+        }
+        self.spatial_grid.add_object(obj_ref, positions);
 
         self.state = State::Run;
         Ok(())
