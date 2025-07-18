@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::{any::Any, collections::HashMap};
 use std::collections::hash_map::Entry;
 
-use super::grid::{CellKind, ObjectRef};
+use super::grid::{CellKind};
 use crossterm::style::Color;
 
 ///
@@ -148,20 +148,21 @@ impl Element {
 
 pub trait Consumable {
     fn get_meal(&self) -> i16;
-    fn on_consumed(&self, consumer_id: Id) -> StateChange;
+    fn on_consumed(&self, hit_element_id: Id, pos: Position, consumer_id: Id) -> StateChange;
 }
 
 pub trait Damaging {
-    fn get_damage(&self) -> i32;
+    fn get_damage(&self) -> i16;
 }
 
-// TODO - Add event/message queue and handler
+// TODO - add event/message queue system (future possibilities)
 pub trait Movable {
     fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
     fn update(
         &mut self,
         collisions: Option<Vec<Collision>>,
-    ) -> Option<HashMap<(Id, Id), StateChange>>;
+        game_objects: &HashMap<Id, Box<dyn Object>>,
+    ) -> Option<HashMap<Occupant, StateChange>>;
 }
 
 pub trait Object: Any + Debug {

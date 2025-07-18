@@ -1,6 +1,6 @@
 use std::iter;
 
-use crate::game::object::{Element, Glyph, Id, Object, Position, Consumable, StateChange};
+use crate::game::object::{Consumable, Element, Glyph, Id, Object, Occupant, Position, StateChange};
 use crossterm::style::Color;
 use rand::Rng;
 
@@ -116,7 +116,7 @@ impl Object for Food {
     }
 
     fn as_consumable(&self) -> Option<&dyn Consumable> {
-        
+        Some(self)
     }
 }
 
@@ -125,7 +125,7 @@ impl Consumable for Food {
         self.meal
     }
 
-    fn on_consumed(&self, consumer_id: Id) -> StateChange {
-        
+    fn on_consumed(&self, hit_element_id: Id, pos: Position, _consumer_id: Id) -> StateChange {
+        StateChange::Consume { occupant: Occupant::new(self.id, hit_element_id), pos }
     }
 }

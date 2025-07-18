@@ -1,46 +1,7 @@
 use crossterm::style::Color;
 use rand::Rng;
 
-use crate::game::food::{self};
-
-use super::object::{Glyph, Id, Position};
-
-#[derive(Debug, Clone, Copy)]
-pub enum ObjectRef {
-    Player(Id),
-    Food {
-        obj_id: Id,
-        elem_id: Id,
-        kind: food::Kind,
-        meals: i16,
-    },
-}
-
-// PartialEq for ObjectId only
-impl PartialEq for ObjectRef {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (ObjectRef::Player(id1), ObjectRef::Player(id2)) => id1 == id2,
-            (
-                ObjectRef::Food {
-                    obj_id: id1,
-                    kind: _,
-                    meals: _,
-                    elem_id: _,
-                },
-                ObjectRef::Food {
-                    obj_id: id2,
-                    kind: _,
-                    meals: _,
-                    elem_id: _,
-                },
-            ) => id1 == id2,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for ObjectRef {}
+use super::object::{Glyph, Position, Occupant};
 
 #[derive(Debug, Clone, Copy)]
 pub enum CellKind {
@@ -79,7 +40,7 @@ impl CellKind {
 
 #[derive(Debug, Clone)]
 pub struct GridCell {
-    pub occ_by: Option<ObjectRef>,
+    pub occ_by: Option<Occupant>,
     pub kind: CellKind,
 }
 
@@ -149,31 +110,42 @@ impl SpatialGrid {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
-    pub fn add_object(&mut self, obj_ref: ObjectRef, positions: &[Position]) {
-        for &pos in positions {
-            if let Some(cell) = self.get_cell_mut(pos) {
-                // TODO - handle collisions?
-                if cell.occ_by.is_none() {
-                    cell.occ_by = Some(obj_ref);
-                }
-            }
-        }
-    }
+    // ! TODO - implement add, remove and move methods
+    // pub fn add_object(&mut self, obj_ref: ObjectRef, positions: &[Position]) {
+    //     for &pos in positions {
+    //         if let Some(cell) = self.get_cell_mut(pos) {
+    //             // TODO - handle collisions?
+    //             if cell.occ_by.is_none() {
+    //                 cell.occ_by = Some(obj_ref);
+    //             }
+    //         }
+    //     }
+    // }
 
-    pub fn remove_object(&mut self, positions: &[Position]) {
-        for &pos in positions {
-            if let Some(cell) = self.get_cell_mut(pos) {
-                cell.occ_by = None;
-            }
-        }
-    }
+    // pub fn remove_object(&mut self, positions: &[Position]) {
+    //     for &pos in positions {
+    //         if let Some(cell) = self.get_cell_mut(pos) {
+    //             cell.occ_by = None;
+    //         }
+    //     }
+    // }
+
+    // pub fn move_object(
+    //     &mut self,
+    //     obj_ref: ObjectRef,
+    //     old_positions: &[Position],
+    //     new_positions: &[Position],
+    // ) {
+    //     self.remove_object( old_positions);
+    //     self.add_object(obj_ref, new_positions);
+    // }
 
     // TODO - make better
     pub fn rng_empty_pos(&self, offset: Option<u16>) -> Position {
         let off = offset.unwrap_or(0);
         let mut pos = Position::new(0, 0);
 
-        // !DEAD LOOP WHEN NO EMPTY SPOTS ARE FOUND
+        // ! ERROR - DEAD LOOP WHEN NO EMPTY SPOTS ARE FOUND
         loop {
             pos.x = rand::rng().random_range(self.border + off..self.game_width - off);
             pos.y = rand::rng().random_range(self.border + off..self.game_height - off);
@@ -186,15 +158,5 @@ impl SpatialGrid {
         }
 
         pos
-    }
-
-    pub fn move_object(
-        &mut self,
-        obj_ref: ObjectRef,
-        old_positions: &[Position],
-        new_positions: &[Position],
-    ) {
-        self.remove_object( old_positions);
-        self.add_object(obj_ref, new_positions);
     }
 }

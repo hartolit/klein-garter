@@ -4,9 +4,10 @@ use std::collections::VecDeque;
 use std::hash::Hash;
 use std::any::Any;
 
+use crate::game::object::ObjectExt;
+
 use super::animation;
-use super::food;
-use super::grid::{CellKind, ObjectRef};
+use super::grid::{CellKind};
 use super::object::{
     BodySegment, Collision, Movable, Element, Glyph, Id, IdCounter, Object, Orientation,
     Position, ResizeState, StateChange, StateManager, Occupant
@@ -444,7 +445,8 @@ impl Movable for Snake {
     fn update(
         &mut self,
         collisions: Option<Vec<Collision>>,
-    ) -> Option<HashMap<(Id, Id), StateChange>> {
+        game_objects: &HashMap<Id, Box<dyn Object>>,
+    ) -> Option<HashMap<Occupant, StateChange>> {
         if !self.is_alive {
             return None;
         }
@@ -452,64 +454,32 @@ impl Movable for Snake {
         self.state_manager.changes.clear();
 
         let mut new_effect: Option<Effect> = None;
-        if let Some(col) = collisions {
-            for hit in col {
+        if let Some(hits) = collisions {
+            for hit in hits {
                 if let CellKind::Border | CellKind::Lava = hit.kind {
                     self.is_alive = false;
                     new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
                 }
 
-                for obj_ref in hit.colliders {
-                    match obj_ref {
-                        ObjectRef::Food {
-                            obj_id,
-                            kind,
-                            meals,
-                            elem_id: element_id,
-                        } => {
-                            match &*kind {
-                                food::Kind::Bomb => {
-                                    new_effect = Some(Effect::new(
-                                        2,
-                                        EffectStyle::Damage,
-                                        Some(self.head_size.size() + 2),
-                                        EffectZone::All,
-                                    ))
-                                }
-                                food::Kind::Cherry => {
-                                    new_effect = Some(Effect::new(
-                                        2,
-                                        EffectStyle::Grow,
-                                        Some(self.head_size.size() + 2),
-                                        EffectZone::Body,
-                                    ))
-                                }
-                                food::Kind::Mouse => {
-                                    new_effect = Some(Effect::new(
-                                        2,
-                                        EffectStyle::Grow,
-                                        Some(self.head_size.size() + 2),
-                                        EffectZone::Body,
-                                    ))
-                                }
-                                food::Kind::Grower => {
-                                    self.resize_head(self.head_size.size() + 2);
-                                }
-                            }
-                            self.meals += meals;
+                let hit_object = match game_objects.get(&hit.collider.obj_id) {
+                    Some(object) => object,
+                    None => continue
+                };
 
-                            let consume = StateChange::Consume {
-                                occupant: Occupant::new(*obj_id, *element_id),
-                                pos: hit.pos,
-                            };
-                            self.state_manager.upsert_change(consume);
-                        }
-                        ObjectRef::Player(_) => {
-                            self.is_alive = false;
-                            new_effect =
-                                Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
-                        }
-                    }
+                if let Some(consumable) = hit_object.as_consumable() {
+                    self.meals += consumable.get_meal();
+                    let change = consumable.on_consumed(hit.collider.element_id, hit.pos, self.id);
+                    new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.head_size.size() + 2), EffectZone::All));
+                    self.state_manager.upsert_change(change);
+                }
+
+                if let Some(damaging) = hit_object.as_damaging() {
+                    self.meals += damaging.get_damage();
+                    new_effect = Some(Effect::new(2, EffectStyle::Damage, None, EffectZone::All));
+                }
+
+                if let Some(_) = hit_object.get::<Snake>() {
+                    self.is_alive = false;
                 }
             }
         }
