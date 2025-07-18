@@ -8,8 +8,8 @@ use super::animation;
 use super::food;
 use super::grid::{CellKind, ObjectRef};
 use super::object::{
-    BodySegment, Collision, DynamicObject, Element, Glyph, Id, IdCounter, Object, Orientation,
-    Position, ResizeState, StateChange, ObjectKind, StateManager
+    BodySegment, Collision, Movable, Element, Glyph, Id, IdCounter, Object, Orientation,
+    Position, ResizeState, StateChange, StateManager, Occupant
 };
 
 use animation::{Effect, EffectStyle, EffectZone};
@@ -145,8 +145,7 @@ impl Snake {
                 max_y = max_y.max(element.pos.y);
 
                 let delete = StateChange::Delete {
-                    obj_id: self.id,
-                    element_id: element.id,
+                    occupant: Occupant::new(self.id, element.id),
                     init_pos: element.pos,
                 };
                 self.state_manager.upsert_change(delete);
@@ -174,8 +173,7 @@ impl Snake {
 
                 let element = Element::new(self.id_counter.next(), self.head_style, Some(curr_pos));
                 let create = StateChange::Create {
-                    obj_id: self.id,
-                    element_id: element.id,
+                    occupant: Occupant::new(self.id, element.id),
                     new_element: element,
                 };
                 self.state_manager.upsert_change(create);
@@ -231,8 +229,7 @@ impl Snake {
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        obj_id: self.id,
-                        element_id: new_element.id,
+                        occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
                     self.state_manager.upsert_change(create);
@@ -260,8 +257,7 @@ impl Snake {
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        obj_id: self.id,
-                        element_id: new_element.id,
+                        occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
                     self.state_manager.upsert_change(create);
@@ -290,8 +286,7 @@ impl Snake {
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        obj_id: self.id,
-                        element_id: new_element.id,
+                        occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
                     self.state_manager.upsert_change(create);
@@ -320,8 +315,7 @@ impl Snake {
                         Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        obj_id: self.id,
-                        element_id: new_element.id,
+                        occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
                     self.state_manager.upsert_change(create);
@@ -337,8 +331,7 @@ impl Snake {
             element.style = self.body_style;
 
             let update = StateChange::Update {
-                obj_id: self.id,
-                element_id: element.id,
+                occupant: Occupant::new(self.id, element.id),
                 element: *element,
                 init_pos: element.pos,
             };
@@ -360,8 +353,7 @@ impl Snake {
                 if let Some(segment) = self.body.pop_back() {
                     for element in segment.elements {
                         let delete = StateChange::Delete {
-                            obj_id: self.id,
-                            element_id: element.id,
+                            occupant: Occupant::new(self.id, element.id),
                             init_pos: element.pos,
                         };
                         self.state_manager.upsert_change(delete);
@@ -372,8 +364,7 @@ impl Snake {
             if let Some(segment) = self.body.pop_back() {
                 for element in segment.elements {
                     let delete = StateChange::Delete {
-                        obj_id: self.id,
-                        element_id: element.id,
+                        occupant: Occupant::new(self.id, element.id),
                         init_pos: element.pos,
                     };
                     self.state_manager.upsert_change(delete);
@@ -431,10 +422,6 @@ impl Object for Snake {
         )
     }
 
-    fn kind(&self) -> ObjectKind {
-        ObjectKind::Snake
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -444,7 +431,7 @@ impl Object for Snake {
     }
 }
 
-impl DynamicObject for Snake {
+impl Movable for Snake {
     fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
         let (dx, dy) = self.direction.get_move();
 
@@ -478,7 +465,7 @@ impl DynamicObject for Snake {
                             obj_id,
                             kind,
                             meals,
-                            elem_id,
+                            elem_id: element_id,
                         } => {
                             match &*kind {
                                 food::Kind::Bomb => {
@@ -512,8 +499,7 @@ impl DynamicObject for Snake {
                             self.meals += meals;
 
                             let consume = StateChange::Consume {
-                                obj_id: *obj_id,
-                                element_id: *elem_id,
+                                occupant: Occupant::new(*obj_id, *element_id),
                                 pos: hit.pos,
                             };
                             self.state_manager.upsert_change(consume);

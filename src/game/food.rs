@@ -1,6 +1,6 @@
 use std::iter;
 
-use crate::game::object::{Element, Glyph, Id, Object, ObjectKind, Position};
+use crate::game::object::{Element, Glyph, Id, Object, Position, Consumable, StateChange};
 use crossterm::style::Color;
 use rand::Rng;
 
@@ -17,7 +17,7 @@ pub enum Kind {
 pub struct Food {
     id: Id,
     kind: Kind,
-    meals: i16,
+    meal: i16,
     body: Element,
 }
 
@@ -65,7 +65,7 @@ impl Food {
         Self {
             id: obj_id,
             kind,
-            meals,
+            meal: meals,
             body: Element {
                 id: Id::new(0),
                 style: Glyph {
@@ -79,7 +79,7 @@ impl Food {
     }
 
     pub fn replace_meal(&mut self, meals: i16) {
-        self.meals = meals;
+        self.meal = meals;
     }
 
     // TODO - Include new food type
@@ -107,7 +107,25 @@ impl Object for Food {
         Box::new(iter::once(self.body.pos))
     }
 
-    fn kind(&self) -> ObjectKind {
-        ObjectKind::Food
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_consumable(&self) -> Option<&dyn Consumable> {
+        
+    }
+}
+
+impl Consumable for Food {
+    fn get_meal(&self) -> i16 {
+        self.meal
+    }
+
+    fn on_consumed(&self, consumer_id: Id) -> StateChange {
+        
     }
 }

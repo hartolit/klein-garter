@@ -87,6 +87,18 @@ impl IdCounter {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Occupant {
+    pub obj_id: Id,
+    pub element_id: Id,
+}
+
+impl Occupant {
+    pub fn new(obj_id: Id, element_id: Id) -> Self {
+        Occupant { obj_id, element_id }
+    }
+}
+
 ///
 /// POSITION
 ///
@@ -134,22 +146,37 @@ impl Element {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ObjectKind {
-    Food,
-    Snake,
-    Wall,
+pub trait Consumable {
+    fn get_meal(&self) -> i16;
+    fn on_consumed(&self, consumer_id: Id) -> StateChange;
+}
+
+pub trait Damaging {
+    fn get_damage(&self) -> i32;
+}
+
+// TODO - Add event/message queue and handler
+pub trait Movable {
+    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+    fn update(
+        &mut self,
+        collisions: Option<Vec<Collision>>,
+    ) -> Option<HashMap<(Id, Id), StateChange>>;
 }
 
 pub trait Object: Any + Debug {
     fn id(&self) -> Id;
     fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-    fn kind(&self) -> ObjectKind;
 
     // Methods for downcasting
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    // Behavior methods
+    fn as_consumable(&self) -> Option<&dyn Consumable> { None }
+    fn as_damaging(&self) -> Option<&dyn Damaging> { None }
+    fn as_movable(&self) -> Option<&dyn Movable> { None }
 }
 
 pub trait ObjectExt {
@@ -174,37 +201,33 @@ impl ObjectExt for dyn Object {
 pub struct Collision<'a> {
     pub pos: Position,
     pub kind: &'a CellKind,
-    pub colliders: &'a [ObjectRef],
+    pub collider: Occupant,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateChange {
     Update {
-        obj_id: Id,
-        element_id: Id,
+        occupant: Occupant,
         element: Element,
         init_pos: Position,
     },
     Delete {
-        obj_id: Id,
-        element_id: Id,
+        occupant: Occupant,
         init_pos: Position,
     },
     Create {
-        obj_id: Id,
-        element_id: Id,
+        occupant: Occupant,
         new_element: Element,
     },
     Consume {
-        obj_id: Id,
-        element_id: Id,
+        occupant: Occupant,
         pos: Position,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StateManager {
-    pub changes: HashMap<(Id, Id), StateChange>,
+    pub changes: HashMap<Occupant, StateChange>,
 }
 
 impl StateManager {
@@ -217,17 +240,17 @@ impl StateManager {
     pub fn upsert_change(&mut self, new_state: StateChange) {
         let key = match new_state {
             StateChange::Create {
-                obj_id, element_id, ..
-            } => (obj_id, element_id),
+                occupant, ..
+            } => occupant,
             StateChange::Update {
-                obj_id, element_id, ..
-            } => (obj_id, element_id),
+                occupant, ..
+            } => occupant,
             StateChange::Delete {
-                obj_id, element_id, ..
-            } => (obj_id, element_id),
+                occupant, ..
+            } => occupant,
             StateChange::Consume {
-                obj_id, element_id, ..
-            } => (obj_id, element_id),
+                occupant, ..
+            } => occupant,
         };
 
         match self.changes.entry(key) {
@@ -253,7 +276,7 @@ impl StateManager {
 
                     StateChange::Update {
                         element: curr_element,
-                        init_pos: curr_old_pos,
+                        init_pos: curr_init_pos,
                         ..
                     } => match new_state {
                         StateChange::Create { new_element, .. } => {
@@ -264,12 +287,11 @@ impl StateManager {
                         }
                         StateChange::Consume { .. } => {}
                         StateChange::Delete {
-                            obj_id, element_id, ..
+                            occupant, ..
                         } => {
                             *curr_state = StateChange::Delete {
-                                obj_id,
-                                element_id,
-                                init_pos: *curr_old_pos,
+                                occupant,
+                                init_pos: *curr_init_pos,
                             };
                         }
                     },
@@ -283,14 +305,6 @@ impl StateManager {
             }
         }
     }
-}
-
-pub trait DynamicObject: Object {
-    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-    fn update(
-        &mut self,
-        collisions: Option<Vec<Collision>>,
-    ) -> Option<HashMap<(Id, Id), StateChange>>;
 }
 
 // pub trait InteractObject: Object {

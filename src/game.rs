@@ -21,7 +21,7 @@ use object::{Id, IdCounter, Position};
 use player::Player;
 use food::Food;
 
-use crate::game::{object::{Object, ObjectKind}, snake::Snake};
+use crate::game::{object::{Object}, snake::Snake};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum State {
