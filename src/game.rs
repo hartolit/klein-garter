@@ -1,9 +1,9 @@
-pub mod animation;
-pub mod snake;
 pub mod food;
+pub mod bomb;
 pub mod grid;
 pub mod object;
 pub mod player;
+pub mod snake;
 
 use crossterm::{
     cursor,
@@ -12,16 +12,22 @@ use crossterm::{
     terminal::{self},
 };
 use std::{
-    collections::HashMap, hash::Hash, io::{self}, time::{Duration, Instant}
+    collections::HashMap,
+    hash::Hash,
+    io::{self},
+    time::{Duration, Instant},
 };
 
+use food::Food;
 use grid::{CellKind, SpatialGrid};
 use io::Stdout;
 use object::{Id, IdCounter, Position};
 use player::Player;
-use food::Food;
 
-use crate::game::{object::{Object}, snake::Snake};
+use crate::game::{
+    object::{Object, ObjectExt},
+    snake::Snake,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum State {
@@ -94,10 +100,14 @@ impl<'a> Game<'a> {
                         }
                         _ => {
                             for player in self.players.iter_mut() {
-                                for key in player.keys.iter() {
-                                    if key_event.code == KeyCode::Char(*key.1) {
-                                        if let Some(snake) = player.snake.as_mut() {
-                                            snake.direction = *key.0;
+                                for (direction, key) in player.keys.iter() {
+                                    if key_event.code == KeyCode::Char(*key) {
+                                        if let Some(snake_id) = player.snake {
+                                            if let Some(object) = self.objects.get_mut(&snake_id) {
+                                                if let Some(snake) = object.get_mut::<Snake>() {
+                                                    snake.direction = *direction;
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -201,9 +211,7 @@ impl<'a> Game<'a> {
     }
 
     fn draw(&self) {
-        if State::Init == self.state {
-
-        }
+        if State::Init == self.state {}
     }
 
     // TODO - add collision

@@ -1,7 +1,7 @@
 use crossterm::style::Color;
 use rand::Rng;
 
-use super::object::{Glyph, Position, Occupant};
+use super::object::{Glyph, Occupant, Position};
 
 #[derive(Debug, Clone, Copy)]
 pub enum CellKind {

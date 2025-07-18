@@ -1,8 +1,8 @@
+use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::{any::Any, collections::HashMap};
-use std::collections::hash_map::Entry;
 
-use super::grid::{CellKind};
+use super::grid::CellKind;
 use crossterm::style::Color;
 
 ///
@@ -148,11 +148,12 @@ impl Element {
 
 pub trait Consumable {
     fn get_meal(&self) -> i16;
-    fn on_consumed(&self, hit_element_id: Id, pos: Position, consumer_id: Id) -> StateChange;
+    fn on_consumed(&self, hit_element_id: Id, pos: Position, recipient_id: Id) -> StateChange;
 }
 
 pub trait Damaging {
     fn get_damage(&self) -> i16;
+    fn on_hit(&self, hit_element_id: Id, pos: Position, recipient_id: Id) -> StateChange;
 }
 
 // TODO - add event/message queue system (future possibilities)
@@ -175,11 +176,18 @@ pub trait Object: Any + Debug {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
     // Behavior methods
-    fn as_consumable(&self) -> Option<&dyn Consumable> { None }
-    fn as_damaging(&self) -> Option<&dyn Damaging> { None }
-    fn as_movable(&self) -> Option<&dyn Movable> { None }
+    fn as_consumable(&self) -> Option<&dyn Consumable> {
+        None
+    }
+    fn as_damaging(&self) -> Option<&dyn Damaging> {
+        None
+    }
+    fn as_movable(&self) -> Option<&dyn Movable> {
+        None
+    }
 }
 
+// Extended to keep object dynamic
 pub trait ObjectExt {
     fn get<T: 'static>(&self) -> Option<&T>;
     fn get_mut<T: 'static>(&mut self) -> Option<&mut T>;
@@ -195,9 +203,8 @@ impl ObjectExt for dyn Object {
     }
 }
 
-
 ///
-/// COLLISION AND STATECHANGE
+/// COLLISION AND STATE
 ///
 pub struct Collision<'a> {
     pub pos: Position,
@@ -219,13 +226,12 @@ pub enum StateChange {
     Create {
         occupant: Occupant,
         new_element: Element,
-    },
-    Consume {
-        occupant: Occupant,
-        pos: Position,
-    },
+    }
 }
 
+// TODO - add better state handling
+// (actor-responder) states from other objects get's pushed onto the affected object
+// making the affected object mange state of other objects too.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StateManager {
     pub changes: HashMap<Occupant, StateChange>,
@@ -240,18 +246,9 @@ impl StateManager {
 
     pub fn upsert_change(&mut self, new_state: StateChange) {
         let key = match new_state {
-            StateChange::Create {
-                occupant, ..
-            } => occupant,
-            StateChange::Update {
-                occupant, ..
-            } => occupant,
-            StateChange::Delete {
-                occupant, ..
-            } => occupant,
-            StateChange::Consume {
-                occupant, ..
-            } => occupant,
+            StateChange::Create { occupant, .. } => occupant,
+            StateChange::Update { occupant, .. } => occupant,
+            StateChange::Delete { occupant, .. } => occupant,
         };
 
         match self.changes.entry(key) {
@@ -269,7 +266,6 @@ impl StateManager {
                         StateChange::Update { element, .. } => {
                             *curr_element = element;
                         }
-                        StateChange::Consume { .. } => {}
                         StateChange::Delete { .. } => {
                             entry.remove();
                         }
@@ -286,18 +282,13 @@ impl StateManager {
                         StateChange::Update { element, .. } => {
                             *curr_element = element;
                         }
-                        StateChange::Consume { .. } => {}
-                        StateChange::Delete {
-                            occupant, ..
-                        } => {
+                        StateChange::Delete { occupant, .. } => {
                             *curr_state = StateChange::Delete {
                                 occupant,
                                 init_pos: *curr_init_pos,
                             };
                         }
                     },
-
-                    StateChange::Consume { .. } => {}
                     StateChange::Delete { .. } => {}
                 }
             }
@@ -307,7 +298,3 @@ impl StateManager {
         }
     }
 }
-
-// pub trait InteractObject: Object {
-
-// }

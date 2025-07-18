@@ -1,16 +1,17 @@
+pub mod animation;
+
 use crossterm::style::Color;
+use std::any::Any;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
-use std::any::Any;
 
 use crate::game::object::ObjectExt;
 
-use super::animation;
-use super::grid::{CellKind};
+use super::grid::CellKind;
 use super::object::{
-    BodySegment, Collision, Movable, Element, Glyph, Id, IdCounter, Object, Orientation,
-    Position, ResizeState, StateChange, StateManager, Occupant
+    BodySegment, Collision, Element, Glyph, Id, IdCounter, Movable, Object, Occupant, Orientation,
+    Position, ResizeState, StateChange, StateManager,
 };
 
 use animation::{Effect, EffectStyle, EffectZone};
@@ -463,13 +464,18 @@ impl Movable for Snake {
 
                 let hit_object = match game_objects.get(&hit.collider.obj_id) {
                     Some(object) => object,
-                    None => continue
+                    None => continue,
                 };
 
                 if let Some(consumable) = hit_object.as_consumable() {
                     self.meals += consumable.get_meal();
                     let change = consumable.on_consumed(hit.collider.element_id, hit.pos, self.id);
-                    new_effect = Some(Effect::new(2, EffectStyle::Grow, Some(self.head_size.size() + 2), EffectZone::All));
+                    new_effect = Some(Effect::new(
+                        2,
+                        EffectStyle::Grow,
+                        Some(self.head_size.size() + 2),
+                        EffectZone::All,
+                    ));
                     self.state_manager.upsert_change(change);
                 }
 

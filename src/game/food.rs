@@ -1,6 +1,8 @@
 use std::iter;
 
-use crate::game::object::{Consumable, Element, Glyph, Id, Object, Occupant, Position, StateChange};
+use crate::game::object::{
+    Consumable, Element, Glyph, Id, Object, Occupant, Position, StateChange,
+};
 use crossterm::style::Color;
 use rand::Rng;
 
@@ -8,7 +10,6 @@ use rand::Rng;
 pub enum Kind {
     Cherry,
     Mouse,
-    Bomb,
     Grower,
 }
 
@@ -23,7 +24,7 @@ pub struct Food {
 
 impl Food {
     pub fn new(obj_id: Id, kind: Kind, pos: Position) -> Self {
-        let (meals, symbol, color) = match kind {
+        let (meal, symbol, color) = match kind {
             Kind::Cherry => (
                 1,
                 '⧝',
@@ -42,15 +43,6 @@ impl Food {
                     b: 69,
                 },
             ),
-            Kind::Bomb => (
-                -10,
-                '⍟',
-                Color::Rgb {
-                    r: 169,
-                    g: 169,
-                    b: 169,
-                },
-            ),
             Kind::Grower => (
                 0,
                 '⌘',
@@ -65,7 +57,7 @@ impl Food {
         Self {
             id: obj_id,
             kind,
-            meal: meals,
+            meal,
             body: Element {
                 id: Id::new(0),
                 style: Glyph {
@@ -82,12 +74,11 @@ impl Food {
         self.meal = meals;
     }
 
-    // TODO - Include new food type
     pub fn rng_food(obj_id: Id, pos: Position) -> Self {
         let food = match rand::rng().random_range(0..=2) {
             0 => Food::new(obj_id, Kind::Cherry, pos),
             1 => Food::new(obj_id, Kind::Mouse, pos),
-            _ => Food::new(obj_id, Kind::Bomb, pos),
+            _ => Food::new(obj_id, Kind::Grower, pos),
         };
 
         food
@@ -125,7 +116,10 @@ impl Consumable for Food {
         self.meal
     }
 
-    fn on_consumed(&self, hit_element_id: Id, pos: Position, _consumer_id: Id) -> StateChange {
-        StateChange::Consume { occupant: Occupant::new(self.id, hit_element_id), pos }
+    fn on_consumed(&self, element_id: Id, pos: Position, _recipient_id: Id) -> StateChange {
+        StateChange::Delete {
+            occupant: Occupant::new(self.id, element_id),
+            init_pos: pos,
+        }
     }
 }
