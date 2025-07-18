@@ -1,5 +1,5 @@
-pub mod food;
 pub mod bomb;
+pub mod food;
 pub mod grid;
 pub mod object;
 pub mod player;

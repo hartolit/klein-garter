@@ -1,8 +1,6 @@
 use std::iter;
 
-use crate::game::object::{
-    Damaging, Element, Glyph, Id, Object, Occupant, Position, StateChange
-};
+use crate::game::object::{Damaging, Element, Glyph, Id, Object, Occupant, Position, StateChange};
 use crossterm::style::Color;
 use rand::Rng;
 
@@ -19,7 +17,7 @@ pub struct Bomb {
     kind: Kind,
     damage: i16,
     body: Element,
-    //pub effect_area: u16, 
+    //pub effect_area: u16,
 }
 
 impl Bomb {
@@ -42,7 +40,6 @@ impl Bomb {
                     g: 169,
                     b: 169,
                 },
-
             ),
             Kind::ThinMan => (
                 -5,
@@ -52,20 +49,20 @@ impl Bomb {
                     g: 169,
                     b: 169,
                 },
-            )
+            ),
         };
 
         let glyph = Glyph {
             fg_clr: Some(color),
             bg_clr: None,
-            symbol
+            symbol,
         };
 
         Self {
             id: obj_id,
             kind,
             damage,
-            body: Element::new(Id::new(0), glyph, Some(pos))
+            body: Element::new(Id::new(0), glyph, Some(pos)),
         }
     }
 
@@ -81,7 +78,7 @@ impl Bomb {
 }
 
 impl Object for Bomb {
-        fn id(&self) -> Id {
+    fn id(&self) -> Id {
         self.id
     }
 
@@ -107,6 +104,9 @@ impl Damaging for Bomb {
         self.damage
     }
     fn on_hit(&self, element_id: Id, pos: Position, _recipient_id: Id) -> StateChange {
-        StateChange::Delete { occupant: Occupant::new(self.id, element_id), init_pos: pos }
+        StateChange::Delete {
+            occupant: Occupant::new(self.id, element_id),
+            init_pos: pos,
+        }
     }
 }

@@ -1,6 +1,8 @@
 use crossterm::style::Color;
 use rand::Rng;
 
+use crate::game::object::Object;
+
 use super::object::{Glyph, Occupant, Position};
 
 #[derive(Debug, Clone, Copy)]
@@ -73,7 +75,7 @@ impl SpatialGrid {
 
         for (index, cell) in cells.iter_mut().enumerate() {
             let x = index % full_width as usize;
-            let y = index / full_height as usize;
+            let y = index / full_width as usize;
 
             if x < (border as usize)
                 || x >= (game_width + border) as usize
@@ -102,6 +104,16 @@ impl SpatialGrid {
         }
     }
 
+    pub fn get_pos_from_index(&self, index: usize) -> Option<Position> {
+        if index < self.cells.len() {
+            let x = (index % self.full_width as usize) as u16;
+            let y = (index / self.full_width as usize) as u16;
+            Some(Position::new(x, y))
+        } else {
+            None
+        }
+    }
+
     pub fn get_cell(&self, pos: Position) -> Option<&GridCell> {
         self.get_index(pos).map(|index| &self.cells[index])
     }
@@ -110,53 +122,74 @@ impl SpatialGrid {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
-    // ! TODO - implement add, remove and move methods
-    // pub fn add_object(&mut self, obj_ref: ObjectRef, positions: &[Position]) {
-    //     for &pos in positions {
-    //         if let Some(cell) = self.get_cell_mut(pos) {
-    //             // TODO - handle collisions?
-    //             if cell.occ_by.is_none() {
-    //                 cell.occ_by = Some(obj_ref);
-    //             }
-    //         }
-    //     }
-    // }
-
-    // pub fn remove_object(&mut self, positions: &[Position]) {
-    //     for &pos in positions {
-    //         if let Some(cell) = self.get_cell_mut(pos) {
-    //             cell.occ_by = None;
-    //         }
-    //     }
-    // }
-
-    // pub fn move_object(
-    //     &mut self,
-    //     obj_ref: ObjectRef,
-    //     old_positions: &[Position],
-    //     new_positions: &[Position],
-    // ) {
-    //     self.remove_object( old_positions);
-    //     self.add_object(obj_ref, new_positions);
-    // }
-
-    // TODO - make better
-    pub fn rng_empty_pos(&self, offset: Option<u16>) -> Position {
-        let off = offset.unwrap_or(0);
-        let mut pos = Position::new(0, 0);
-
-        // ! ERROR - DEAD LOOP WHEN NO EMPTY SPOTS ARE FOUND
-        loop {
-            pos.x = rand::rng().random_range(self.border + off..self.game_width - off);
-            pos.y = rand::rng().random_range(self.border + off..self.game_height - off);
-
-            if let Some(cell) = self.get_cell(pos) {
-                if cell.occ_by.is_none() {
-                    break;
-                }
+    pub fn add_object<T: Object>(&mut self, object: &T) {
+        for element in object.elements() {
+            let cell = match self.get_cell_mut(element.pos) {
+                Some(cell) => cell,
+                None => continue,
             };
+            // ! Overwrites current occupant
+            cell.occ_by = Some(Occupant::new(object.id(), element.id));
+        }
+    }
+
+    pub fn remove_object<T: Object>(&mut self, object: &T) {
+        for element in object.elements() {
+            let cell = match self.get_cell_mut(element.pos) {
+                Some(cell) => cell,
+                None => continue,
+            };
+
+            if let Some(occ) = cell.occ_by {
+                if occ.obj_id == object.id() {
+                    cell.occ_by = None
+                }
+            }
+        }
+    }
+
+    pub fn remove_cell_occ(&mut self, occ: Occupant, pos: Position) {
+        let cell = match self.get_cell_mut(pos) {
+            Some(cell) => cell,
+            None => return,
+        };
+
+        if let Some(cell_occ) = cell.occ_by {
+            if occ == cell_occ {
+                cell.occ_by = None;
+            }
+        }
+    }
+
+    pub fn add_cell_occ(&mut self, occ: Occupant, pos: Position) {
+        let cell = match self.get_cell_mut(pos) {
+            Some(cell) => cell,
+            None => return,
+        };
+        // ! Overwrites current occupant
+        cell.occ_by = Some(occ);
+    }
+
+    pub fn rng_empty_pos(&self) -> Option<Position> {
+        let empty_pos: Vec<usize> = self
+            .cells
+            .iter()
+            .enumerate()
+            .filter(|(_, cell)| cell.occ_by.is_none())
+            .map(|(index, _)| index)
+            .collect();
+
+        if empty_pos.is_empty() {
+            return None;
         }
 
-        pos
+        let rnd_pos = rand::rng().random_range(0..empty_pos.len());
+
+        let pos = match empty_pos.get(rnd_pos) {
+            Some(pos) => pos,
+            None => return None,
+        };
+        
+        self.get_pos_from_index(*pos)
     }
 }

@@ -226,7 +226,7 @@ pub enum StateChange {
     Create {
         occupant: Occupant,
         new_element: Element,
-    }
+    },
 }
 
 // TODO - add better state handling
