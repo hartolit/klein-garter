@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use super::object::Id;
+use ::engine::core::global::Id;
+
 use super::snake::Direction;
 use uuid::Uuid;
 

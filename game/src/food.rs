@@ -1,8 +1,14 @@
 use std::iter;
 
-use crate::game::object::{
-    Consumable, Element, Glyph, Id, Object, Occupant, Position, StateChange,
+use ::engine::core::{
+    global::{Id, Position},
+    object::{
+        Consumable, Object,
+        element::{Element, Glyph},
+        state::{Occupant, StateChange},
+    },
 };
+
 use crossterm::style::Color;
 use rand::Rng;
 

@@ -1,56 +1,9 @@
-use crossterm::style::Color;
 use rand::Rng;
 
-use crate::game::object::Object;
-
-use super::object::{Glyph, Occupant, Position};
-
-#[derive(Debug, Clone, Copy)]
-pub enum CellKind {
-    Ground,
-    Water,
-    Lava,
-    Border,
-}
-
-impl CellKind {
-    pub fn appearance(&self) -> Glyph {
-        match self {
-            CellKind::Ground => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::Black),
-                symbol: ' ',
-            },
-            CellKind::Water => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::DarkBlue),
-                symbol: '≈',
-            },
-            CellKind::Lava => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::DarkRed),
-                symbol: '#',
-            },
-            CellKind::Border => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::DarkGrey),
-                symbol: '█',
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct GridCell {
-    pub occ_by: Option<Occupant>,
-    pub kind: CellKind,
-}
-
-impl GridCell {
-    pub fn new(kind: CellKind) -> Self {
-        GridCell { occ_by: None, kind }
-    }
-}
+pub mod cell;
+use super::global::Position;
+use super::object::{Object, state::Occupant};
+use cell::{CellKind, GridCell};
 
 pub struct SpatialGrid {
     cells: Vec<GridCell>,
@@ -189,7 +142,7 @@ impl SpatialGrid {
             Some(pos) => pos,
             None => return None,
         };
-        
+
         self.get_pos_from_index(*pos)
     }
 }

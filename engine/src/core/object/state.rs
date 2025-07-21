@@ -1,0 +1,131 @@
+use std::collections::{HashMap, hash_map::Entry};
+
+use super::element::Element;
+use crate::core::global::{Id, Position};
+
+///
+/// STATEMANAGER
+///
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Occupant {
+    pub obj_id: Id,
+    pub element_id: Id,
+}
+
+impl Occupant {
+    pub fn new(obj_id: Id, element_id: Id) -> Self {
+        Occupant { obj_id, element_id }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StateChange {
+    Update {
+        occupant: Occupant,
+        element: Element,
+        init_pos: Position,
+    },
+    Delete {
+        occupant: Occupant,
+        init_pos: Position,
+    },
+    Create {
+        occupant: Occupant,
+        new_element: Element,
+    },
+}
+
+// TODO - add better state handling
+// (actor-responder) states from other objects get's pushed onto the affected object
+// making the affected object mange state of other objects too.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateManager {
+    pub changes: HashMap<Occupant, StateChange>,
+}
+
+impl StateManager {
+    pub fn new() -> Self {
+        Self {
+            changes: HashMap::new(),
+        }
+    }
+
+    pub fn upsert_change(&mut self, new_state: StateChange) {
+        let key = match new_state {
+            StateChange::Create { occupant, .. } => occupant,
+            StateChange::Update { occupant, .. } => occupant,
+            StateChange::Delete { occupant, .. } => occupant,
+        };
+
+        match self.changes.entry(key) {
+            Entry::Occupied(mut entry) => {
+                let curr_state = entry.get_mut();
+
+                match curr_state {
+                    StateChange::Create {
+                        new_element: curr_element,
+                        ..
+                    } => match new_state {
+                        StateChange::Create { new_element, .. } => {
+                            *curr_element = new_element;
+                        }
+                        StateChange::Update { element, .. } => {
+                            *curr_element = element;
+                        }
+                        StateChange::Delete { .. } => {
+                            entry.remove();
+                        }
+                    },
+
+                    StateChange::Update {
+                        element: curr_element,
+                        init_pos: curr_init_pos,
+                        ..
+                    } => match new_state {
+                        StateChange::Create { new_element, .. } => {
+                            *curr_element = new_element;
+                        }
+                        StateChange::Update { element, .. } => {
+                            *curr_element = element;
+                        }
+                        StateChange::Delete { occupant, .. } => {
+                            *curr_state = StateChange::Delete {
+                                occupant,
+                                init_pos: *curr_init_pos,
+                            };
+                        }
+                    },
+                    StateChange::Delete { .. } => {}
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(new_state);
+            }
+        }
+    }
+}
+
+///
+/// RESIZESTATE
+///
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ResizeState {
+    Normal { size: usize },
+    Brief { size: usize, native_size: usize },
+}
+
+impl ResizeState {
+    pub fn size(&self) -> usize {
+        match self {
+            ResizeState::Normal { size } => *size,
+            ResizeState::Brief { size, .. } => *size,
+        }
+    }
+
+    pub fn native(&self) -> usize {
+        match self {
+            ResizeState::Normal { size } => *size,
+            ResizeState::Brief { native_size, .. } => *native_size,
+        }
+    }
+}

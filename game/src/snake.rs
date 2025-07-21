@@ -6,12 +6,14 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
 
-use crate::game::object::ObjectExt;
-
-use super::grid::CellKind;
-use super::object::{
-    BodySegment, Collision, Element, Glyph, Id, IdCounter, Movable, Object, Occupant, Orientation,
-    Position, ResizeState, StateChange, StateManager,
+use ::engine::core::{
+    global::{Id, IdCounter, Position},
+    grid::cell::{CellKind, Collision},
+    object::{
+        BodySegment, Movable, Object, ObjectExt, Orientation,
+        element::{Element, Glyph},
+        state::{Occupant, ResizeState, StateChange, StateManager},
+    },
 };
 
 use animation::{Effect, EffectStyle, EffectZone};

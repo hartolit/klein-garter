@@ -1,14 +1,26 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod core;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// pub use crate::core::{
+//     global::{Id, IdCounter, Position},
+//     grid::{
+//         cell::{CellKind, Collision},
+//         SpatialGrid,
+//     },
+//     object::{
+//         element::{Element, Glyph},
+//         state::{Occupant, ResizeState, StateChange, StateManager},
+//         BodySegment, Movable, Object, ObjectExt, Orientation,
+//     },
+//     world::World,
+// };
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn it_works() {
+//         let result = add(2, 2);
+//         assert_eq!(result, 4);
+//     }
+// }

@@ -1,8 +1,15 @@
-use std::iter;
-
-use crate::game::object::{Damaging, Element, Glyph, Id, Object, Occupant, Position, StateChange};
 use crossterm::style::Color;
 use rand::Rng;
+use std::iter;
+
+use ::engine::core::{
+    global::{Id, Position},
+    object::{
+        Damaging, Object,
+        element::{Element, Glyph},
+        state::{Occupant, StateChange},
+    },
+};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Kind {

@@ -1,6 +1,15 @@
 [package]
-name = "game"
+name = "klein_garter"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+crossterm = "0.29.0"
+engine ={ path = "../engine" }
+rand = "0.9.1"
+
+[dependencies.uuid]
+version = "1.17.0"
+features = [
+    "v4"
+]
