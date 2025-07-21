@@ -8,7 +8,7 @@ use std::hash::Hash;
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
-    grid::cell::{CellKind, Collision},
+    grid::cell::{Collision, Kind},
     object::{
         BodySegment, Movable, Object, ObjectExt, Orientation,
         element::{Element, Glyph},
@@ -459,7 +459,7 @@ impl Movable for Snake {
         let mut new_effect: Option<Effect> = None;
         if let Some(hits) = collisions {
             for hit in hits {
-                if let CellKind::Border | CellKind::Lava = hit.kind {
+                if let Kind::Border | Kind::Lava = hit.kind {
                     self.is_alive = false;
                     new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
                 }

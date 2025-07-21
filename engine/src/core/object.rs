@@ -59,7 +59,7 @@ pub trait Damaging {
     fn on_hit(&self, hit_element_id: Id, pos: Position, recipient_id: Id) -> StateChange;
 }
 
-// TODO - add event/message queue system (future possibilities)
+// TODO - add event/message queue system (future update)
 pub trait Movable {
     fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
     fn update(

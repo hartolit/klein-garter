@@ -1,7 +1,6 @@
 ///
 /// ID
 ///
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Id {
     pub value: u64,
@@ -35,7 +34,6 @@ impl IdCounter {
 ///
 /// POSITION
 ///
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Position {
     pub x: u16,

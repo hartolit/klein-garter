@@ -5,33 +5,36 @@ use crate::core::{
     object::{element::Glyph, state::Occupant},
 };
 
+///
+/// CELL
+///
 #[derive(Debug, Clone, Copy)]
-pub enum CellKind {
+pub enum Kind {
     Ground,
     Water,
     Lava,
     Border,
 }
 
-impl CellKind {
+impl Kind {
     pub fn appearance(&self) -> Glyph {
         match self {
-            CellKind::Ground => Glyph {
+            Kind::Ground => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::Black),
                 symbol: ' ',
             },
-            CellKind::Water => Glyph {
+            Kind::Water => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkBlue),
                 symbol: '≈',
             },
-            CellKind::Lava => Glyph {
+            Kind::Lava => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkRed),
                 symbol: '#',
             },
-            CellKind::Border => Glyph {
+            Kind::Border => Glyph {
                 bg_clr: Option::Some(Color::Black),
                 fg_clr: Option::Some(Color::DarkGrey),
                 symbol: '█',
@@ -41,14 +44,14 @@ impl CellKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct GridCell {
+pub struct Cell {
     pub occ_by: Option<Occupant>,
-    pub kind: CellKind,
+    pub kind: Kind,
 }
 
-impl GridCell {
-    pub fn new(kind: CellKind) -> Self {
-        GridCell { occ_by: None, kind }
+impl Cell {
+    pub fn new(kind: Kind) -> Self {
+        Cell { occ_by: None, kind }
     }
 }
 
@@ -57,6 +60,6 @@ impl GridCell {
 ///
 pub struct Collision<'a> {
     pub pos: Position,
-    pub kind: &'a CellKind,
+    pub kind: &'a Kind,
     pub collider: Occupant,
 }

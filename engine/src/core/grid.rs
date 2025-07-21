@@ -3,10 +3,10 @@ use rand::Rng;
 pub mod cell;
 use super::global::Position;
 use super::object::{Object, state::Occupant};
-use cell::{CellKind, GridCell};
+use cell::{Cell, Kind};
 
 pub struct SpatialGrid {
-    cells: Vec<GridCell>,
+    cells: Vec<Cell>,
     pub full_width: u16,
     pub full_height: u16,
     pub game_width: u16,
@@ -15,7 +15,7 @@ pub struct SpatialGrid {
 }
 
 impl SpatialGrid {
-    pub fn new(game_width: u16, game_height: u16, mut border: u16, kind: CellKind) -> Self {
+    pub fn new(game_width: u16, game_height: u16, mut border: u16, kind: Kind) -> Self {
         if border < 1 {
             border = 1
         }
@@ -24,7 +24,7 @@ impl SpatialGrid {
         let full_height = game_height + border * 2;
         let full_size = full_height * full_width;
 
-        let mut cells = vec![GridCell::new(kind); full_size as usize];
+        let mut cells = vec![Cell::new(kind); full_size as usize];
 
         for (index, cell) in cells.iter_mut().enumerate() {
             let x = index % full_width as usize;
@@ -35,7 +35,7 @@ impl SpatialGrid {
                 || y < (border as usize)
                 || y >= (game_height + border) as usize
             {
-                cell.kind = CellKind::Border;
+                cell.kind = Kind::Border;
             }
         }
 
@@ -67,11 +67,11 @@ impl SpatialGrid {
         }
     }
 
-    pub fn get_cell(&self, pos: Position) -> Option<&GridCell> {
+    pub fn get_cell(&self, pos: Position) -> Option<&Cell> {
         self.get_index(pos).map(|index| &self.cells[index])
     }
 
-    pub fn get_cell_mut(&mut self, pos: Position) -> Option<&mut GridCell> {
+    pub fn get_cell_mut(&mut self, pos: Position) -> Option<&mut Cell> {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
