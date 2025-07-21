@@ -14,4 +14,3 @@ pub struct World {
     pub movable_ids: HashSet<Id>,
     pub grid: SpatialGrid,
 }
-
