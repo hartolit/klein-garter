@@ -1,13 +1,7 @@
 use crossterm::style::Color;
 
-use crate::core::{
-    global::Position,
-    object::{element::Glyph, state::Occupant},
-};
+use crate::core::object::{element::Glyph, state::Occupant};
 
-///
-/// CELL
-///
 #[derive(Debug, Clone, Copy)]
 pub enum Kind {
     Ground,
@@ -53,13 +47,4 @@ impl Cell {
     pub fn new(kind: Kind) -> Self {
         Cell { occ_by: None, kind }
     }
-}
-
-///
-/// COLLISION
-///
-pub struct Collision<'a> {
-    pub pos: Position,
-    pub kind: &'a Kind,
-    pub collider: Occupant,
 }

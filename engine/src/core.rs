@@ -18,14 +18,8 @@ enum State {
     Pause,
 }
 
-pub enum GameKind {
-    Local,
-    Online,
-}
-
-pub struct Game<'a> {
+pub struct GameLogic<'a> {
     state: State,
-    kind: GameKind,
     out: &'a mut Stdout,
     tick_rate: Duration,
     last_update: Instant,

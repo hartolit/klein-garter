@@ -75,6 +75,19 @@ impl SpatialGrid {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
+    pub fn get_collisions<'a>(
+        &'a self,
+        positions: Box<dyn Iterator<Item = Position> + 'a>,
+    ) -> Box<dyn Iterator<Item = Collision<'a>> + 'a> {
+        Box::new(
+            positions
+            .filter_map(|pos| {
+                self.get_cell(pos)
+                    .and_then(|cell| cell.occ_by.map(|collider| (cell, collider)))
+                    .map(|(cell, collider)| Collision::new(pos, &cell.kind, collider))
+            }))
+    }
+
     pub fn add_object<T: Object>(&mut self, object: &T) {
         for element in object.elements() {
             let cell = match self.get_cell_mut(element.pos) {
@@ -144,5 +157,21 @@ impl SpatialGrid {
         };
 
         self.get_pos_from_index(*pos)
+    }
+}
+
+pub struct Collision<'a> {
+    pub pos: Position,
+    pub kind: &'a Kind,
+    pub collider: Occupant,
+}
+
+impl<'a> Collision<'a> {
+    pub fn new(pos: Position, kind: &'a Kind, collider: Occupant) -> Self {
+        Collision {
+            pos,
+            kind,
+            collider,
+        }
     }
 }
