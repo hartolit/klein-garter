@@ -2,7 +2,7 @@ use crossterm::style::Color;
 
 use crate::core::object::{element::Glyph, state::Occupant};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Ground,
     Water,

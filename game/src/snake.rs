@@ -426,6 +426,10 @@ impl Object for Snake {
         )
     }
 
+    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
+        Box::new(self.state_manager.changes.iter())
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -448,8 +452,7 @@ impl Movable for Snake {
     fn update(
         &mut self,
         collisions: Box<dyn Iterator<Item = Collision>>,
-        game_objects: &HashMap<Id, Box<dyn Object>>,
-    ) -> Option<HashMap<Occupant, StateChange>> {
+    ) {
         if !self.is_alive {
             return None;
         }
@@ -497,11 +500,5 @@ impl Movable for Snake {
         }
 
         self.tick_effect();
-
-        if self.state_manager.changes.is_empty() {
-            None
-        } else {
-            Some(std::mem::take(&mut self.state_manager.changes))
-        }
     }
 }

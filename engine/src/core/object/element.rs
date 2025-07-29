@@ -1,9 +1,6 @@
 use crate::core::global::{Id, Position};
 use crossterm::style::Color;
 
-///
-/// ELEMENT
-///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Element {
     pub id: Id,

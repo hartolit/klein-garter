@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::{any::Any, collections::HashMap};
+use std::{any::Any};
 
 pub mod element;
 pub mod state;
@@ -7,12 +7,13 @@ pub mod state;
 use super::global::{Id, Position};
 use super::grid::Collision;
 use element::Element;
-use state::{Occupant, StateChange};
+use state::{StateChange};
 
 pub trait Object: Any + Debug {
     fn id(&self) -> Id;
     fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_>;
 
     // Methods for downcasting
     fn as_any(&self) -> &dyn Any;
@@ -25,7 +26,7 @@ pub trait Object: Any + Debug {
     fn as_damaging(&self) -> Option<&dyn Damaging> {
         None
     }
-    fn as_movable(&self) -> Option<&dyn Movable> {
+    fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> {
         None
     }
 }
@@ -57,13 +58,12 @@ pub trait Damaging {
     fn on_hit(&self, hit_element_id: Id, pos: Position, recipient_id: Id) -> StateChange;
 }
 
-pub trait Movable {
-    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+pub trait Movable<'a> {
+    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + 'a>;
     fn update(
         &mut self,
-        collisions: Box<dyn Iterator<Item = Collision>>,
-        game_objects: &HashMap<Id, Box<dyn Object>>,
-    ) -> Option<HashMap<Occupant, StateChange>>;
+        collisions: Box<dyn Iterator<Item = Collision<'a>>>,
+    );
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -85,4 +85,10 @@ impl BodySegment {
 pub enum Orientation {
     Horizontal,
     Vertical,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum GameAction {
+    RemoveObject { id: Id },
+    //HitObject { owner: Id, hit: Occupant },
 }

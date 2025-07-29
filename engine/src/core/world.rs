@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use super::global::{Id, IdCounter};
-use super::grid::{SpatialGrid, Collision};
+use super::global::{Id, IdCounter, Position};
+use super::grid::{SpatialGrid};
 use super::object::Object;
 
 // TODO - Move to a proper ECS architecture? (future improvements)
@@ -20,12 +20,12 @@ impl World {
         F: FnOnce(Id) -> Box<dyn Object>,
     {
         let new_id = self.id_counter.next();
-        let new_object = create_fn(new_id);
+        let mut new_object = create_fn(new_id);
 
         if new_object.as_consumable().is_some() {
             self.consumables_ids.insert(new_id);
         }
-        if new_object.as_movable().is_some() {
+        if new_object.as_movable_mut().is_some() {
             self.movable_ids.insert(new_id);
         }
         if new_object.as_damaging().is_some() {
@@ -45,11 +45,13 @@ impl World {
         }
     }
 
-    pub fn tick(&mut self) {
-        for object in self.objects.values() {
-            if let Some(movable) = object.as_movable() {
-                let collisions: Box<dyn Iterator<Item = Collision<'_>>> = self.spatial_grid.get_collisions(movable.next_pos());
-                let changes = movable.update(collisions, &mut self.objects);
+    pub fn tick(objects: &mut HashMap<Id, Box<dyn Object>>, spatial_grid: &SpatialGrid) {
+        for object in objects.values_mut() {
+            if let Some(movable) = object.as_movable_mut() {
+                let next_move: Vec<Position> = movable.next_pos().collect(); // Collects here to prevent inner iterator borrow issues
+                let collisions = spatial_grid.get_collisions(Box::new(next_move.into_iter()));
+                
+                movable.update(collisions);
             }
         }
     }

@@ -26,6 +26,8 @@ pub struct GameLogic<'a> {
     world: World,
 }
 
+
+
 // pub struct Game<'a> {
 //     pub players: Vec<Player>,
 //     objects: HashMap<Id, Box<dyn Object>>,

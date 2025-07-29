@@ -3,9 +3,6 @@ use std::collections::{HashMap, hash_map::Entry};
 use super::element::Element;
 use crate::core::global::{Id, Position};
 
-///
-/// STATEMANAGER
-///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Occupant {
     pub obj_id: Id,
@@ -105,9 +102,6 @@ impl StateManager {
     }
 }
 
-///
-/// RESIZESTATE
-///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ResizeState {
     Normal { size: usize },
@@ -129,3 +123,4 @@ impl ResizeState {
         }
     }
 }
+
