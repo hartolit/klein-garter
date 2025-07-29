@@ -8,9 +8,9 @@ use std::hash::Hash;
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
-    grid::cell::{Collision, Kind},
+    grid::{Collision, {cell::{Kind}}},
     object::{
-        BodySegment, Movable, Object, ObjectExt, Orientation,
+        BodySegment, Movable, Object, Orientation,
         element::{Element, Glyph},
         state::{Occupant, ResizeState, StateChange, StateManager},
     },
@@ -403,7 +403,7 @@ impl Snake {
     }
 }
 
-impl Object for Snake {
+impl<'a> Object<'a> for Snake {
     fn id(&self) -> Id {
         self.id
     }
@@ -427,20 +427,12 @@ impl Object for Snake {
     }
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state_manager.changes.iter())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+        Box::new(self.state_manager.changes.values())
     }
 }
 
-impl Movable for Snake {
-    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
+impl<'a> Movable<'a> for Snake {
+    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + 'a> {
         let (dx, dy) = self.direction.get_move();
 
         Box::new(self.head.iter().map(move |elem| Position {

@@ -88,7 +88,7 @@ impl SpatialGrid {
             }))
     }
 
-    pub fn add_object<T: Object>(&mut self, object: &T) {
+    pub fn add_object<'a, T: Object<'a>>(&mut self, object: &T) {
         for element in object.elements() {
             let cell = match self.get_cell_mut(element.pos) {
                 Some(cell) => cell,
@@ -99,7 +99,7 @@ impl SpatialGrid {
         }
     }
 
-    pub fn remove_object<T: Object>(&mut self, object: &T) {
+    pub fn remove_object<'a, T: Object<'a>>(&mut self, object: &T) {
         for element in object.elements() {
             let cell = match self.get_cell_mut(element.pos) {
                 Some(cell) => cell,

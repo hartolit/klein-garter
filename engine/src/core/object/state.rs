@@ -32,6 +32,7 @@ pub enum StateChange {
     },
 }
 
+// TODO - add event/message queue system (future improvement)
 // TODO - add better state handling
 // (actor-responder) states from other objects get's pushed onto the affected object
 // making the affected object mange state of other objects too.

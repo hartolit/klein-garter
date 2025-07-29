@@ -20,10 +20,10 @@ enum State {
 
 pub struct GameLogic<'a> {
     state: State,
-    out: &'a mut Stdout,
+    out: Stdout,
     tick_rate: Duration,
     last_update: Instant,
-    world: World,
+    world: World<'a>,
 }
 
 
