@@ -18,15 +18,13 @@ enum State {
     Pause,
 }
 
-pub struct GameLogic<'a> {
+pub struct GameLogic {
     state: State,
     out: Stdout,
     tick_rate: Duration,
     last_update: Instant,
-    world: World<'a>,
+    world: World,
 }
-
-
 
 // pub struct Game<'a> {
 //     pub players: Vec<Player>,

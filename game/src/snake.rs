@@ -1,18 +1,17 @@
 pub mod animation;
 
 use crossterm::style::Color;
-use std::any::Any;
-use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::hash::Hash;
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
-    grid::{Collision, {cell::{Kind}}},
+    grid::{Collision, cell::Kind},
     object::{
         BodySegment, Movable, Object, Orientation,
         element::{Element, Glyph},
         state::{Occupant, ResizeState, StateChange, StateManager},
+        Action
     },
 };
 
@@ -403,7 +402,7 @@ impl Snake {
     }
 }
 
-impl<'a> Object<'a> for Snake {
+impl Object for Snake {
     fn id(&self) -> Id {
         self.id
     }
@@ -412,8 +411,7 @@ impl<'a> Object<'a> for Snake {
         Box::new(
             self.head
                 .iter()
-                .chain(self.body.iter().flat_map(|segment| &segment.elements)),
-        )
+                .chain(self.body.iter().flat_map(|segment| &segment.elements)))
     }
 
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
@@ -422,17 +420,24 @@ impl<'a> Object<'a> for Snake {
                 self.body
                     .iter()
                     .flat_map(|segment| segment.elements.iter().map(|elem| elem.pos)),
-            ),
-        )
+        ))
     }
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
         Box::new(self.state_manager.changes.values())
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
-impl<'a> Movable<'a> for Snake {
-    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + 'a> {
+impl Movable for Snake {
+    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
         let (dx, dy) = self.direction.get_move();
 
         Box::new(self.head.iter().map(move |elem| Position {
@@ -443,13 +448,14 @@ impl<'a> Movable<'a> for Snake {
 
     fn update(
         &mut self,
-        collisions: Box<dyn Iterator<Item = Collision>>,
-    ) {
+        collisions: Vec<Collision>,
+    ) -> Vec<Action> {
+        let mut actions: Vec<Action> = Vec::new();
+        self.state_manager.changes.clear();
         if !self.is_alive {
-            return None;
+            return actions;
         }
 
-        self.state_manager.changes.clear();
 
         let mut new_effect: Option<Effect> = None;
 
@@ -492,5 +498,7 @@ impl<'a> Movable<'a> for Snake {
         }
 
         self.tick_effect();
+
+        actions
     }
 }

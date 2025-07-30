@@ -8,6 +8,7 @@ use ::engine::core::{
         state::{Occupant, StateChange},
     },
 };
+use engine::core::object::state::StateManager;
 
 use crossterm::style::Color;
 use rand::Rng;
@@ -26,6 +27,7 @@ pub struct Food {
     kind: Kind,
     meal: i16,
     body: Element,
+    state_manager: StateManager,
 }
 
 impl Food {
@@ -73,6 +75,7 @@ impl Food {
                 },
                 pos,
             },
+            state_manager: StateManager::new(),
         }
     }
 
@@ -104,16 +107,20 @@ impl Object for Food {
         Box::new(iter::once(self.body.pos))
     }
 
+    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
+        Box::new(self.state_manager.changes.values())
+    }
+
+    fn as_consumable(&self) -> Option<&dyn Consumable> {
+        Some(self)
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-
-    fn as_consumable(&self) -> Option<&dyn Consumable> {
-        Some(self)
     }
 }
 

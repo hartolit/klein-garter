@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use rand::Rng;
 
 pub mod cell;
-use super::global::Position;
+use super::global::{Id, Position};
 use super::object::{Object, state::Occupant};
 use cell::{Cell, Kind};
 
@@ -75,20 +77,24 @@ impl SpatialGrid {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
-    pub fn get_collisions<'a>(
-        &'a self,
-        positions: Box<dyn Iterator<Item = Position> + 'a>,
-    ) -> Box<dyn Iterator<Item = Collision<'a>> + 'a> {
-        Box::new(
-            positions
-            .filter_map(|pos| {
-                self.get_cell(pos)
-                    .and_then(|cell| cell.occ_by.map(|collider| (cell, collider)))
-                    .map(|(cell, collider)| Collision::new(pos, &cell.kind, collider))
-            }))
+    pub fn get_collisions(
+        &self,
+        moves: impl Iterator<Item = (Id, Position)>,
+    ) -> HashMap<Id, Vec<Collision>> {
+        let mut collision_map: HashMap<Id, Vec<Collision>> = HashMap::new();
+        for (id, pos) in moves {
+            if let Some(collision) = self
+                .get_cell(pos)
+                .and_then(|cell| cell.occ_by.map(|collider| (cell, collider)))
+                .map(|(cell, collider)| Collision::new(pos, cell.kind, collider))
+            {
+                collision_map.entry(id).or_default().push(collision);
+            }
+        }
+        collision_map
     }
 
-    pub fn add_object<'a, T: Object<'a>>(&mut self, object: &T) {
+    pub fn add_object<T: Object>(&mut self, object: &T) {
         for element in object.elements() {
             let cell = match self.get_cell_mut(element.pos) {
                 Some(cell) => cell,
@@ -99,7 +105,7 @@ impl SpatialGrid {
         }
     }
 
-    pub fn remove_object<'a, T: Object<'a>>(&mut self, object: &T) {
+    pub fn remove_object<T: Object>(&mut self, object: &T) {
         for element in object.elements() {
             let cell = match self.get_cell_mut(element.pos) {
                 Some(cell) => cell,
@@ -160,14 +166,14 @@ impl SpatialGrid {
     }
 }
 
-pub struct Collision<'a> {
+pub struct Collision {
     pub pos: Position,
-    pub kind: &'a Kind,
+    pub kind: Kind,
     pub collider: Occupant,
 }
 
-impl<'a> Collision<'a> {
-    pub fn new(pos: Position, kind: &'a Kind, collider: Occupant) -> Self {
+impl Collision {
+    pub fn new(pos: Position, kind: Kind, collider: Occupant) -> Self {
         Collision {
             pos,
             kind,

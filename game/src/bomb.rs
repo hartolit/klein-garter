@@ -1,4 +1,5 @@
 use crossterm::style::Color;
+use engine::core::object::state::StateManager;
 use rand::Rng;
 use std::iter;
 
@@ -24,6 +25,7 @@ pub struct Bomb {
     kind: Kind,
     damage: i16,
     body: Element,
+    state_manager: StateManager,
     //pub effect_area: u16,
 }
 
@@ -70,6 +72,7 @@ impl Bomb {
             kind,
             damage,
             body: Element::new(Id::new(0), glyph, Some(pos)),
+            state_manager: StateManager::new(),
         }
     }
 
@@ -95,6 +98,14 @@ impl Object for Bomb {
 
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
         Box::new(iter::once(self.body.pos))
+    }
+
+    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
+        Box::new(self.state_manager.changes.values())
+    }
+
+    fn as_damaging(&self) -> Option<&dyn Damaging> {
+        Some(self)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
