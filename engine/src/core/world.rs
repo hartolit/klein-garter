@@ -2,14 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use super::global::{Id, IdCounter, Position};
 use super::grid::SpatialGrid;
-use super::object::{Object, Action};
+use super::object::{Action, Object};
 
 // TODO - Move to a proper ECS architecture? (future improvements)
 pub struct World {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
-    pub consumables_ids: HashSet<Id>,
-    pub damaging_ids: HashSet<Id>,
     pub movable_ids: HashSet<Id>,
     pub spatial_grid: SpatialGrid,
 }
@@ -20,16 +18,10 @@ impl World {
         F: FnOnce(Id) -> Box<dyn Object>,
     {
         let new_id = self.id_counter.next();
-        let mut new_object = create_fn(new_id);
+        let new_object = create_fn(new_id);
 
-        if new_object.as_consumable().is_some() {
-            self.consumables_ids.insert(new_id);
-        }
         if new_object.as_movable().is_some() {
             self.movable_ids.insert(new_id);
-        }
-        if new_object.as_damaging().is_some() {
-            self.damaging_ids.insert(new_id);
         }
 
         self.objects.insert(new_id, new_object);
@@ -39,9 +31,7 @@ impl World {
 
     pub fn remove_object(&mut self, id: &Id) {
         if self.objects.remove(id).is_some() {
-            self.consumables_ids.remove(id);
             self.movable_ids.remove(id);
-            self.damaging_ids.remove(id);
         }
     }
 
@@ -49,24 +39,22 @@ impl World {
         let future_moves = objects
             .iter()
             .filter_map(|(id, object)| object.as_movable().map(|m| (id, m)))
-            .flat_map(|(id, movable)| movable.next_pos().map(move |pos| (*id, pos)));
+            .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (*id, pos)));
 
-        let mut collision_map = spatial_grid.get_collisions(future_moves);
+        let mut collision_map = spatial_grid.probe_moves(future_moves);
 
         let mut actions: Vec<Action> = Vec::new();
 
         for (id, collisions) in collision_map.drain() {
             if let Some(object) = objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
-                    actions.extend(movable.update(collisions));
+                    actions.extend(movable.add_move(collisions));
                 }
             }
         }
 
         // Collect state changes
 
-        for action in actions {
-            
-        }
+        for action in actions {}
     }
 }

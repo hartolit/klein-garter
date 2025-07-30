@@ -1,6 +1,8 @@
 use crossterm::style::Color;
 
-use crate::core::object::{element::Glyph, state::Occupant};
+use crate::core::global::Position;
+use crate::core::object::Occupant;
+use crate::core::object::element::Glyph;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -46,5 +48,16 @@ pub struct Cell {
 impl Cell {
     pub fn new(kind: Kind) -> Self {
         Cell { occ_by: None, kind }
+    }
+}
+
+pub struct CellRef<'a> {
+    pub pos: Position,
+    pub cell: &'a Cell,
+}
+
+impl<'a> CellRef<'a> {
+    pub fn new(pos: Position, cell: &'a Cell) -> Self {
+        CellRef { pos, cell }
     }
 }

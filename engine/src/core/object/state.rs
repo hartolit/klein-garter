@@ -1,19 +1,8 @@
 use std::collections::{HashMap, hash_map::Entry};
 
+use super::Occupant;
 use super::element::Element;
-use crate::core::global::{Id, Position};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Occupant {
-    pub obj_id: Id,
-    pub element_id: Id,
-}
-
-impl Occupant {
-    pub fn new(obj_id: Id, element_id: Id) -> Self {
-        Occupant { obj_id, element_id }
-    }
-}
+use crate::core::global::Position;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateChange {

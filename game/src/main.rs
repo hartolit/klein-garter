@@ -4,6 +4,7 @@ use std::{collections::HashMap, io::stdout};
 
 mod bomb;
 mod food;
+mod game;
 mod player;
 mod snake;
 

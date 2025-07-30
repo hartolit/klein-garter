@@ -5,9 +5,21 @@ pub mod element;
 pub mod state;
 
 use super::global::{Id, Position};
-use super::grid::Collision;
+use super::grid::cell::CellRef;
 use element::Element;
-use state::{StateChange};
+use state::StateChange;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Occupant {
+    pub obj_id: Id,
+    pub element_id: Id,
+}
+
+impl Occupant {
+    pub fn new(obj_id: Id, element_id: Id) -> Self {
+        Occupant { obj_id, element_id }
+    }
+}
 
 pub trait Object: Debug {
     fn id(&self) -> Id;
@@ -15,72 +27,21 @@ pub trait Object: Debug {
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_>;
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_>;
 
-    // Methods for downcasting
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    
-    // Behavior methods
-    fn interact(&mut self) {}
-    fn damage(&mut self) {}
-    fn kill(&mut self) {}
 
-    fn as_consumable(&self) -> Option<&dyn Consumable> {
-        None
-    }
-    fn as_damaging(&self) -> Option<&dyn Damaging> {
-        None
-    }
     fn as_movable(&self) -> Option<&dyn Movable> {
         None
     }
     fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> {
         None
     }
-}
 
-pub trait Consumable {
-    fn get_meal(&self) -> i16;
-    fn on_consumed(&self, hit_element_id: Id, pos: Position, recipient_id: Id) -> StateChange;
-}
-
-pub trait Damaging {
-    fn get_damage(&self) -> i16;
-    fn on_hit(&self, hit_element_id: Id, pos: Position, recipient_id: Id) -> StateChange;
-}
-
-pub trait Movable {
-    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-    fn update(&mut self, collisions: Vec<Collision>) -> Vec<Action>;
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct BodySegment {
-    pub orientation: Orientation,
-    pub elements: Vec<Element>,
-}
-
-impl BodySegment {
-    pub fn new(orientation: Orientation, elements: Vec<Element>) -> Self {
-        Self {
-            orientation,
-            elements,
-        }
+    fn kill(&mut self) {}
+    fn is_dead(&self) -> bool {
+        false
     }
 }
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum Orientation {
-    Horizontal,
-    Vertical,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Action {
-    Interact { owner: Id, object: Id },
-    Damage { owner: Id, object: Id, damage: u16 },
-    Kill { owner: Id, kill: Id },
-}
-
 
 // Extended for dyn object:
 // Use example:
@@ -102,4 +63,36 @@ impl ObjectExt for dyn Object {
     fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.as_any_mut().downcast_mut::<T>()
     }
+}
+
+pub trait Movable {
+    fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+    fn add_move(&mut self, collisions: Vec<CellRef>) -> Vec<Action>;
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum Action {
+    Collision { owner: Occupant, target: Occupant },
+    Kill { obj_id: Id },
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct BodySegment {
+    pub orientation: Orientation,
+    pub elements: Vec<Element>,
+}
+
+impl BodySegment {
+    pub fn new(orientation: Orientation, elements: Vec<Element>) -> Self {
+        Self {
+            orientation,
+            elements,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Orientation {
+    Horizontal,
+    Vertical,
 }

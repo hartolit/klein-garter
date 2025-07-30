@@ -6,12 +6,11 @@ use std::hash::Hash;
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
-    grid::{Collision, cell::Kind},
+    grid::{CellRef, cell::Kind},
     object::{
-        BodySegment, Movable, Object, Orientation,
+        Action, BodySegment, Movable, Object, Orientation,
         element::{Element, Glyph},
         state::{Occupant, ResizeState, StateChange, StateManager},
-        Action
     },
 };
 
@@ -411,7 +410,8 @@ impl Object for Snake {
         Box::new(
             self.head
                 .iter()
-                .chain(self.body.iter().flat_map(|segment| &segment.elements)))
+                .chain(self.body.iter().flat_map(|segment| &segment.elements)),
+        )
     }
 
     fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
@@ -420,7 +420,8 @@ impl Object for Snake {
                 self.body
                     .iter()
                     .flat_map(|segment| segment.elements.iter().map(|elem| elem.pos)),
-        ))
+            ),
+        )
     }
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
@@ -430,14 +431,14 @@ impl Object for Snake {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
 }
 
 impl Movable for Snake {
-    fn next_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
+    fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
         let (dx, dy) = self.direction.get_move();
 
         Box::new(self.head.iter().map(move |elem| Position {
@@ -446,16 +447,12 @@ impl Movable for Snake {
         }))
     }
 
-    fn update(
-        &mut self,
-        collisions: Vec<Collision>,
-    ) -> Vec<Action> {
+    fn add_move(&mut self, collisions: Vec<CellRef>) -> Vec<Action> {
         let mut actions: Vec<Action> = Vec::new();
         self.state_manager.changes.clear();
         if !self.is_alive {
             return actions;
         }
-
 
         let mut new_effect: Option<Effect> = None;
 
@@ -465,14 +462,14 @@ impl Movable for Snake {
                 new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
             }
 
-            let hit_object = match game_objects.get(&hit.collider.obj_id) {
+            let hit_object = match game_objects.get(&hit.occ.obj_id) {
                 Some(object) => object,
                 None => continue,
             };
 
             if let Some(consumable) = hit_object.as_consumable() {
                 self.meals += consumable.get_meal();
-                let change = consumable.on_consumed(hit.collider.element_id, hit.pos, self.id);
+                let change = consumable.on_consumed(hit.occ.element_id, hit.pos, self.id);
                 new_effect = Some(Effect::new(
                     2,
                     EffectStyle::Grow,

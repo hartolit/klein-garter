@@ -8,23 +8,28 @@ pub mod grid;
 pub mod object;
 pub mod world;
 
+use object::Action;
 use world::World;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum State {
-    Init,
-    Run,
-    Stop,
-    Pause,
+pub trait GameLogic {
+    fn process_actions(&self, world: &mut World, actions: Vec<Action>);
 }
 
-pub struct GameLogic {
-    state: State,
-    out: Stdout,
-    tick_rate: Duration,
-    last_update: Instant,
-    world: World,
-}
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+// enum State {
+//     Init,
+//     Run,
+//     Stop,
+//     Pause,
+// }
+
+// pub struct GameLogic {
+//     state: State,
+//     out: Stdout,
+//     tick_rate: Duration,
+//     last_update: Instant,
+//     world: World,
+// }
 
 // pub struct Game<'a> {
 //     pub players: Vec<Player>,

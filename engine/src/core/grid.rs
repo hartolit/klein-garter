@@ -4,8 +4,8 @@ use rand::Rng;
 
 pub mod cell;
 use super::global::{Id, Position};
-use super::object::{Object, state::Occupant};
-use cell::{Cell, Kind};
+use super::object::{Object, Occupant};
+use cell::{Cell, CellRef, Kind};
 
 pub struct SpatialGrid {
     cells: Vec<Cell>,
@@ -77,21 +77,16 @@ impl SpatialGrid {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
-    pub fn get_collisions(
-        &self,
+    pub fn probe_moves<'a>(
+        &'a self,
         moves: impl Iterator<Item = (Id, Position)>,
-    ) -> HashMap<Id, Vec<Collision>> {
-        let mut collision_map: HashMap<Id, Vec<Collision>> = HashMap::new();
-        for (id, pos) in moves {
-            if let Some(collision) = self
-                .get_cell(pos)
-                .and_then(|cell| cell.occ_by.map(|collider| (cell, collider)))
-                .map(|(cell, collider)| Collision::new(pos, cell.kind, collider))
-            {
-                collision_map.entry(id).or_default().push(collision);
-            }
-        }
-        collision_map
+    ) -> HashMap<Id, Vec<CellRef<'a>>> {
+        moves
+            .filter_map(|(id, pos)| self.get_cell(pos).map(|cell| (id, CellRef::new(pos, cell))))
+            .fold(HashMap::new(), |mut map, (id, cell_ref)| {
+                map.entry(id).or_default().push(cell_ref);
+                map
+            })
     }
 
     pub fn add_object<T: Object>(&mut self, object: &T) {
@@ -163,21 +158,5 @@ impl SpatialGrid {
         };
 
         self.get_pos_from_index(*pos)
-    }
-}
-
-pub struct Collision {
-    pub pos: Position,
-    pub kind: Kind,
-    pub collider: Occupant,
-}
-
-impl Collision {
-    pub fn new(pos: Position, kind: Kind, collider: Occupant) -> Self {
-        Collision {
-            pos,
-            kind,
-            collider,
-        }
     }
 }
