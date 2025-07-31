@@ -5,9 +5,9 @@ use std::{collections::HashMap, io::stdout};
 mod bomb;
 mod food;
 mod game;
+mod object_ext;
 mod player;
 mod snake;
-mod object_ext;
 
 use player::{Player, PlayerKind};
 use snake::Direction;

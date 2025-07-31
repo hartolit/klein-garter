@@ -1,4 +1,4 @@
-use engine::core::global::{Position, Id};
+use engine::core::global::{Id, Position};
 use engine::core::object::state::StateChange;
 
 pub trait Consumable {

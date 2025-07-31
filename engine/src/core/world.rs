@@ -1,5 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::core::object::state::StateChange;
+use crate::core::GameLogic;
+
 use super::global::{Id, IdCounter, Position};
 use super::grid::SpatialGrid;
 use super::object::{Action, Object};
@@ -9,6 +12,7 @@ pub struct World {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub movable_ids: HashSet<Id>,
+    pub killed_objects: HashSet<Id>,
     pub spatial_grid: SpatialGrid,
 }
 
@@ -25,7 +29,6 @@ impl World {
         }
 
         self.objects.insert(new_id, new_object);
-
         new_id
     }
 
@@ -35,26 +38,7 @@ impl World {
         }
     }
 
-    pub fn tick(objects: &mut HashMap<Id, Box<dyn Object>>, spatial_grid: &SpatialGrid) {
-        let future_moves = objects
-            .iter()
-            .filter_map(|(id, object)| object.as_movable().map(|m| (id, m)))
-            .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (*id, pos)));
+    fn draw(changes: Vec<StateChange>) {
 
-        let mut collision_map = spatial_grid.probe_moves(future_moves);
-
-        let mut actions: Vec<Action> = Vec::new();
-
-        for (id, collisions) in collision_map.drain() {
-            if let Some(object) = objects.get_mut(&id) {
-                if let Some(movable) = object.as_movable_mut() {
-                    actions.extend(movable.make_move(collisions));
-                }
-            }
-        }
-
-        // Collect state changes
-
-        for action in actions {}
     }
 }

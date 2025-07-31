@@ -5,7 +5,7 @@ use ::engine::core::{
     object::{
         Object, Occupant,
         element::{Element, Glyph},
-        state::{StateChange},
+        state::StateChange,
     },
 };
 use engine::core::object::state::StateManager;

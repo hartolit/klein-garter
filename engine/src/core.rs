@@ -11,8 +11,49 @@ pub mod world;
 use object::Action;
 use world::World;
 
+use crate::core::object::Occupant;
+
 pub trait GameLogic {
-    fn process_actions(&self, world: &mut World, actions: Vec<Action>);
+    fn process_collision(&self, world: &mut World, collision: (Occupant, Occupant));
+    fn game_loop(&self, worlf:&mut World);
+}
+
+pub fn tick(world: &mut World, logic: &dyn GameLogic) {
+    let future_moves = world
+        .movable_ids
+        .iter()
+        .filter_map(|id| {
+            world.objects
+                .get(id)
+                .and_then(|obj| obj.as_movable())
+                .map(|movable| (*id, movable))
+        })
+        .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
+
+    let mut probe_map = world.spatial_grid.probe_moves(future_moves);
+
+    let mut actions: Vec<Action> = Vec::new();
+    for (id, probe) in probe_map.drain() {
+        if let Some(object) = world.objects.get_mut(&id) {
+            if let Some(movable) = object.as_movable_mut() {
+                actions.extend(movable.make_move(probe));
+            }
+        }
+    }
+
+    for action in actions {
+        match action {
+            Action::Collision { owner, target } => {
+                logic.process_collision(world, (owner, target));
+            },
+            Action::Kill { obj_id } => {
+                if let Some(obj) = world.objects.get_mut(&obj_id) {
+                    world.killed_objects.insert(obj_id);
+                    obj.kill();
+                }
+            }
+        }
+    }
 }
 
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

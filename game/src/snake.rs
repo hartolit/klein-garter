@@ -6,7 +6,7 @@ use std::hash::Hash;
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
-    grid::cell::{Kind, CellRef},
+    grid::cell::{CellRef, Kind},
     object::{
         Action, BodySegment, Movable, Object, Occupant, Orientation,
         element::{Element, Glyph},

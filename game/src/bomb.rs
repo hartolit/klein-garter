@@ -8,7 +8,7 @@ use ::engine::core::{
     object::{
         Object, Occupant,
         element::{Element, Glyph},
-        state::{StateChange},
+        state::StateChange,
     },
 };
 
