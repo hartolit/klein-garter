@@ -67,7 +67,7 @@ impl ObjectExt for dyn Object {
 
 pub trait Movable {
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-    fn add_move(&mut self, collisions: Vec<CellRef>) -> Vec<Action>;
+    fn make_move(&mut self, collisions: Vec<CellRef>) -> Vec<Action>;
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

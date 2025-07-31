@@ -6,11 +6,11 @@ use std::hash::Hash;
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
-    grid::{CellRef, cell::Kind},
+    grid::cell::{Kind, CellRef},
     object::{
-        Action, BodySegment, Movable, Object, Orientation,
+        Action, BodySegment, Movable, Object, Occupant, Orientation,
         element::{Element, Glyph},
-        state::{Occupant, ResizeState, StateChange, StateManager},
+        state::{ResizeState, StateChange, StateManager},
     },
 };
 
@@ -447,7 +447,7 @@ impl Movable for Snake {
         }))
     }
 
-    fn add_move(&mut self, collisions: Vec<CellRef>) -> Vec<Action> {
+    fn make_move(&mut self, collisions: Vec<CellRef>) -> Vec<Action> {
         let mut actions: Vec<Action> = Vec::new();
         self.state_manager.changes.clear();
         if !self.is_alive {
@@ -457,19 +457,19 @@ impl Movable for Snake {
         let mut new_effect: Option<Effect> = None;
 
         for hit in collisions {
-            if let Kind::Border | Kind::Lava = hit.kind {
+            if let Kind::Border | Kind::Lava = hit.cell.kind {
                 self.is_alive = false;
                 new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
             }
 
-            let hit_object = match game_objects.get(&hit.occ.obj_id) {
+            let hit_object = match game_objects.get(&hit.cell.occ_by.obj_id) {
                 Some(object) => object,
                 None => continue,
             };
 
             if let Some(consumable) = hit_object.as_consumable() {
                 self.meals += consumable.get_meal();
-                let change = consumable.on_consumed(hit.occ.element_id, hit.pos, self.id);
+                let change = consumable.on_consumed(hit.cell.occ_by.element_id, hit.pos, self.id);
                 new_effect = Some(Effect::new(
                     2,
                     EffectStyle::Grow,

@@ -48,7 +48,7 @@ impl World {
         for (id, collisions) in collision_map.drain() {
             if let Some(object) = objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
-                    actions.extend(movable.add_move(collisions));
+                    actions.extend(movable.make_move(collisions));
                 }
             }
         }

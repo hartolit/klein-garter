@@ -1,3 +1,6 @@
+use engine::core::global::{Position, Id};
+use engine::core::object::state::StateChange;
+
 pub trait Consumable {
     fn get_meal(&self) -> i16;
     fn on_consumed(&self, hit_element_id: Id, pos: Position, recipient_id: Id) -> StateChange;

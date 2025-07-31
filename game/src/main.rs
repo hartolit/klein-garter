@@ -7,6 +7,7 @@ mod food;
 mod game;
 mod player;
 mod snake;
+mod object_ext;
 
 use player::{Player, PlayerKind};
 use snake::Direction;

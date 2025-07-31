@@ -3,15 +3,17 @@ use std::iter;
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Consumable, Object,
+        Object, Occupant,
         element::{Element, Glyph},
-        state::{Occupant, StateChange},
+        state::{StateChange},
     },
 };
 use engine::core::object::state::StateManager;
 
 use crossterm::style::Color;
 use rand::Rng;
+
+use super::object_ext::Consumable;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Kind {
@@ -109,10 +111,6 @@ impl Object for Food {
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
         Box::new(self.state_manager.changes.values())
-    }
-
-    fn as_consumable(&self) -> Option<&dyn Consumable> {
-        Some(self)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

@@ -39,15 +39,3 @@ impl Position {
         Self { x, y }
     }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Occupant {
-    pub obj_id: Id,
-    pub element_id: Id,
-}
-
-impl Occupant {
-    pub fn new(obj_id: Id, element_id: Id) -> Self {
-        Occupant { obj_id, element_id }
-    }
-}

@@ -6,11 +6,13 @@ use std::iter;
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Damaging, Object,
+        Object, Occupant,
         element::{Element, Glyph},
-        state::{Occupant, StateChange},
+        state::{StateChange},
     },
 };
+
+use super::object_ext::Damaging;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Kind {
@@ -102,10 +104,6 @@ impl Object for Bomb {
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
         Box::new(self.state_manager.changes.values())
-    }
-
-    fn as_damaging(&self) -> Option<&dyn Damaging> {
-        Some(self)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
