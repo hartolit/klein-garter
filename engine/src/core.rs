@@ -11,11 +11,9 @@ pub mod world;
 use object::Action;
 use world::World;
 
-use crate::core::object::Occupant;
-
 pub trait GameLogic {
-    fn process_collision(&self, world: &mut World, collision: (Occupant, Occupant));
-    fn game_loop(&self, worlf:&mut World);
+    fn process_actions(&self, world: &mut World, actions: Vec<Action>);
+    fn game_loop(&self, worlf: &mut World);
 }
 
 pub fn tick(world: &mut World, logic: &dyn GameLogic) {
@@ -41,19 +39,7 @@ pub fn tick(world: &mut World, logic: &dyn GameLogic) {
         }
     }
 
-    for action in actions {
-        match action {
-            Action::Collision { owner, target } => {
-                logic.process_collision(world, (owner, target));
-            },
-            Action::Kill { obj_id } => {
-                if let Some(obj) = world.objects.get_mut(&obj_id) {
-                    world.killed_objects.insert(obj_id);
-                    obj.kill();
-                }
-            }
-        }
-    }
+    logic.process_actions(world, actions);
 }
 
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

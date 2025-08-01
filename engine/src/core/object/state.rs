@@ -1,8 +1,14 @@
 use std::collections::{HashMap, hash_map::Entry};
+use std::mem;
 
 use super::Occupant;
 use super::element::Element;
 use crate::core::global::Position;
+
+// TODO - add event/message queue system (future improvement)
+// TODO - add better state handling
+// (actor-responder) states from other objects get's pushed onto the affected object
+// making the affected object mange state of other objects too.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateChange {
@@ -21,10 +27,6 @@ pub enum StateChange {
     },
 }
 
-// TODO - add event/message queue system (future improvement)
-// TODO - add better state handling
-// (actor-responder) states from other objects get's pushed onto the affected object
-// making the affected object mange state of other objects too.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StateManager {
     pub changes: HashMap<Occupant, StateChange>,
@@ -89,6 +91,10 @@ impl StateManager {
                 entry.insert(new_state);
             }
         }
+    }
+
+    pub fn drain_changes(&mut self) -> HashMap<Occupant, StateChange> {
+        mem::take(&mut self.changes)
     }
 }
 

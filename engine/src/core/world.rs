@@ -1,19 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::core::object::state::StateChange;
-use crate::core::GameLogic;
-
-use super::global::{Id, IdCounter, Position};
+use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
-use super::object::{Action, Object};
+use super::object::{Object, {state::{StateManager, StateChange}}};
 
 // TODO - Move to a proper ECS architecture? (future improvements)
 pub struct World {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub movable_ids: HashSet<Id>,
-    pub killed_objects: HashSet<Id>,
     pub spatial_grid: SpatialGrid,
+    pub global_state: StateManager,
 }
 
 impl World {
@@ -33,12 +30,18 @@ impl World {
     }
 
     pub fn remove_object(&mut self, id: &Id) {
-        if self.objects.remove(id).is_some() {
-            self.movable_ids.remove(id);
+        if let Some(mut object) = self.objects.remove(id) {
+            if let Some(destructable) = object.as_destructible_mut() {
+                destructable.kill();
+                self.global_state.changes.extend(destructable.state_manager_mut().drain_changes());
+                if let Some(_) = object.as_movable() {
+                    self.movable_ids.remove(id);
+                }
+            }
         }
     }
 
-    fn draw(changes: Vec<StateChange>) {
+    pub fn draw(&mut self) {
 
     }
 }

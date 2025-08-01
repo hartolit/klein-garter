@@ -1,14 +1,14 @@
 pub mod animation;
 
 use crossterm::style::Color;
-use std::collections::VecDeque;
+use std::{any::Any, collections::VecDeque};
 use std::hash::Hash;
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
     grid::cell::{CellRef, Kind},
     object::{
-        Action, BodySegment, Movable, Object, Occupant, Orientation,
+        Action, BodySegment, Movable, Destructible, Stateful, Object, Occupant, Orientation,
         element::{Element, Glyph},
         state::{ResizeState, StateChange, StateManager},
     },
@@ -42,7 +42,7 @@ pub struct Snake {
     id_counter: IdCounter, // For element ids (internal)
     head_size: ResizeState,
     effect: Option<Effect>,
-    is_alive: bool,
+    is_dead: bool,
     meals: i16,
     head: Vec<Element>, // Unsorted 2d vec
     body: VecDeque<BodySegment>,
@@ -72,7 +72,7 @@ impl Snake {
             id_counter: id_counter,
             head_size: ResizeState::Normal { size: 1 },
             effect: None,
-            is_alive: true,
+            is_dead: true,
             meals: 1,
             head: Vec::from([Element::new(first_id, head_style, Some(pos))]),
             body: VecDeque::new(),
@@ -349,7 +349,7 @@ impl Snake {
             let segments_to_remove = self.meals.abs() as u16;
             for _ in 0..segments_to_remove {
                 if self.body.len() == 0 {
-                    self.is_alive = false;
+                    self.is_dead = false;
                     break;
                 }
                 if let Some(segment) = self.body.pop_back() {
@@ -414,26 +414,56 @@ impl Object for Snake {
         )
     }
 
-    fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
-        Box::new(
-            self.head.iter().map(|e| e.pos).chain(
-                self.body
-                    .iter()
-                    .flat_map(|segment| segment.elements.iter().map(|elem| elem.pos)),
-            ),
-        )
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn as_movable(&self) -> Option<&dyn Movable> {
+        Some(self)
+    }
+
+    fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> {
+        Some(self)
+    }
+
+    fn as_stateful(&self) -> Option<&dyn Stateful> {
+        Some(self)
+    }
+
+    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
+        Some(self)
+    }
+
+    fn as_destructible(&self) -> Option<&dyn Destructible> {
+        Some(self)
+    }
+
+    fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> {
+        Some(self)
+    }
+}
+
+impl Stateful for Snake {
+    fn state_manager_mut(&mut self) -> &mut StateManager {
+        &mut self.state_manager
+    }
+
+    fn state_manager(&self) -> &StateManager {
+        &self.state_manager
+    }
+    
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
         Box::new(self.state_manager.changes.values())
     }
+}
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+impl Destructible for Snake {
+    fn is_dead(&self) -> bool {
+        self.is_dead
     }
 }
 
@@ -447,18 +477,20 @@ impl Movable for Snake {
         }))
     }
 
-    fn make_move(&mut self, collisions: Vec<CellRef>) -> Vec<Action> {
+    fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action> {
         let mut actions: Vec<Action> = Vec::new();
         self.state_manager.changes.clear();
-        if !self.is_alive {
+        if !self.is_dead {
             return actions;
         }
 
+        
+
         let mut new_effect: Option<Effect> = None;
 
-        for hit in collisions {
+        for hit in probe {
             if let Kind::Border | Kind::Lava = hit.cell.kind {
-                self.is_alive = false;
+                self.is_dead = false;
                 new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
             }
 
@@ -485,7 +517,7 @@ impl Movable for Snake {
             }
 
             if let Some(_) = hit_object.get::<Snake>() {
-                self.is_alive = false;
+                self.is_dead = false;
             }
         }
 
