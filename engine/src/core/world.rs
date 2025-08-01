@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
+pub mod renderer;
+
 use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
-use super::object::{Object, {state::{StateManager, StateChange}}};
+use super::object::{Object, {state::{StateManager}}};
 
-// TODO - Move to a proper ECS architecture? (future improvements)
 pub struct World {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
@@ -39,9 +40,5 @@ impl World {
                 }
             }
         }
-    }
-
-    pub fn draw(&mut self) {
-
     }
 }
