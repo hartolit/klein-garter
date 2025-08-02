@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
-use super::object::{Object, {state::{StateManager}}};
+use super::object::{Object, state::StateManager};
 
 pub struct World {
     pub id_counter: IdCounter,
@@ -13,6 +13,16 @@ pub struct World {
 }
 
 impl World {
+    pub fn new(spatial_grid: SpatialGrid) -> Self {
+        Self {
+            id_counter: IdCounter::new(),
+            objects: HashMap::new(),
+            movable_ids: HashSet::new(),
+            spatial_grid,
+            global_state: StateManager::new(),
+        }
+    }
+
     pub fn attach_object<F>(&mut self, create_fn: F) -> Id
     where
         F: FnOnce(Id) -> Box<dyn Object>,

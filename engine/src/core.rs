@@ -12,10 +12,13 @@ use object::Action;
 use world::World;
 use renderer::Renderer;
 
+use crate::core::grid::SpatialGrid;
+
 pub trait GameLogic {
     fn process_actions(&self, world: &mut World, actions: Vec<Action>);
     fn game_setup(&self, world: &mut World);
     fn game_loop(&self, world: &mut World);
+    fn game_input(&self);
 }
 
 enum State {
@@ -25,40 +28,69 @@ enum State {
     Pause,
 }
 
-pub struct Game<'a> {
+pub struct Game {
+    pub tick_rate: Duration,
+    last_update: Instant,
     state: State,
     world: World,
     renderer: Renderer,
-    logic: &'a dyn GameLogic,
-    tick_rate: Duration,
-    last_update: Instant,
+    logic: Box<dyn GameLogic>,
 }
 
-impl<'a> Game<'a> {
-    pub fn tick(world: &mut World, logic: &dyn GameLogic) {
-        let future_moves = world
+impl Game {
+    pub fn new<T: GameLogic + 'static>(logic: T, spatial_grid: SpatialGrid) -> Self {
+        Self { 
+            tick_rate: Duration::new(0, 500), 
+            last_update: Instant::now(), 
+            state: State::Init, 
+            world: World::new(spatial_grid), 
+            renderer: Renderer::new(), 
+            logic: Box::new(logic),
+        }
+    }
+
+    pub fn begin(&mut self) {
+        self.logic.game_setup(&mut self.world);
+
+        loop {
+            let now = Instant::now();
+            let delta = now.duration_since(self.last_update);
+
+            self.logic.game_input();
+
+            if delta >= self.tick_rate {
+                self.last_update = now;
+                self.logic.game_loop(&mut self.world);
+                self.tick();
+                self.renderer.draw(&self.world.spatial_grid, &mut self.world.global_state);
+            }
+        }
+    }
+    
+    fn tick(&mut self) {
+        let future_moves = self.world
             .movable_ids
             .iter()
             .filter_map(|id| {
-                world.objects
+                self.world.objects
                     .get(id)
                     .and_then(|obj| obj.as_movable())
                     .map(|movable| (*id, movable))
             })
             .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
 
-        let mut probe_map = world.spatial_grid.probe_moves(future_moves);
+        let mut probe_map = self.world.spatial_grid.probe_moves(future_moves);
 
         let mut actions: Vec<Action> = Vec::new();
         for (id, probe) in probe_map.drain() {
-            if let Some(object) = world.objects.get_mut(&id) {
+            if let Some(object) = self.world.objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
                     actions.extend(movable.make_move(probe));
                 }
             }
         }
 
-        logic.process_actions(world, actions);
+        self.logic.process_actions(&mut self.world, actions);
     }
 }
 
