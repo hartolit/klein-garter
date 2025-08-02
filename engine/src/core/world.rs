@@ -1,7 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-pub mod renderer;
-
 use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
 use super::object::{Object, {state::{StateManager}}};

@@ -1,5 +1,4 @@
 use std::{
-    io::Stdout,
     time::{Duration, Instant},
 };
 
@@ -7,39 +6,60 @@ pub mod global;
 pub mod grid;
 pub mod object;
 pub mod world;
+pub mod renderer;
 
 use object::Action;
 use world::World;
+use renderer::Renderer;
 
 pub trait GameLogic {
     fn process_actions(&self, world: &mut World, actions: Vec<Action>);
-    fn game_loop(&self, worlf: &mut World);
+    fn game_setup(&self, world: &mut World);
+    fn game_loop(&self, world: &mut World);
 }
 
-pub fn tick(world: &mut World, logic: &dyn GameLogic) {
-    let future_moves = world
-        .movable_ids
-        .iter()
-        .filter_map(|id| {
-            world.objects
-                .get(id)
-                .and_then(|obj| obj.as_movable())
-                .map(|movable| (*id, movable))
-        })
-        .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
+enum State {
+    Init,
+    Run,
+    Stop,
+    Pause,
+}
 
-    let mut probe_map = world.spatial_grid.probe_moves(future_moves);
+pub struct Game<'a> {
+    state: State,
+    world: World,
+    renderer: Renderer,
+    logic: &'a dyn GameLogic,
+    tick_rate: Duration,
+    last_update: Instant,
+}
 
-    let mut actions: Vec<Action> = Vec::new();
-    for (id, probe) in probe_map.drain() {
-        if let Some(object) = world.objects.get_mut(&id) {
-            if let Some(movable) = object.as_movable_mut() {
-                actions.extend(movable.make_move(probe));
+impl<'a> Game<'a> {
+    pub fn tick(world: &mut World, logic: &dyn GameLogic) {
+        let future_moves = world
+            .movable_ids
+            .iter()
+            .filter_map(|id| {
+                world.objects
+                    .get(id)
+                    .and_then(|obj| obj.as_movable())
+                    .map(|movable| (*id, movable))
+            })
+            .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
+
+        let mut probe_map = world.spatial_grid.probe_moves(future_moves);
+
+        let mut actions: Vec<Action> = Vec::new();
+        for (id, probe) in probe_map.drain() {
+            if let Some(object) = world.objects.get_mut(&id) {
+                if let Some(movable) = object.as_movable_mut() {
+                    actions.extend(movable.make_move(probe));
+                }
             }
         }
-    }
 
-    logic.process_actions(world, actions);
+        logic.process_actions(world, actions);
+    }
 }
 
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

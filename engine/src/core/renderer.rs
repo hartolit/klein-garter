@@ -1,11 +1,11 @@
 use std::io::{self, Stdout};
-use crossterm::{self, queue, style::{SetBackgroundColor, SetForegroundColor}, QueueableCommand};
+use crossterm::{self, style::{SetBackgroundColor, SetForegroundColor}, QueueableCommand};
 
-use crate::core::object::{state::{StateChange, StateManager}, element::{Glyph, Element}};
+use crate::core::object::{state::{StateChange, StateManager}, element::{Glyph}};
 use crate::core::global::Position;
-use super::SpatialGrid;
+use super::grid::SpatialGrid;
 
-struct Renderer {
+pub struct Renderer {
     stdout: Stdout,
 }
 
