@@ -4,10 +4,17 @@ use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
 use super::object::{Object, state::StateManager};
 
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+pub enum ObjectIndex {
+    Movable,
+    Destructible,
+    Stateful,
+}
+
 pub struct World {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
-    pub movable_ids: HashSet<Id>,
+    pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
     pub spatial_grid: SpatialGrid,
     pub global_state: StateManager,
 }
@@ -17,7 +24,7 @@ impl World {
         Self {
             id_counter: IdCounter::new(),
             objects: HashMap::new(),
-            movable_ids: HashSet::new(),
+            indexes: HashMap::new(),
             spatial_grid,
             global_state: StateManager::new(),
         }
@@ -30,10 +37,7 @@ impl World {
         let new_id = self.id_counter.next();
         let new_object = create_fn(new_id);
 
-        if new_object.as_movable().is_some() {
-            self.movable_ids.insert(new_id);
-        }
-
+        self.add_indexes(&new_object);
         self.objects.insert(new_id, new_object);
         new_id
     }
@@ -42,10 +46,74 @@ impl World {
         if let Some(mut object) = self.objects.remove(id) {
             if let Some(destructable) = object.as_destructible_mut() {
                 destructable.kill();
-                self.global_state.changes.extend(destructable.state_manager_mut().drain_changes());
-                if let Some(_) = object.as_movable() {
-                    self.movable_ids.remove(id);
+                self.global_state
+                    .changes
+                    .extend(destructable.state_manager_mut().drain_changes());
+                self.remove_indexes(&object);
+            }
+        }
+    }
+
+    pub fn collect_states(&mut self) {
+        let stateful_ids: Vec<Id> = self.indexes
+            .get(&ObjectIndex::Stateful)
+            .map(|set| set.iter().copied().collect())
+            .unwrap_or_default();
+        
+        for id in stateful_ids {
+            if let Some(object) = self.objects.get_mut(&id) {
+                if let Some(stateful) = object.as_stateful_mut() {
+                    self.global_state
+                        .changes
+                        .extend(stateful.state_manager_mut().drain_changes());
                 }
+            }
+        }
+    }
+
+    fn add_indexes(&mut self, object: &Box<dyn Object>) {
+        let id = object.id();
+
+        if object.as_movable().is_some() {
+            self.indexes
+                .entry(ObjectIndex::Movable)
+                .or_default()
+                .insert(id);
+        }
+
+        if object.as_destructible().is_some() {
+            self.indexes
+                .entry(ObjectIndex::Destructible)
+                .or_default()
+                .insert(id);
+        }
+
+        if object.as_stateful().is_some() {
+            self.indexes
+                .entry(ObjectIndex::Stateful)
+                .or_default()
+                .insert(id);
+        }
+    }
+
+    fn remove_indexes(&mut self, object: &Box<dyn Object>) {
+        let id = object.id();
+
+        if object.as_movable().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Movable) {
+                set.remove(&id);
+            }
+        }
+
+        if object.as_destructible().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Destructible) {
+                set.remove(&id);
+            }
+        }
+
+        if object.as_stateful().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Stateful) {
+                set.remove(&id);
             }
         }
     }

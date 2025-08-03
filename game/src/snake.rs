@@ -1,14 +1,14 @@
 pub mod animation;
 
 use crossterm::style::Color;
-use std::{any::Any, collections::VecDeque};
 use std::hash::Hash;
+use std::{any::Any, collections::VecDeque};
 
 use ::engine::core::{
     global::{Id, IdCounter, Position},
     grid::cell::{CellRef, Kind},
     object::{
-        Action, BodySegment, Movable, Destructible, Stateful, Object, Occupant, Orientation,
+        Action, BodySegment, Destructible, Movable, Object, Occupant, Orientation, Stateful,
         element::{Element, Glyph},
         state::{ResizeState, StateChange, StateManager},
     },
@@ -455,7 +455,7 @@ impl Stateful for Snake {
     fn state_manager(&self) -> &StateManager {
         &self.state_manager
     }
-    
+
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
         Box::new(self.state_manager.changes.values())
     }
@@ -483,8 +483,6 @@ impl Movable for Snake {
         if !self.is_dead {
             return actions;
         }
-
-        
 
         let mut new_effect: Option<Effect> = None;
 

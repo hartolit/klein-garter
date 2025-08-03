@@ -4,10 +4,9 @@ use std::fmt::Debug;
 pub mod element;
 pub mod state;
 
-use crate::core::object::state::StateManager;
-
 use super::global::{Id, Position};
 use super::grid::cell::CellRef;
+use crate::core::object::state::StateManager;
 use element::Element;
 use state::StateChange;
 
@@ -33,7 +32,7 @@ pub trait Object: Debug {
     fn as_stateful(&self) -> Option<&dyn Stateful> {
         None
     }
-    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful>{
+    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
         None
     }
     fn as_movable(&self) -> Option<&dyn Movable> {
@@ -68,7 +67,10 @@ pub trait Destructible: Object + Stateful {
         let state_manager = self.state_manager_mut();
 
         for (element_id, pos) in elements_data {
-            state_manager.upsert_change(StateChange::Delete { occupant: Occupant::new(id, element_id), init_pos: pos });
+            state_manager.upsert_change(StateChange::Delete {
+                occupant: Occupant::new(id, element_id),
+                init_pos: pos,
+            });
         }
     }
 

@@ -1,9 +1,16 @@
+use crossterm::{
+    self, QueueableCommand, cursor, execute,
+    style::{SetBackgroundColor, SetForegroundColor},
+    terminal,
+};
 use std::io::{Stdout, stdout};
-use crossterm::{self, execute, terminal, cursor, style::{SetBackgroundColor, SetForegroundColor}, QueueableCommand};
 
-use crate::core::{object::{element::Glyph, state::{StateChange, StateManager}}};
-use crate::core::global::Position;
 use super::grid::SpatialGrid;
+use crate::core::global::Position;
+use crate::core::object::{
+    element::Glyph,
+    state::{StateChange, StateManager},
+};
 
 pub struct Renderer {
     stdout: Stdout,
@@ -36,14 +43,17 @@ impl Renderer {
                         let cell_glyph = cell.kind.appearance();
                         self.draw_glyph(cell_glyph, init_pos);
                     }
-                },
+                }
                 StateChange::Update { .. } => updates.push(state),
                 StateChange::Create { .. } => creates.push(state),
             }
         }
 
         for state in updates {
-            if let StateChange::Update { element, init_pos, .. } = state {
+            if let StateChange::Update {
+                element, init_pos, ..
+            } = state
+            {
                 if element.pos != init_pos {
                     if let Some(cell) = spatial_grid.get_cell(init_pos) {
                         let cell_glyph = cell.kind.appearance();
@@ -71,7 +81,9 @@ impl Renderer {
         }
 
         self.stdout
-            .queue(crossterm::cursor::MoveTo(pos.x, pos.y)).unwrap()
-            .queue(crossterm::style::Print(glyph.symbol)).unwrap();
+            .queue(crossterm::cursor::MoveTo(pos.x, pos.y))
+            .unwrap()
+            .queue(crossterm::style::Print(glyph.symbol))
+            .unwrap();
     }
 }

@@ -9,7 +9,7 @@ pub mod world;
 pub mod renderer;
 
 use object::Action;
-use world::World;
+use world::{World, ObjectIndex};
 use renderer::Renderer;
 
 use crate::core::grid::SpatialGrid;
@@ -62,6 +62,7 @@ impl Game {
                 self.last_update = now;
                 self.logic.game_loop(&mut self.world);
                 self.tick();
+                self.world.collect_states();
                 self.renderer.draw(&self.world.spatial_grid, &mut self.world.global_state);
             }
         }
@@ -69,15 +70,20 @@ impl Game {
     
     fn tick(&mut self) {
         let future_moves = self.world
-            .movable_ids
-            .iter()
+            .indexes
+            .get(&ObjectIndex::Movable)
+            .into_iter()
+            .flat_map(|set| set.iter())
             .filter_map(|id| {
-                self.world.objects
+                self.world
+                    .objects
                     .get(id)
                     .and_then(|obj| obj.as_movable())
                     .map(|movable| (*id, movable))
             })
-            .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
+            .flat_map(|(id, movable)| {
+                movable.predict_pos().map(move |pos| (id, pos))
+            });
 
         let mut probe_map = self.world.spatial_grid.probe_moves(future_moves);
 
