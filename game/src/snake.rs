@@ -461,11 +461,7 @@ impl Stateful for Snake {
     }
 }
 
-impl Destructible for Snake {
-    fn is_dead(&self) -> bool {
-        self.is_dead
-    }
-}
+impl Destructible for Snake {}
 
 impl Movable for Snake {
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
@@ -492,31 +488,31 @@ impl Movable for Snake {
                 new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
             }
 
-            let hit_object = match game_objects.get(&hit.cell.occ_by.obj_id) {
-                Some(object) => object,
-                None => continue,
-            };
+            // let hit_object = match game_objects.get(&hit.cell.occ_by.obj_id) {
+            //     Some(object) => object,
+            //     None => continue,
+            // };
 
-            if let Some(consumable) = hit_object.as_consumable() {
-                self.meals += consumable.get_meal();
-                let change = consumable.on_consumed(hit.cell.occ_by.element_id, hit.pos, self.id);
-                new_effect = Some(Effect::new(
-                    2,
-                    EffectStyle::Grow,
-                    Some(self.head_size.size() + 2),
-                    EffectZone::All,
-                ));
-                self.state_manager.upsert_change(change);
-            }
+            // if let Some(consumable) = hit_object.as_consumable() {
+            //     self.meals += consumable.get_meal();
+            //     let change = consumable.on_consumed(hit.cell.occ_by.element_id, hit.pos, self.id);
+            //     new_effect = Some(Effect::new(
+            //         2,
+            //         EffectStyle::Grow,
+            //         Some(self.head_size.size() + 2),
+            //         EffectZone::All,
+            //     ));
+            //     self.state_manager.upsert_change(change);
+            // }
 
-            if let Some(damaging) = hit_object.as_damaging() {
-                self.meals += damaging.get_damage();
-                new_effect = Some(Effect::new(2, EffectStyle::Damage, None, EffectZone::All));
-            }
+            // if let Some(damaging) = hit_object.as_damaging() {
+            //     self.meals += damaging.get_damage();
+            //     new_effect = Some(Effect::new(2, EffectStyle::Damage, None, EffectZone::All));
+            // }
 
-            if let Some(_) = hit_object.get::<Snake>() {
-                self.is_dead = false;
-            }
+            // if let Some(_) = hit_object.get::<Snake>() {
+            //     self.is_dead = false;
+            // }
         }
 
         self.slither();

@@ -73,8 +73,6 @@ pub trait Destructible: Object + Stateful {
             });
         }
     }
-
-    fn is_dead(&self) -> bool;
 }
 
 pub trait ObjectExt {

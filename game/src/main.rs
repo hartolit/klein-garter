@@ -9,9 +9,6 @@ mod object_ext;
 mod player;
 mod snake;
 
-use player::{Player, PlayerKind};
-use snake::Direction;
-
 fn main() {
     let mut out = stdout();
 

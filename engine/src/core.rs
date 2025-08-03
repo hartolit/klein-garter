@@ -1,16 +1,14 @@
-use std::{
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 pub mod global;
 pub mod grid;
 pub mod object;
-pub mod world;
 pub mod renderer;
+pub mod world;
 
 use object::Action;
-use world::{World, ObjectIndex};
 use renderer::Renderer;
+use world::{ObjectIndex, World};
 
 use crate::core::grid::SpatialGrid;
 
@@ -32,19 +30,19 @@ pub struct Game {
     pub tick_rate: Duration,
     last_update: Instant,
     state: State,
-    world: World,
+    world: Box<World>,
     renderer: Renderer,
     logic: Box<dyn GameLogic>,
 }
 
 impl Game {
     pub fn new<T: GameLogic + 'static>(logic: T, spatial_grid: SpatialGrid) -> Self {
-        Self { 
-            tick_rate: Duration::new(0, 500), 
-            last_update: Instant::now(), 
-            state: State::Init, 
-            world: World::new(spatial_grid), 
-            renderer: Renderer::new(), 
+        Self {
+            tick_rate: Duration::new(0, 500),
+            last_update: Instant::now(),
+            state: State::Init,
+            world: Box::new(World::new(spatial_grid)),
+            renderer: Renderer::new(),
             logic: Box::new(logic),
         }
     }
@@ -63,13 +61,15 @@ impl Game {
                 self.logic.game_loop(&mut self.world);
                 self.tick();
                 self.world.collect_states();
-                self.renderer.draw(&self.world.spatial_grid, &mut self.world.global_state);
+                self.renderer
+                    .partial_render(&self.world.spatial_grid, &mut self.world.global_state);
             }
         }
     }
-    
+
     fn tick(&mut self) {
-        let future_moves = self.world
+        let future_moves = self
+            .world
             .indexes
             .get(&ObjectIndex::Movable)
             .into_iter()
@@ -81,9 +81,7 @@ impl Game {
                     .and_then(|obj| obj.as_movable())
                     .map(|movable| (*id, movable))
             })
-            .flat_map(|(id, movable)| {
-                movable.predict_pos().map(move |pos| (id, pos))
-            });
+            .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
 
         let mut probe_map = self.world.spatial_grid.probe_moves(future_moves);
 

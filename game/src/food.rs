@@ -3,7 +3,7 @@ use std::iter;
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Object, Occupant,
+        Object, Occupant, Stateful, Destructible,
         element::{Element, Glyph},
         state::StateChange,
     },
@@ -105,14 +105,6 @@ impl Object for Food {
         Box::new(iter::once(&self.body))
     }
 
-    fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
-        Box::new(iter::once(self.body.pos))
-    }
-
-    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state_manager.changes.values())
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -120,17 +112,42 @@ impl Object for Food {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn as_stateful(&self) -> Option<&dyn Stateful> {
+        Some(self)
+    }
+    
+    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
+        Some(self)
+    }
+
+    fn as_destructible(&self) -> Option<&dyn Destructible> {
+        Some(self)
+    }
+
+    fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> {
+        Some(self)
+    }
 }
+
+impl Stateful for Food {
+    fn state_manager(&self) -> &StateManager {
+        &self.state_manager
+    }
+
+    fn state_manager_mut(&mut self) -> &mut StateManager {
+        &mut self.state_manager
+    }
+
+    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
+        Box::new(self.state_manager.changes.values())
+    }
+}
+
+impl Destructible for Food {}
 
 impl Consumable for Food {
     fn get_meal(&self) -> i16 {
         self.meal
-    }
-
-    fn on_consumed(&self, element_id: Id, pos: Position, _recipient_id: Id) -> StateChange {
-        StateChange::Delete {
-            occupant: Occupant::new(self.id, element_id),
-            init_pos: pos,
-        }
     }
 }

@@ -6,7 +6,7 @@ use std::iter;
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Object, Occupant,
+        Object, Occupant, Stateful, Destructible,
         element::{Element, Glyph},
         state::StateChange,
     },
@@ -28,6 +28,7 @@ pub struct Bomb {
     damage: i16,
     body: Element,
     state_manager: StateManager,
+    is_dead: bool,
     //pub effect_area: u16,
 }
 
@@ -75,6 +76,7 @@ impl Bomb {
             damage,
             body: Element::new(Id::new(0), glyph, Some(pos)),
             state_manager: StateManager::new(),
+            is_dead: false,
         }
     }
 
@@ -98,14 +100,6 @@ impl Object for Bomb {
         Box::new(iter::once(&self.body))
     }
 
-    fn positions(&self) -> Box<dyn Iterator<Item = Position> + '_> {
-        Box::new(iter::once(self.body.pos))
-    }
-
-    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state_manager.changes.values())
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -113,16 +107,42 @@ impl Object for Bomb {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn as_stateful(&self) -> Option<&dyn Stateful> {
+        Some(self)
+    }
+    
+    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
+        Some(self)
+    }
+
+    fn as_destructible(&self) -> Option<&dyn Destructible> {
+        Some(self)
+    }
+
+    fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> {
+        Some(self)
+    }
 }
+
+impl Stateful for Bomb {
+    fn state_manager(&self) -> &StateManager {
+        &self.state_manager
+    }
+
+    fn state_manager_mut(&mut self) -> &mut StateManager {
+        &mut self.state_manager
+    }
+
+    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
+        Box::new(self.state_manager.changes.values())
+    }
+}
+
+impl Destructible for Bomb {}
 
 impl Damaging for Bomb {
     fn get_damage(&self) -> i16 {
         self.damage
-    }
-    fn on_hit(&self, element_id: Id, pos: Position, _recipient_id: Id) -> StateChange {
-        StateChange::Delete {
-            occupant: Occupant::new(self.id, element_id),
-            init_pos: pos,
-        }
     }
 }

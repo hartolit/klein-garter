@@ -55,11 +55,12 @@ impl World {
     }
 
     pub fn collect_states(&mut self) {
-        let stateful_ids: Vec<Id> = self.indexes
+        let stateful_ids: Vec<Id> = self
+            .indexes
             .get(&ObjectIndex::Stateful)
             .map(|set| set.iter().copied().collect())
             .unwrap_or_default();
-        
+
         for id in stateful_ids {
             if let Some(object) = self.objects.get_mut(&id) {
                 if let Some(stateful) = object.as_stateful_mut() {

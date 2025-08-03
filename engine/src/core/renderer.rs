@@ -3,10 +3,10 @@ use crossterm::{
     style::{SetBackgroundColor, SetForegroundColor},
     terminal,
 };
-use std::io::{Stdout, stdout};
+use std::io::{stdout, Stdout, Write};
 
 use super::grid::SpatialGrid;
-use crate::core::global::Position;
+use crate::core::{global::Position};
 use crate::core::object::{
     element::Glyph,
     state::{StateChange, StateManager},
@@ -31,7 +31,10 @@ impl Renderer {
         execute!(self.stdout, cursor::Show).unwrap();
     }
 
-    pub fn draw(&mut self, spatial_grid: &SpatialGrid, global_state: &mut StateManager) {
+    // TODO - Make SpatialGrid + Objects an iterator
+
+    // TODO - Make SpatialGrid an iterator
+    pub fn partial_render(&mut self, spatial_grid: &SpatialGrid, global_state: &mut StateManager) {
         let max_len = global_state.changes.len();
         let mut updates: Vec<StateChange> = Vec::with_capacity(max_len);
         let mut creates: Vec<StateChange> = Vec::with_capacity(max_len);
@@ -69,6 +72,8 @@ impl Renderer {
                 self.draw_glyph(new_element.style, new_element.pos);
             }
         }
+
+        self.stdout.flush().unwrap();
     }
 
     pub fn draw_glyph(&mut self, glyph: Glyph, pos: Position) {
