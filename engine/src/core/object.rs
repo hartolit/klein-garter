@@ -25,7 +25,7 @@ impl Occupant {
 pub trait Object: Debug {
     fn id(&self) -> Id;
     fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
-    fn z_index(&self) -> i16 { 0 }
+    fn z_index(&self) -> i16 { 0 } // TODO - Add z-index for object overlapping.
 
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
