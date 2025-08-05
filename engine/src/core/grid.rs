@@ -57,7 +57,7 @@ impl SpatialGrid {
         }
     }
 
-    pub fn get_index(&self, pos: Position) -> Option<usize> {
+    pub fn get_index(&self, pos: &Position) -> Option<usize> {
         if pos.x < self.full_width && pos.y < self.full_height {
             Some((pos.y * self.full_width + pos.x) as usize)
         } else {
@@ -79,11 +79,11 @@ impl SpatialGrid {
         self.cells.iter()
     }
 
-    pub fn get_cell(&self, pos: Position) -> Option<&Cell> {
+    pub fn get_cell(&self, pos: &Position) -> Option<&Cell> {
         self.get_index(pos).map(|index| &self.cells[index])
     }
 
-    pub fn get_cell_mut(&mut self, pos: Position) -> Option<&mut Cell> {
+    pub fn get_cell_mut(&mut self, pos: &Position) -> Option<&mut Cell> {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
@@ -92,7 +92,10 @@ impl SpatialGrid {
         moves: impl Iterator<Item = (Id, Position)>,
     ) -> HashMap<Id, Vec<CellRef<'a>>> {
         moves
-            .filter_map(|(id, pos)| self.get_cell(pos).map(|cell| (id, CellRef::new(pos, cell))))
+            .filter_map(|(id, pos)| {
+                self.get_cell(&pos)
+                    .map(|cell| (id, CellRef::new(pos, cell)))
+            })
             .fold(HashMap::new(), |mut map, (id, cell_ref)| {
                 map.entry(id).or_default().push(cell_ref);
                 map
@@ -103,7 +106,7 @@ impl SpatialGrid {
     pub fn add_object<T: Object>(&mut self, object: &T) {
         let obj_id = object.id();
         for element in object.elements() {
-            self.add_cell_occ(Occupant::new(obj_id, element.id), element.pos);    
+            self.add_cell_occ(Occupant::new(obj_id, element.id), element.pos);
         }
     }
 
@@ -115,7 +118,7 @@ impl SpatialGrid {
     }
 
     pub fn remove_cell_occ(&mut self, occ: Occupant, pos: Position) {
-        if let Some(global_index) = self.get_index(pos) {
+        if let Some(global_index) = self.get_index(&pos) {
             if let Some(cell_occ) = self.cells[global_index].occ_by {
                 if occ == cell_occ {
                     self.cells[global_index].occ_by = None;
@@ -126,15 +129,13 @@ impl SpatialGrid {
     }
 
     pub fn add_cell_occ(&mut self, occ: Occupant, pos: Position) {
-        if let Some(global_index) = self.get_index(pos) {
+        if let Some(global_index) = self.get_index(&pos) {
             if self.cells[global_index].occ_by.is_none() {
                 self.empty_cells.remove(&global_index);
                 self.cells[global_index].occ_by = Some(occ);
             }
         }
     }
-
-
 
     // // TODO - Add tracking of empty positions
     // pub fn rng_empty_pos(&self) -> Option<Position> {

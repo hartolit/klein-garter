@@ -60,9 +60,9 @@ impl Game {
                 self.last_update = now;
                 self.logic.game_loop(&mut self.world);
                 self.tick();
-                self.world.collect_states();
+                self.world.sync();
                 self.renderer
-                    .partial_render(&self.world.spatial_grid, &mut self.world.global_state);
+                    .partial_render(&self.world.spatial_grid, &self.world.global_state.finalized);
             }
         }
     }

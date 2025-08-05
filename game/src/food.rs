@@ -3,7 +3,7 @@ use std::iter;
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Object, Occupant, Stateful, Destructible,
+        Destructible, Object, Occupant, Stateful,
         element::{Element, Glyph},
         state::StateChange,
     },
@@ -29,7 +29,7 @@ pub struct Food {
     kind: Kind,
     meal: i16,
     body: Element,
-    state_manager: State,
+    state: State,
 }
 
 impl Food {
@@ -77,7 +77,7 @@ impl Food {
                 },
                 pos,
             },
-            state_manager: State::new(),
+            state: State::new(),
         }
     }
 
@@ -116,7 +116,7 @@ impl Object for Food {
     fn as_stateful(&self) -> Option<&dyn Stateful> {
         Some(self)
     }
-    
+
     fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
         Some(self)
     }
@@ -132,15 +132,15 @@ impl Object for Food {
 
 impl Stateful for Food {
     fn state(&self) -> &State {
-        &self.state_manager
+        &self.state
     }
 
     fn state_mut(&mut self) -> &mut State {
-        &mut self.state_manager
+        &mut self.state
     }
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state_manager.changes.values())
+        Box::new(self.state.changes.values())
     }
 }
 

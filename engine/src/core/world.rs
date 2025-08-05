@@ -1,10 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::core::object::state::StateChange;
+pub mod global_state;
+
+use global_state::GlobalState;
 
 use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
-use super::object::{Object, state::State};
+use super::object::{Object, state::StateChange};
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ObjectIndex {
@@ -18,7 +20,7 @@ pub struct World {
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
     pub spatial_grid: SpatialGrid,
-    pub global_state: State,
+    pub global_state: GlobalState,
 }
 
 impl World {
@@ -28,7 +30,7 @@ impl World {
             objects: HashMap::new(),
             indexes: HashMap::new(),
             spatial_grid,
-            global_state: State::new(),
+            global_state: GlobalState::new(),
         }
     }
 
@@ -49,6 +51,7 @@ impl World {
             if let Some(destructable) = object.as_destructible_mut() {
                 destructable.kill();
                 self.global_state
+                    .state
                     .changes
                     .extend(destructable.state_mut().drain_changes());
                 self.remove_indexes(&object);
@@ -56,7 +59,9 @@ impl World {
         }
     }
 
-    pub fn collect_states(&mut self) {
+    pub fn sync(&mut self) {
+        self.global_state.state.changes.clear();
+
         let stateful_ids: Vec<Id> = self
             .indexes
             .get(&ObjectIndex::Stateful)
@@ -67,25 +72,42 @@ impl World {
             if let Some(object) = self.objects.get_mut(&id) {
                 if let Some(stateful) = object.as_stateful_mut() {
                     self.global_state
+                        .state
                         .changes
                         .extend(stateful.state_mut().drain_changes());
                 }
             }
         }
-    }
 
-    pub fn sync(&mut self) {
-        for(_, change) in self.global_state.changes.iter() {
-            match change {
-                StateChange::Create { occupant, new_element } => {
-                    
-                },
-                StateChange::Delete { occupant, init_pos } => {
+        self.global_state.finalize();
 
-                },
-                StateChange::Update { occupant, element, init_pos } => {
-                    
+        for state in self.global_state.finalized.deletes.iter() {
+            if let StateChange::Delete { occupant, init_pos } = state {
+                self.spatial_grid.remove_cell_occ(*occupant, *init_pos);
+            }
+        }
+
+        for state in self.global_state.finalized.updates.iter() {
+            if let StateChange::Update {
+                occupant,
+                element,
+                init_pos,
+            } = state
+            {
+                if &element.pos != init_pos {
+                    self.spatial_grid.remove_cell_occ(*occupant, *init_pos);
+                    self.spatial_grid.add_cell_occ(*occupant, element.pos);
                 }
+            }
+        }
+
+        for state in self.global_state.finalized.creates.iter() {
+            if let StateChange::Create {
+                occupant,
+                new_element,
+            } = state
+            {
+                self.spatial_grid.add_cell_occ(*occupant, new_element.pos);
             }
         }
     }

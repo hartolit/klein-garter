@@ -6,7 +6,7 @@ use std::iter;
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Object, Occupant, Stateful, Destructible,
+        Destructible, Object, Occupant, Stateful,
         element::{Element, Glyph},
         state::StateChange,
     },
@@ -27,7 +27,7 @@ pub struct Bomb {
     kind: Kind,
     damage: i16,
     body: Element,
-    state_manager: State,
+    state: State,
     is_dead: bool,
     //pub effect_area: u16,
 }
@@ -75,7 +75,7 @@ impl Bomb {
             kind,
             damage,
             body: Element::new(Id::new(0), glyph, Some(pos)),
-            state_manager: State::new(),
+            state: State::new(),
             is_dead: false,
         }
     }
@@ -111,7 +111,7 @@ impl Object for Bomb {
     fn as_stateful(&self) -> Option<&dyn Stateful> {
         Some(self)
     }
-    
+
     fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
         Some(self)
     }
@@ -127,15 +127,15 @@ impl Object for Bomb {
 
 impl Stateful for Bomb {
     fn state(&self) -> &State {
-        &self.state_manager
+        &self.state
     }
 
     fn state_mut(&mut self) -> &mut State {
-        &mut self.state_manager
+        &mut self.state
     }
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state_manager.changes.values())
+        Box::new(self.state.changes.values())
     }
 }
 

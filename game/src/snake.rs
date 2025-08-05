@@ -10,7 +10,7 @@ use ::engine::core::{
     object::{
         Action, BodySegment, Destructible, Movable, Object, Occupant, Orientation, Stateful,
         element::{Element, Glyph},
-        state::{ResizeState, StateChange, State},
+        state::{ResizeState, State, StateChange},
     },
 };
 
@@ -48,7 +48,7 @@ pub struct Snake {
     body: VecDeque<BodySegment>,
     head_style: Glyph,
     body_style: Glyph,
-    state_manager: State,
+    state: State,
     pub direction: Direction,
 }
 
@@ -78,7 +78,7 @@ impl Snake {
             body: VecDeque::new(),
             head_style,
             body_style,
-            state_manager: State::new(),
+            state: State::new(),
             direction: Direction::Down,
         };
 
@@ -150,7 +150,7 @@ impl Snake {
                     occupant: Occupant::new(self.id, element.id),
                     init_pos: element.pos,
                 };
-                self.state_manager.upsert_change(delete);
+                self.state.upsert_change(delete);
             }
 
             Position {
@@ -178,7 +178,7 @@ impl Snake {
                     occupant: Occupant::new(self.id, element.id),
                     new_element: element,
                 };
-                self.state_manager.upsert_change(create);
+                self.state.upsert_change(create);
 
                 self.head.push(element);
             }
@@ -234,7 +234,7 @@ impl Snake {
                         occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
-                    self.state_manager.upsert_change(create);
+                    self.state.upsert_change(create);
                     self.head.push(new_element);
                 }
 
@@ -262,7 +262,7 @@ impl Snake {
                         occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
-                    self.state_manager.upsert_change(create);
+                    self.state.upsert_change(create);
 
                     self.head.push(new_element);
                 }
@@ -291,7 +291,7 @@ impl Snake {
                         occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
-                    self.state_manager.upsert_change(create);
+                    self.state.upsert_change(create);
 
                     self.head.push(new_element);
                 }
@@ -320,7 +320,7 @@ impl Snake {
                         occupant: Occupant::new(self.id, new_element.id),
                         new_element: new_element,
                     };
-                    self.state_manager.upsert_change(create);
+                    self.state.upsert_change(create);
 
                     self.head.push(new_element);
                 }
@@ -337,7 +337,7 @@ impl Snake {
                 element: *element,
                 init_pos: element.pos,
             };
-            self.state_manager.upsert_change(update);
+            self.state.upsert_change(update);
         }
 
         self.body
@@ -358,7 +358,7 @@ impl Snake {
                             occupant: Occupant::new(self.id, element.id),
                             init_pos: element.pos,
                         };
-                        self.state_manager.upsert_change(delete);
+                        self.state.upsert_change(delete);
                     }
                 }
             }
@@ -369,7 +369,7 @@ impl Snake {
                         occupant: Occupant::new(self.id, element.id),
                         init_pos: element.pos,
                     };
-                    self.state_manager.upsert_change(delete);
+                    self.state.upsert_change(delete);
                 }
             }
         }
@@ -449,15 +449,15 @@ impl Object for Snake {
 
 impl Stateful for Snake {
     fn state_mut(&mut self) -> &mut State {
-        &mut self.state_manager
+        &mut self.state
     }
 
     fn state(&self) -> &State {
-        &self.state_manager
+        &self.state
     }
 
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state_manager.changes.values())
+        Box::new(self.state.changes.values())
     }
 }
 
@@ -475,7 +475,7 @@ impl Movable for Snake {
 
     fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action> {
         let mut actions: Vec<Action> = Vec::new();
-        self.state_manager.changes.clear();
+        self.state.changes.clear();
         if !self.is_dead {
             return actions;
         }
