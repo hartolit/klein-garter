@@ -7,8 +7,8 @@ use super::object::{Object, Occupant};
 use cell::{Cell, CellRef, Kind};
 
 pub struct SpatialGrid {
-    cells: Vec<Cell>,
-    empty_cells: SlotMap<usize>,
+    pub cells: Vec<Cell>,
+    pub empty_cells: SlotMap<usize>,
     pub full_width: u16,
     pub full_height: u16,
     pub game_width: u16,
@@ -102,15 +102,17 @@ impl SpatialGrid {
             })
     }
 
-    // TODO - Add object overwrite check
-    pub fn add_object<T: Object>(&mut self, object: &T) {
+    // TODO - Add position overwrite check
+    // !Fix - Single cell overlapping
+
+    pub fn add_object(&mut self, object: &Box<dyn Object>) {
         let obj_id = object.id();
         for element in object.elements() {
             self.add_cell_occ(Occupant::new(obj_id, element.id), element.pos);
         }
     }
 
-    pub fn remove_object<T: Object>(&mut self, object: &T) {
+    pub fn remove_object(&mut self, object: &Box<dyn Object>) {
         let obj_id = object.id();
         for element in object.elements() {
             self.remove_cell_occ(Occupant::new(obj_id, element.id), element.pos);

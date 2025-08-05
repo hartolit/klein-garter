@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crossterm::{
     self, QueueableCommand, cursor, execute,
     style::{SetBackgroundColor, SetForegroundColor},
@@ -7,8 +8,8 @@ use std::io::{Stdout, Write, stdout};
 
 use super::grid::SpatialGrid;
 use super::world::global_state::CategorizedStates;
-use crate::core::global::Position;
-use crate::core::object::{element::Glyph, state::StateChange};
+use crate::core::{global::{Id, Position}};
+use crate::core::object::{element::Glyph, state::StateChange, Object};
 
 pub struct Renderer {
     stdout: Stdout,
@@ -29,8 +30,32 @@ impl Renderer {
         execute!(self.stdout, cursor::Show).unwrap();
     }
 
-    // TODO - Make SpatialGrid + Objects an iterator
-    // TODO - Make SpatialGrid an iterator
+    // TODO - Add indexing to handle overlapping elements
+    pub fn full_render(&mut self, spatial_grid: &mut SpatialGrid, objects: &HashMap<Id, Box<dyn Object>>) {
+        let mut glyph_map: HashMap<Position, &Glyph> = HashMap::new();
+        for object in objects.values() {
+            for element in object.elements() {
+                glyph_map.insert(element.pos, &element.style);
+            }
+        }
+
+        for y in 0..spatial_grid.full_height {
+            for x in 0..spatial_grid.full_width {
+                let pos = Position::new(x, y);
+
+                let glyph = if let Some(glyph) = glyph_map.get(&pos) {
+                    *glyph
+                } else {
+                    let index = (y * spatial_grid.full_width + x) as usize;
+                    &spatial_grid.cells[index].kind.appearance()
+                };
+
+                self.draw_glyph(glyph, &pos);
+            }
+        }
+        self.stdout.flush().unwrap();
+    }
+
     pub fn partial_render(
         &mut self,
         spatial_grid: &SpatialGrid,

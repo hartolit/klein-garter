@@ -43,6 +43,7 @@ impl World {
 
         self.add_indexes(&new_object);
         self.objects.insert(new_id, new_object);
+        // TODO Add object to spatial grid
         new_id
     }
 
