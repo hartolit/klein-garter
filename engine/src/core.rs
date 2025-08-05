@@ -14,22 +14,21 @@ use crate::core::grid::SpatialGrid;
 
 pub trait GameLogic {
     fn process_actions(&self, world: &mut World, actions: Vec<Action>);
-    fn game_setup(&self, world: &mut World);
+    fn process_input(&self);
+    fn setup(&self, world: &mut World);
     fn game_loop(&self, world: &mut World);
-    fn game_input(&self);
 }
 
-enum State {
+enum GameState {
     Init,
     Run,
-    Stop,
-    Pause,
+    Kill,
 }
 
 pub struct Game {
     pub tick_rate: Duration,
     last_update: Instant,
-    state: State,
+    state: GameState,
     world: Box<World>,
     renderer: Renderer,
     logic: Box<dyn GameLogic>,
@@ -40,7 +39,7 @@ impl Game {
         Self {
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
-            state: State::Init,
+            state: GameState::Init,
             world: Box::new(World::new(spatial_grid)),
             renderer: Renderer::new(),
             logic: Box::new(logic),
@@ -48,23 +47,44 @@ impl Game {
     }
 
     pub fn begin(&mut self) {
-        self.logic.game_setup(&mut self.world);
-
         loop {
-            let now = Instant::now();
-            let delta = now.duration_since(self.last_update);
-
-            self.logic.game_input();
-
-            if delta >= self.tick_rate {
-                self.last_update = now;
-                self.logic.game_loop(&mut self.world);
-                self.tick();
-                self.world.sync();
-                self.renderer
-                    .partial_render(&self.world.spatial_grid, &self.world.global_state.finalized);
+            match self.state {
+                GameState::Init => self.initialize(),
+                GameState::Run => self.run(),
+                GameState::Kill => self.kill(),
             }
         }
+    }
+
+    // pub fn swap_world(&mut self, new_world: Box<World>) {
+
+    // }
+
+    fn initialize(&mut self) {
+        self.logic.setup(&mut self.world);
+        self.renderer.init();
+        self.renderer.full_render(&mut self.world.spatial_grid, &self.world.objects);
+        self.state = GameState::Run;
+    }
+
+    fn run(&mut self) {
+        let now = Instant::now();
+        let delta = now.duration_since(self.last_update);
+
+        self.logic.process_input();
+
+        if delta >= self.tick_rate {
+            self.last_update = now;
+            self.logic.game_loop(&mut self.world);
+            self.tick();
+            self.world.sync();
+            self.renderer
+                .partial_render(&self.world.spatial_grid, &self.world.global_state.finalized);
+        }
+    }
+
+    fn kill(&mut self) {
+        self.renderer.kill();
     }
 
     fn tick(&mut self) {
