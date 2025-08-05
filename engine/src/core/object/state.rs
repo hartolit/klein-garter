@@ -23,11 +23,11 @@ pub enum StateChange {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StateManager {
+pub struct State {
     pub changes: HashMap<Occupant, StateChange>,
 }
 
-impl StateManager {
+impl State {
     pub fn new() -> Self {
         Self {
             changes: HashMap::new(),

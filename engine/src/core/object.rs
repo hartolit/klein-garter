@@ -6,7 +6,7 @@ pub mod state;
 
 use super::global::{Id, Position};
 use super::grid::cell::CellRef;
-use crate::core::object::state::StateManager;
+use crate::core::object::state::State;
 use element::Element;
 use state::StateChange;
 
@@ -55,8 +55,8 @@ pub trait Movable {
 }
 
 pub trait Stateful {
-    fn state_manager_mut(&mut self) -> &mut StateManager;
-    fn state_manager(&self) -> &StateManager;
+    fn state_mut(&mut self) -> &mut State;
+    fn state(&self) -> &State;
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_>;
 }
 
@@ -64,7 +64,7 @@ pub trait Destructible: Object + Stateful {
     fn kill(&mut self) {
         let id = self.id();
         let elements_data: Vec<_> = self.elements().map(|e| (e.id, e.pos)).collect();
-        let state_manager = self.state_manager_mut();
+        let state_manager = self.state_mut();
 
         for (element_id, pos) in elements_data {
             state_manager.upsert_change(StateChange::Delete {

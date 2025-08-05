@@ -9,7 +9,7 @@ use super::grid::SpatialGrid;
 use crate::core::{global::Position};
 use crate::core::object::{
     element::Glyph,
-    state::{StateChange, StateManager},
+    state::{StateChange, State},
 };
 
 pub struct Renderer {
@@ -32,9 +32,8 @@ impl Renderer {
     }
 
     // TODO - Make SpatialGrid + Objects an iterator
-
     // TODO - Make SpatialGrid an iterator
-    pub fn partial_render(&mut self, spatial_grid: &SpatialGrid, global_state: &mut StateManager) {
+    pub fn partial_render(&mut self, spatial_grid: &SpatialGrid, global_state: &mut State) {
         let max_len = global_state.changes.len();
         let mut updates: Vec<StateChange> = Vec::with_capacity(max_len);
         let mut creates: Vec<StateChange> = Vec::with_capacity(max_len);

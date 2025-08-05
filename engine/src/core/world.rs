@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::core::object::state::StateChange;
+
 use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
-use super::object::{Object, state::StateManager};
+use super::object::{Object, state::State};
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ObjectIndex {
@@ -16,7 +18,7 @@ pub struct World {
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
     pub spatial_grid: SpatialGrid,
-    pub global_state: StateManager,
+    pub global_state: State,
 }
 
 impl World {
@@ -26,7 +28,7 @@ impl World {
             objects: HashMap::new(),
             indexes: HashMap::new(),
             spatial_grid,
-            global_state: StateManager::new(),
+            global_state: State::new(),
         }
     }
 
@@ -48,7 +50,7 @@ impl World {
                 destructable.kill();
                 self.global_state
                     .changes
-                    .extend(destructable.state_manager_mut().drain_changes());
+                    .extend(destructable.state_mut().drain_changes());
                 self.remove_indexes(&object);
             }
         }
@@ -66,7 +68,23 @@ impl World {
                 if let Some(stateful) = object.as_stateful_mut() {
                     self.global_state
                         .changes
-                        .extend(stateful.state_manager_mut().drain_changes());
+                        .extend(stateful.state_mut().drain_changes());
+                }
+            }
+        }
+    }
+
+    pub fn sync(&mut self) {
+        for(_, change) in self.global_state.changes.iter() {
+            match change {
+                StateChange::Create { occupant, new_element } => {
+                    
+                },
+                StateChange::Delete { occupant, init_pos } => {
+
+                },
+                StateChange::Update { occupant, element, init_pos } => {
+                    
                 }
             }
         }

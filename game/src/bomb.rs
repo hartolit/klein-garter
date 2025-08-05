@@ -1,5 +1,5 @@
 use crossterm::style::Color;
-use engine::core::object::state::StateManager;
+use engine::core::object::state::State;
 use rand::Rng;
 use std::iter;
 
@@ -27,7 +27,7 @@ pub struct Bomb {
     kind: Kind,
     damage: i16,
     body: Element,
-    state_manager: StateManager,
+    state_manager: State,
     is_dead: bool,
     //pub effect_area: u16,
 }
@@ -75,7 +75,7 @@ impl Bomb {
             kind,
             damage,
             body: Element::new(Id::new(0), glyph, Some(pos)),
-            state_manager: StateManager::new(),
+            state_manager: State::new(),
             is_dead: false,
         }
     }
@@ -126,11 +126,11 @@ impl Object for Bomb {
 }
 
 impl Stateful for Bomb {
-    fn state_manager(&self) -> &StateManager {
+    fn state(&self) -> &State {
         &self.state_manager
     }
 
-    fn state_manager_mut(&mut self) -> &mut StateManager {
+    fn state_mut(&mut self) -> &mut State {
         &mut self.state_manager
     }
 

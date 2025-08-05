@@ -99,7 +99,6 @@ impl SpatialGrid {
             })
     }
 
-    // ! TODO - Add object movement?!
     // TODO - Add object overwrite check
     pub fn add_object<T: Object>(&mut self, object: &T) {
         let obj_id = object.id();

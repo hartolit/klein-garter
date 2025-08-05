@@ -10,7 +10,7 @@ use ::engine::core::{
     object::{
         Action, BodySegment, Destructible, Movable, Object, Occupant, Orientation, Stateful,
         element::{Element, Glyph},
-        state::{ResizeState, StateChange, StateManager},
+        state::{ResizeState, StateChange, State},
     },
 };
 
@@ -48,7 +48,7 @@ pub struct Snake {
     body: VecDeque<BodySegment>,
     head_style: Glyph,
     body_style: Glyph,
-    state_manager: StateManager,
+    state_manager: State,
     pub direction: Direction,
 }
 
@@ -78,7 +78,7 @@ impl Snake {
             body: VecDeque::new(),
             head_style,
             body_style,
-            state_manager: StateManager::new(),
+            state_manager: State::new(),
             direction: Direction::Down,
         };
 
@@ -448,11 +448,11 @@ impl Object for Snake {
 }
 
 impl Stateful for Snake {
-    fn state_manager_mut(&mut self) -> &mut StateManager {
+    fn state_mut(&mut self) -> &mut State {
         &mut self.state_manager
     }
 
-    fn state_manager(&self) -> &StateManager {
+    fn state(&self) -> &State {
         &self.state_manager
     }
 

@@ -8,7 +8,7 @@ use ::engine::core::{
         state::StateChange,
     },
 };
-use engine::core::object::state::StateManager;
+use engine::core::object::state::State;
 
 use crossterm::style::Color;
 use rand::Rng;
@@ -29,7 +29,7 @@ pub struct Food {
     kind: Kind,
     meal: i16,
     body: Element,
-    state_manager: StateManager,
+    state_manager: State,
 }
 
 impl Food {
@@ -77,7 +77,7 @@ impl Food {
                 },
                 pos,
             },
-            state_manager: StateManager::new(),
+            state_manager: State::new(),
         }
     }
 
@@ -131,11 +131,11 @@ impl Object for Food {
 }
 
 impl Stateful for Food {
-    fn state_manager(&self) -> &StateManager {
+    fn state(&self) -> &State {
         &self.state_manager
     }
 
-    fn state_manager_mut(&mut self) -> &mut StateManager {
+    fn state_mut(&mut self) -> &mut State {
         &mut self.state_manager
     }
 
