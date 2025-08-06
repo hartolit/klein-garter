@@ -13,7 +13,7 @@ use scene::{ObjectIndex, Scene};
 use crate::core::grid::SpatialGrid;
 
 pub enum Command {
-    SwapWorld(Box<Scene>),
+    SwapScene(Box<Scene>),
     SwapLogic(Box<dyn Logic>),
     SwapFull {
         scene: Box<Scene>,
@@ -133,7 +133,7 @@ impl Runtime {
 
     fn execute_command(&mut self, command: Command) {
         match command {
-            Command::SwapWorld(new_scene) => {
+            Command::SwapScene(new_scene) => {
                 let old_scene = std::mem::replace(&mut self.scene, new_scene);
                 self.logic.post_swap(Some(old_scene), None);
                 self.state = RuntimeState::Init;
