@@ -8,13 +8,14 @@ use ::engine::core::{
     global::{Id, IdCounter, Position},
     grid::cell::{CellRef, Kind},
     object::{
-        Action, BodySegment, Destructible, Movable, Object, Occupant, Orientation, Stateful,
+        Action, Destructible, Movable, Object, Occupant, Stateful,
         element::{Element, Glyph},
-        state::{ResizeState, State, StateChange},
+        state::{State, StateChange},
     },
 };
 
 use animation::{Effect, EffectStyle, EffectZone};
+use super::game_object::{ResizeState, BodySegment, Orientation};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Direction {

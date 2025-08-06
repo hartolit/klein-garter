@@ -92,25 +92,3 @@ impl State {
         mem::take(&mut self.changes)
     }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ResizeState {
-    Normal { size: usize },
-    Brief { size: usize, native_size: usize },
-}
-
-impl ResizeState {
-    pub fn size(&self) -> usize {
-        match self {
-            ResizeState::Normal { size } => *size,
-            ResizeState::Brief { size, .. } => *size,
-        }
-    }
-
-    pub fn native(&self) -> usize {
-        match self {
-            ResizeState::Normal { size } => *size,
-            ResizeState::Brief { native_size, .. } => *native_size,
-        }
-    }
-}
