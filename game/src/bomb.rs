@@ -12,7 +12,7 @@ use ::engine::core::{
     },
 };
 
-use super::object_ext::Damaging;
+use super::game_object::Damaging;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Kind {

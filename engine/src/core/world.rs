@@ -42,8 +42,8 @@ impl World {
         let new_object = create_fn(new_id);
 
         self.add_indexes(&new_object);
+        self.spatial_grid.add_object(&new_object);
         self.objects.insert(new_id, new_object);
-        // TODO Add object to spatial grid
         new_id
     }
 

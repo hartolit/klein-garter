@@ -42,8 +42,11 @@ impl SpatialGrid {
         }
 
         let mut empty_cells = SlotMap::new();
-        for index in 0..cells.len() {
-            empty_cells.insert(index);
+        for y in border..(game_height + border) {
+            for x in border..(game_width + border) {
+                let index = (y * full_width + x) as usize;
+                empty_cells.insert(index);
+            }
         }
 
         SpatialGrid {
@@ -120,6 +123,7 @@ impl SpatialGrid {
     }
 
     pub fn remove_cell_occ(&mut self, occ: Occupant, pos: Position) {
+        if !self.is_within_game_area(&pos) { return }
         if let Some(global_index) = self.get_index(&pos) {
             if let Some(cell_occ) = self.cells[global_index].occ_by {
                 if occ == cell_occ {
@@ -131,12 +135,27 @@ impl SpatialGrid {
     }
 
     pub fn add_cell_occ(&mut self, occ: Occupant, pos: Position) {
+        if !self.is_within_game_area(&pos) { return }
         if let Some(global_index) = self.get_index(&pos) {
             if self.cells[global_index].occ_by.is_none() {
                 self.empty_cells.remove(&global_index);
                 self.cells[global_index].occ_by = Some(occ);
             }
         }
+    }
+
+    pub fn random_empty_pos(&self) -> Option<Position> {
+        let random_pos = match self.empty_cells.get_random() {
+            Some(index) => self.get_pos_from_index(index),
+            None => None,
+        };
+
+        random_pos
+    }
+
+    pub fn is_within_game_area(&self, pos: &Position) -> bool {
+        pos.x >= self.border && pos.x < self.game_width + self.border &&
+        pos.y >= self.border && pos.y < self.game_height + self.border
     }
 
     // // TODO - Add tracking of empty positions

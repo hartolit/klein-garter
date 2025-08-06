@@ -13,7 +13,7 @@ use engine::core::object::state::State;
 use crossterm::style::Color;
 use rand::Rng;
 
-use super::object_ext::Consumable;
+use super::game_object::Consumable;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Kind {
