@@ -12,34 +12,47 @@ use world::{ObjectIndex, World};
 
 use crate::core::grid::SpatialGrid;
 
-pub trait GameLogic {
+pub enum Command {
+    SwapWorld(Box<World>),
+    SwapLogic(Box<dyn Logic>),
+    SwapFull {
+        world: Box<World>,
+        logic: Box<dyn Logic>,
+    },
+    SetState(State),
+    Kill,
+    None,
+}
+
+pub trait Logic {
     fn process_actions(&self, world: &mut World, actions: Vec<Action>);
     fn process_input(&self);
     fn setup(&self, world: &mut World);
-    fn game_loop(&self, world: &mut World);
+    fn game_loop(&self, world: &mut World) -> Command;
+    fn post_swap(&mut self, _old_world: Option<Box<World>>, _old_logic: Option<Box<dyn Logic>>) { }
 }
 
-enum GameState {
+pub enum State {
     Init,
     Run,
     Kill,
 }
 
-pub struct Game {
+pub struct Runtime {
     pub tick_rate: Duration,
     last_update: Instant,
-    state: GameState,
+    state: State,
     world: Box<World>,
     renderer: Renderer,
-    logic: Box<dyn GameLogic>,
+    logic: Box<dyn Logic>,
 }
 
-impl Game {
-    pub fn new<T: GameLogic + 'static>(logic: T, spatial_grid: SpatialGrid) -> Self {
+impl Runtime {
+    pub fn new<T: Logic + 'static>(logic: T, spatial_grid: SpatialGrid) -> Self {
         Self {
             tick_rate: Duration::new(0, 500),
             last_update: Instant::now(),
-            state: GameState::Init,
+            state: State::Init,
             world: Box::new(World::new(spatial_grid)),
             renderer: Renderer::new(),
             logic: Box::new(logic),
@@ -49,22 +62,23 @@ impl Game {
     pub fn begin(&mut self) {
         loop {
             match self.state {
-                GameState::Init => self.initialize(),
-                GameState::Run => self.run(),
-                GameState::Kill => self.kill(),
+                State::Init => self.initialize(),
+                State::Run => self.run(),
+                State::Kill => self.kill(),
             }
         }
     }
 
-    // pub fn swap_world(&mut self, new_world: Box<World>) {
-
-    // }
+    fn kill(&mut self) {
+        self.renderer.kill();
+    }
 
     fn initialize(&mut self) {
         self.logic.setup(&mut self.world);
         self.renderer.init();
-        self.renderer.full_render(&mut self.world.spatial_grid, &self.world.objects);
-        self.state = GameState::Run;
+        self.renderer
+            .full_render(&mut self.world.spatial_grid, &self.world.objects);
+        self.state = State::Run;
     }
 
     fn run(&mut self) {
@@ -75,16 +89,13 @@ impl Game {
 
         if delta >= self.tick_rate {
             self.last_update = now;
-            self.logic.game_loop(&mut self.world);
+            let command = self.logic.game_loop(&mut self.world);
+            self.execute_command(command);
             self.tick();
             self.world.sync();
             self.renderer
                 .partial_render(&self.world.spatial_grid, &self.world.global_state.finalized);
         }
-    }
-
-    fn kill(&mut self) {
-        self.renderer.kill();
     }
 
     fn tick(&mut self) {
@@ -115,6 +126,33 @@ impl Game {
         }
 
         self.logic.process_actions(&mut self.world, actions);
+    }
+
+    fn execute_command(&mut self, command: Command) {
+        match command {
+            Command::SwapWorld(new_world) => {
+                let old_world = std::mem::replace(&mut self.world, new_world);
+                self.logic.post_swap(Some(old_world), None);
+                self.state = State::Init;
+            }
+            Command::SwapLogic(new_logic) => {
+                let old_logic = std::mem::replace(&mut self.logic, new_logic);
+                self.logic.post_swap(None, Some(old_logic));
+            }
+            Command::SwapFull { world: new_world, logic: new_logic } => {
+                let old_world = std::mem::replace(&mut self.world, new_world);
+                let old_logic = std::mem::replace(&mut self.logic, new_logic);
+                self.logic.post_swap(Some(old_world), Some(old_logic));
+                self.state = State::Init;
+            }
+            Command::SetState(new_state) => {
+                self.state = new_state;
+            }
+            Command::Kill => {
+                self.state = State::Kill;
+            }
+            Command::None => {}
+        }
     }
 }
 

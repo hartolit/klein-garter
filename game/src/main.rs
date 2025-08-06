@@ -1,5 +1,5 @@
 use crossterm::{QueueableCommand, terminal};
-use engine::core::GameLogic;
+use engine::core::Logic;
 use std::{collections::HashMap, io::stdout};
 
 mod bomb;

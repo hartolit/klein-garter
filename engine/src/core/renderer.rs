@@ -1,15 +1,15 @@
-use std::collections::HashMap;
 use crossterm::{
     self, QueueableCommand, cursor, execute,
     style::{SetBackgroundColor, SetForegroundColor},
     terminal,
 };
+use std::collections::HashMap;
 use std::io::{Stdout, Write, stdout};
 
 use super::grid::SpatialGrid;
 use super::world::global_state::CategorizedStates;
-use crate::core::{global::{Id, Position}};
-use crate::core::object::{element::Glyph, state::StateChange, Object};
+use crate::core::global::{Id, Position};
+use crate::core::object::{Object, element::Glyph, state::StateChange};
 
 pub struct Renderer {
     stdout: Stdout,
@@ -31,7 +31,11 @@ impl Renderer {
     }
 
     // TODO - Add indexing to handle overlapping elements
-    pub fn full_render(&mut self, spatial_grid: &mut SpatialGrid, objects: &HashMap<Id, Box<dyn Object>>) {
+    pub fn full_render(
+        &mut self,
+        spatial_grid: &mut SpatialGrid,
+        objects: &HashMap<Id, Box<dyn Object>>,
+    ) {
         let mut glyph_map: HashMap<Position, &Glyph> = HashMap::new();
         for object in objects.values() {
             for element in object.elements() {
