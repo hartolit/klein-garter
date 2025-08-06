@@ -1,4 +1,4 @@
-use engine::core::world::World;
+use engine::core::scene::Scene;
 struct SnakeGame {
-    pub world: World,
+    pub world: Scene,
 }

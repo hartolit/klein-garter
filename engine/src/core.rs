@@ -4,35 +4,35 @@ pub mod global;
 pub mod grid;
 pub mod object;
 pub mod renderer;
-pub mod world;
+pub mod scene;
 
 use object::Action;
 use renderer::Renderer;
-use world::{ObjectIndex, World};
+use scene::{ObjectIndex, Scene};
 
 use crate::core::grid::SpatialGrid;
 
 pub enum Command {
-    SwapWorld(Box<World>),
+    SwapWorld(Box<Scene>),
     SwapLogic(Box<dyn Logic>),
     SwapFull {
-        world: Box<World>,
+        scene: Box<Scene>,
         logic: Box<dyn Logic>,
     },
-    SetState(State),
+    SetState(RuntimeState),
     Kill,
     None,
 }
 
 pub trait Logic {
-    fn process_actions(&self, world: &mut World, actions: Vec<Action>);
+    fn process_actions(&self, scene: &mut Scene, actions: Vec<Action>);
     fn process_input(&self);
-    fn setup(&self, world: &mut World);
-    fn game_loop(&self, world: &mut World) -> Command;
-    fn post_swap(&mut self, _old_world: Option<Box<World>>, _old_logic: Option<Box<dyn Logic>>) { }
+    fn setup(&self, scene: &mut Scene);
+    fn game_loop(&self, scene: &mut Scene) -> Command;
+    fn post_swap(&mut self, _old_scene: Option<Box<Scene>>, _old_logic: Option<Box<dyn Logic>>) { }
 }
 
-pub enum State {
+pub enum RuntimeState {
     Init,
     Run,
     Kill,
@@ -41,19 +41,19 @@ pub enum State {
 pub struct Runtime {
     pub tick_rate: Duration,
     last_update: Instant,
-    state: State,
-    world: Box<World>,
+    state: RuntimeState,
+    scene: Box<Scene>,
     renderer: Renderer,
     logic: Box<dyn Logic>,
 }
 
 impl Runtime {
-    pub fn new<T: Logic + 'static>(logic: T, spatial_grid: SpatialGrid) -> Self {
+    pub fn new<T: Logic + 'static>(logic: T, spatial_grid: SpatialGrid, tick_rate: u32) -> Self {
         Self {
-            tick_rate: Duration::new(0, 500),
+            tick_rate: Duration::new(0, tick_rate),
             last_update: Instant::now(),
-            state: State::Init,
-            world: Box::new(World::new(spatial_grid)),
+            state: RuntimeState::Init,
+            scene: Box::new(Scene::new(spatial_grid)),
             renderer: Renderer::new(),
             logic: Box::new(logic),
         }
@@ -62,9 +62,12 @@ impl Runtime {
     pub fn begin(&mut self) {
         loop {
             match self.state {
-                State::Init => self.initialize(),
-                State::Run => self.run(),
-                State::Kill => self.kill(),
+                RuntimeState::Init => self.initialize(),
+                RuntimeState::Run => self.run(),
+                RuntimeState::Kill => {
+                    self.kill();
+                    break;
+                }
             }
         }
     }
@@ -74,11 +77,11 @@ impl Runtime {
     }
 
     fn initialize(&mut self) {
-        self.logic.setup(&mut self.world);
+        self.logic.setup(&mut self.scene);
         self.renderer.init();
         self.renderer
-            .full_render(&mut self.world.spatial_grid, &self.world.objects);
-        self.state = State::Run;
+            .full_render(&mut self.scene.spatial_grid, &self.scene.objects);
+        self.state = RuntimeState::Run;
     }
 
     fn run(&mut self) {
@@ -89,24 +92,24 @@ impl Runtime {
 
         if delta >= self.tick_rate {
             self.last_update = now;
-            let command = self.logic.game_loop(&mut self.world);
+            let command = self.logic.game_loop(&mut self.scene);
             self.execute_command(command);
             self.tick();
-            self.world.sync();
+            self.scene.sync();
             self.renderer
-                .partial_render(&self.world.spatial_grid, &self.world.global_state.finalized);
+                .partial_render(&self.scene.spatial_grid, &self.scene.global_state.finalized);
         }
     }
 
     fn tick(&mut self) {
         let future_moves = self
-            .world
+            .scene
             .indexes
             .get(&ObjectIndex::Movable)
             .into_iter()
             .flat_map(|set| set.iter())
             .filter_map(|id| {
-                self.world
+                self.scene
                     .objects
                     .get(id)
                     .and_then(|obj| obj.as_movable())
@@ -114,42 +117,42 @@ impl Runtime {
             })
             .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
 
-        let mut probe_map = self.world.spatial_grid.probe_moves(future_moves);
+        let mut probe_map = self.scene.spatial_grid.probe_moves(future_moves);
 
         let mut actions: Vec<Action> = Vec::new();
         for (id, probe) in probe_map.drain() {
-            if let Some(object) = self.world.objects.get_mut(&id) {
+            if let Some(object) = self.scene.objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
                     actions.extend(movable.make_move(probe));
                 }
             }
         }
 
-        self.logic.process_actions(&mut self.world, actions);
+        self.logic.process_actions(&mut self.scene, actions);
     }
 
     fn execute_command(&mut self, command: Command) {
         match command {
-            Command::SwapWorld(new_world) => {
-                let old_world = std::mem::replace(&mut self.world, new_world);
-                self.logic.post_swap(Some(old_world), None);
-                self.state = State::Init;
+            Command::SwapWorld(new_scene) => {
+                let old_scene = std::mem::replace(&mut self.scene, new_scene);
+                self.logic.post_swap(Some(old_scene), None);
+                self.state = RuntimeState::Init;
             }
             Command::SwapLogic(new_logic) => {
                 let old_logic = std::mem::replace(&mut self.logic, new_logic);
                 self.logic.post_swap(None, Some(old_logic));
             }
-            Command::SwapFull { world: new_world, logic: new_logic } => {
-                let old_world = std::mem::replace(&mut self.world, new_world);
+            Command::SwapFull { scene: new_scene, logic: new_logic } => {
+                let old_scene = std::mem::replace(&mut self.scene, new_scene);
                 let old_logic = std::mem::replace(&mut self.logic, new_logic);
-                self.logic.post_swap(Some(old_world), Some(old_logic));
-                self.state = State::Init;
+                self.logic.post_swap(Some(old_scene), Some(old_logic));
+                self.state = RuntimeState::Init;
             }
             Command::SetState(new_state) => {
                 self.state = new_state;
             }
             Command::Kill => {
-                self.state = State::Kill;
+                self.state = RuntimeState::Kill;
             }
             Command::None => {}
         }

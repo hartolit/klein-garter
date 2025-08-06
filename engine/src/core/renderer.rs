@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::io::{Stdout, Write, stdout};
 
 use super::grid::SpatialGrid;
-use super::world::global_state::CategorizedStates;
+use super::scene::global_state::CategorizedStates;
 use crate::core::global::{Id, Position};
 use crate::core::object::{Object, element::Glyph, state::StateChange};
 

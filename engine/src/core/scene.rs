@@ -15,7 +15,7 @@ pub enum ObjectIndex {
     Stateful,
 }
 
-pub struct World {
+pub struct Scene {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
@@ -23,7 +23,7 @@ pub struct World {
     pub global_state: GlobalState,
 }
 
-impl World {
+impl Scene {
     pub fn new(spatial_grid: SpatialGrid) -> Self {
         Self {
             id_counter: IdCounter::new(),
