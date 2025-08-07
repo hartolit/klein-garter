@@ -1,4 +1,6 @@
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
+use std::hash::Hash;
 
 pub mod global;
 pub mod grid;
@@ -10,7 +12,16 @@ use object::Action;
 use renderer::Renderer;
 use scene::{ObjectIndex, Scene};
 
-use crate::core::grid::SpatialGrid;
+pub struct RuntimeManager<K: Eq + Hash> {
+    runtime: Runtime,
+    contexts: HashMap<K, Context>,
+    active_context: Option<K>,
+}
+
+pub struct Context {
+    logic: Box<dyn Logic>,
+    scene: Box<Scene>,
+}
 
 pub enum Command {
     SwapScene(Box<Scene>),
@@ -28,7 +39,7 @@ pub trait Logic {
     fn process_actions(&self, scene: &mut Scene, actions: Vec<Action>);
     fn process_input(&self);
     fn setup(&self, scene: &mut Scene);
-    fn runtime_loop(&self, scene: &mut Scene) -> Command;
+    fn update(&self, scene: &mut Scene) -> Command;
     fn post_swap(&mut self, _old_scene: Option<Box<Scene>>, _old_logic: Option<Box<dyn Logic>>) {}
 }
 
@@ -42,19 +53,17 @@ pub struct Runtime {
     pub tick_rate: Duration,
     last_update: Instant,
     state: RuntimeState,
-    logic: Box<dyn Logic>,
-    scene: Box<Scene>,
+    context: Context,
     renderer: Renderer,
 }
 
 impl Runtime {
-    pub fn new<T: Logic + 'static>(logic: T, scene: Box<Scene>, tick_rate: Duration) -> Self {
+    pub fn new<T: Logic + 'static>(context: Context, tick_rate: Duration) -> Self {
         Self {
             tick_rate,
             last_update: Instant::now(),
             state: RuntimeState::Init,
-            logic: Box::new(logic),
-            scene,
+            context,
             renderer: Renderer::new(),
         }
     }
@@ -77,10 +86,10 @@ impl Runtime {
     }
 
     fn initialize(&mut self) {
-        self.logic.setup(&mut self.scene);
+        self.context.logic.setup(&mut self.context.scene);
         self.renderer.init();
         self.renderer
-            .full_render(&mut self.scene.spatial_grid, &self.scene.objects);
+            .full_render(&mut self.context.scene.spatial_grid, &self.context.scene.objects);
         self.state = RuntimeState::Run;
     }
 
@@ -88,28 +97,30 @@ impl Runtime {
         let now = Instant::now();
         let delta = now.duration_since(self.last_update);
 
-        self.logic.process_input();
+        self.context.logic.process_input();
 
         if delta >= self.tick_rate {
             self.last_update = now;
-            let command = self.logic.runtime_loop(&mut self.scene);
+            let command = self.context.logic.update(&mut self.context.scene);
             self.execute_command(command);
             self.tick();
-            self.scene.sync();
+            self.context.scene.sync();
             self.renderer
-                .partial_render(&self.scene.spatial_grid, &self.scene.global_state.finalized);
+                .partial_render(&self.context.scene.spatial_grid, &self.context.scene.global_state.finalized);
         }
     }
 
     fn tick(&mut self) {
         let future_moves = self
+            .context
             .scene
             .indexes
             .get(&ObjectIndex::Movable)
             .into_iter()
             .flat_map(|set| set.iter())
             .filter_map(|id| {
-                self.scene
+                self.context
+                    .scene
                     .objects
                     .get(id)
                     .and_then(|obj| obj.as_movable())
@@ -117,38 +128,38 @@ impl Runtime {
             })
             .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
 
-        let mut probe_map = self.scene.spatial_grid.probe_moves(future_moves);
+        let mut probe_map = self.context.scene.spatial_grid.probe_moves(future_moves);
 
         let mut actions: Vec<Action> = Vec::new();
         for (id, probe) in probe_map.drain() {
-            if let Some(object) = self.scene.objects.get_mut(&id) {
+            if let Some(object) = self.context.scene.objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
                     actions.extend(movable.make_move(probe));
                 }
             }
         }
 
-        self.logic.process_actions(&mut self.scene, actions);
+        self.context.logic.process_actions(&mut self.context.scene, actions);
     }
 
     fn execute_command(&mut self, command: Command) {
         match command {
             Command::SwapScene(new_scene) => {
-                let old_scene = std::mem::replace(&mut self.scene, new_scene);
-                self.logic.post_swap(Some(old_scene), None);
+                let old_scene = std::mem::replace(&mut self.context.scene, new_scene);
+                self.context.logic.post_swap(Some(old_scene), None);
                 self.state = RuntimeState::Init;
             }
             Command::SwapLogic(new_logic) => {
-                let old_logic = std::mem::replace(&mut self.logic, new_logic);
-                self.logic.post_swap(None, Some(old_logic));
+                let old_logic = std::mem::replace(&mut self.context.logic, new_logic);
+                self.context.logic.post_swap(None, Some(old_logic));
             }
             Command::SwapFull {
                 scene: new_scene,
                 logic: new_logic,
             } => {
-                let old_scene = std::mem::replace(&mut self.scene, new_scene);
-                let old_logic = std::mem::replace(&mut self.logic, new_logic);
-                self.logic.post_swap(Some(old_scene), Some(old_logic));
+                let old_scene = std::mem::replace(&mut self.context.scene, new_scene);
+                let old_logic = std::mem::replace(&mut self.context.logic, new_logic);
+                self.context.logic.post_swap(Some(old_scene), Some(old_logic));
                 self.state = RuntimeState::Init;
             }
             Command::SetState(new_state) => {

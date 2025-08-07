@@ -26,7 +26,7 @@ impl Logic for UiLogic {
                 
     }
 
-    fn runtime_loop(&self, scene: &mut Scene) -> Command {
+    fn update(&self, scene: &mut Scene) -> Command {
         Command::None
     }
 
