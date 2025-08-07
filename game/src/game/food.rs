@@ -138,10 +138,6 @@ impl Stateful for Food {
     fn state_mut(&mut self) -> &mut State {
         &mut self.state
     }
-
-    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state.changes.values())
-    }
 }
 
 impl Destructible for Food {}

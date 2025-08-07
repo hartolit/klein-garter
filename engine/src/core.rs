@@ -28,8 +28,8 @@ pub trait Logic {
     fn process_actions(&self, scene: &mut Scene, actions: Vec<Action>);
     fn process_input(&self);
     fn setup(&self, scene: &mut Scene);
-    fn game_loop(&self, scene: &mut Scene) -> Command;
-    fn post_swap(&mut self, _old_scene: Option<Box<Scene>>, _old_logic: Option<Box<dyn Logic>>) { }
+    fn runtime_loop(&self, scene: &mut Scene) -> Command;
+    fn post_swap(&mut self, _old_scene: Option<Box<Scene>>, _old_logic: Option<Box<dyn Logic>>) {}
 }
 
 pub enum RuntimeState {
@@ -42,20 +42,20 @@ pub struct Runtime {
     pub tick_rate: Duration,
     last_update: Instant,
     state: RuntimeState,
+    logic: Box<dyn Logic>,
     scene: Box<Scene>,
     renderer: Renderer,
-    logic: Box<dyn Logic>,
 }
 
 impl Runtime {
-    pub fn new<T: Logic + 'static>(logic: T, spatial_grid: SpatialGrid, tick_rate: u32) -> Self {
+    pub fn new<T: Logic + 'static>(logic: T, scene: Box<Scene>, tick_rate: Duration) -> Self {
         Self {
-            tick_rate: Duration::new(0, tick_rate),
+            tick_rate,
             last_update: Instant::now(),
             state: RuntimeState::Init,
-            scene: Box::new(Scene::new(spatial_grid)),
-            renderer: Renderer::new(),
             logic: Box::new(logic),
+            scene,
+            renderer: Renderer::new(),
         }
     }
 
@@ -92,7 +92,7 @@ impl Runtime {
 
         if delta >= self.tick_rate {
             self.last_update = now;
-            let command = self.logic.game_loop(&mut self.scene);
+            let command = self.logic.runtime_loop(&mut self.scene);
             self.execute_command(command);
             self.tick();
             self.scene.sync();
@@ -142,7 +142,10 @@ impl Runtime {
                 let old_logic = std::mem::replace(&mut self.logic, new_logic);
                 self.logic.post_swap(None, Some(old_logic));
             }
-            Command::SwapFull { scene: new_scene, logic: new_logic } => {
+            Command::SwapFull {
+                scene: new_scene,
+                logic: new_logic,
+            } => {
                 let old_scene = std::mem::replace(&mut self.scene, new_scene);
                 let old_logic = std::mem::replace(&mut self.logic, new_logic);
                 self.logic.post_swap(Some(old_scene), Some(old_logic));

@@ -14,8 +14,8 @@ use ::engine::core::{
     },
 };
 
+use super::game_object::{BodySegment, Orientation, ResizeState};
 use animation::{Effect, EffectStyle, EffectZone};
-use super::game_object::{ResizeState, BodySegment, Orientation};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Direction {
@@ -456,10 +456,6 @@ impl Stateful for Snake {
     fn state(&self) -> &State {
         &self.state
     }
-
-    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
-        Box::new(self.state.changes.values())
-    }
 }
 
 impl Destructible for Snake {}
@@ -475,7 +471,7 @@ impl Movable for Snake {
     }
 
     fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action> {
-        let mut actions: Vec<Action> = Vec::new();
+        let actions: Vec<Action> = Vec::new();
         self.state.changes.clear();
         if !self.is_dead {
             return actions;

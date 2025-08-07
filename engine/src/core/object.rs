@@ -60,7 +60,9 @@ pub trait Movable {
 pub trait Stateful {
     fn state_mut(&mut self) -> &mut State;
     fn state(&self) -> &State;
-    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_>;
+    fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
+        Box::new(self.state().changes.values())
+    }
 }
 
 pub trait Destructible: Object + Stateful {
