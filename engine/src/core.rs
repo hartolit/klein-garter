@@ -49,77 +49,96 @@ pub enum RuntimeState {
     Kill,
 }
 
-pub struct Runtime {
+pub struct Runtime<K: Eq + Hash + Clone> {
     pub tick_rate: Duration,
     last_update: Instant,
     state: RuntimeState,
-    context: Context,
     renderer: Renderer,
+    contexts: HashMap<K, Context>,
+    active_context: Option<K>,
 }
 
-impl Runtime {
-    pub fn new<T: Logic + 'static>(context: Context, tick_rate: Duration) -> Self {
+impl<K: Eq + Hash + Clone> Runtime<K> {
+    pub fn new<T: Logic + 'static>(tick_rate: Duration) -> Self {
         Self {
             tick_rate,
             last_update: Instant::now(),
             state: RuntimeState::Init,
-            context,
             renderer: Renderer::new(),
+            contexts: HashMap::new(),
+            active_context: None,
         }
+    }
+
+    pub fn add_context(&mut self, key: K, context: Context) {
+        self.contexts.insert(key, context);
+    }
+
+    pub fn set_active_context(&mut self, key: K) {
+        // TODO - Add checks
+        self.active_context = Some(key);
+        self.state = RuntimeState::Init;
     }
 
     pub fn begin(&mut self) {
         loop {
-            match self.state {
-                RuntimeState::Init => self.initialize(),
-                RuntimeState::Run => self.run(),
-                RuntimeState::Kill => {
-                    self.kill();
-                    break;
+            if matches!(self.state, RuntimeState::Kill) {
+                self.renderer.kill();
+                break;
+            }
+
+            let active_key = if let Some(key) = &self.active_context {
+                key.clone()
+            } else {
+                continue;
+            };
+
+            if let Some(context) = self.contexts.get_mut(&active_key) {
+                match self.state {
+                    RuntimeState::Init => self.initialize(context),
+                    RuntimeState::Run => self.run(context),
+                    RuntimeState::Kill => unreachable!(),
                 }
+            } else {
+                panic!("Active conext does not exist in the context map!");
             }
         }
     }
 
-    fn kill(&mut self) {
-        self.renderer.kill();
-    }
-
-    fn initialize(&mut self) {
-        self.context.logic.setup(&mut self.context.scene);
+    fn initialize(&mut self, context: &mut Context) {
+        context.logic.setup(&mut context.scene);
         self.renderer.init();
         self.renderer
-            .full_render(&mut self.context.scene.spatial_grid, &self.context.scene.objects);
+            .full_render(&mut context.scene.spatial_grid, &context.scene.objects);
         self.state = RuntimeState::Run;
     }
 
-    fn run(&mut self) {
+    fn run(&mut self, context: &mut Context) {
         let now = Instant::now();
         let delta = now.duration_since(self.last_update);
 
-        self.context.logic.process_input();
+        context.logic.process_input();
 
         if delta >= self.tick_rate {
             self.last_update = now;
-            let command = self.context.logic.update(&mut self.context.scene);
+            let command = context.logic.update(&mut context.scene);
             self.execute_command(command);
-            self.tick();
-            self.context.scene.sync();
+            self.tick(context);
+            context.scene.sync();
             self.renderer
-                .partial_render(&self.context.scene.spatial_grid, &self.context.scene.global_state.finalized);
+                .partial_render(&context.scene.spatial_grid, &context.scene.global_state.finalized);
         }
     }
 
-    fn tick(&mut self) {
-        let future_moves = self
-            .context
+    fn tick(&mut self, context: &mut Context) {
+        let future_moves = context
             .scene
             .indexes
             .get(&ObjectIndex::Movable)
             .into_iter()
             .flat_map(|set| set.iter())
             .filter_map(|id| {
-                self.context
+                context
                     .scene
                     .objects
                     .get(id)
@@ -128,18 +147,18 @@ impl Runtime {
             })
             .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
 
-        let mut probe_map = self.context.scene.spatial_grid.probe_moves(future_moves);
+        let mut probe_map = context.scene.spatial_grid.probe_moves(future_moves);
 
         let mut actions: Vec<Action> = Vec::new();
         for (id, probe) in probe_map.drain() {
-            if let Some(object) = self.context.scene.objects.get_mut(&id) {
+            if let Some(object) = context.scene.objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
                     actions.extend(movable.make_move(probe));
                 }
             }
         }
 
-        self.context.logic.process_actions(&mut self.context.scene, actions);
+        context.logic.process_actions(&mut context.scene, actions);
     }
 
     fn execute_command(&mut self, command: Command) {
