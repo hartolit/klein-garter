@@ -1,6 +1,7 @@
 use engine::core::global::{Id, IdCounter, Position};
 use engine::core::object::{
-    Object, Stateful, element::{Element, Glyph},
+    Object, Stateful,
+    element::{Element, Glyph},
     state::{State, StateChange},
 };
 

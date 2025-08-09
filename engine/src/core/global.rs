@@ -45,6 +45,7 @@ impl Position {
     }
 }
 
+#[derive(Debug)]
 pub struct SlotMap<T: Eq + Hash + Copy> {
     items: Vec<T>,
     map: HashMap<T, usize>,

@@ -1,5 +1,6 @@
 use crate::core::object::state::{State, StateChange};
 
+#[derive(Debug)]
 pub struct GlobalState {
     pub state: State,
     pub finalized: CategorizedStates,
@@ -26,6 +27,7 @@ impl GlobalState {
     }
 }
 
+#[derive(Debug)]
 pub struct CategorizedStates {
     pub creates: Vec<StateChange>,
     pub deletes: Vec<StateChange>,

@@ -15,6 +15,7 @@ pub enum ObjectIndex {
     Stateful,
 }
 
+#[derive(Debug)]
 pub struct Scene {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,

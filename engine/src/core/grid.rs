@@ -6,6 +6,7 @@ use super::global::{Id, Position, SlotMap};
 use super::object::{Object, Occupant};
 use cell::{Cell, CellRef, Kind};
 
+#[derive(Debug)]
 pub struct SpatialGrid {
     pub cells: Vec<Cell>,
     pub empty_cells: SlotMap<usize>,

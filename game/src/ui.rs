@@ -1,5 +1,5 @@
-use engine::core::{Logic, scene::Scene, Command};
 use engine::core::global::{Id, Position};
+use engine::core::{Logic, RuntimeCommand, scene::Scene};
 
 pub mod button;
 
@@ -14,7 +14,12 @@ pub struct UiLogic {
 
 impl UiLogic {
     pub fn new() -> Self {
-        Self { stashed_scene: None, stashed_logic: None, selected_button_id: 0, button_ids: Vec::new() }
+        Self {
+            stashed_scene: None,
+            stashed_logic: None,
+            selected_button_id: 0,
+            button_ids: Vec::new(),
+        }
     }
 }
 
@@ -23,23 +28,20 @@ impl Logic for UiLogic {
         let start_button_id = scene.attach_object(|id| {
             Box::new(Button::new(id, Position::new(0, 0), String::from("Test")))
         });
-                
     }
 
-    fn update(&self, scene: &mut Scene) -> Command {
-        Command::None
+    fn update(&self, scene: &mut Scene) -> RuntimeCommand {
+        RuntimeCommand::None
     }
 
-    fn process_actions(&self, scene: &mut Scene, actions: Vec<engine::core::object::Action>) {
-        
-    }
+    fn process_actions(&self, scene: &mut Scene, actions: Vec<engine::core::object::Action>) {}
 
-    fn process_input(&self) {
-        
-    }
+    fn process_input(&self) {}
 
-    fn post_swap(&mut self, _old_scene: Option<Box<Scene>>, _old_logic: Option<Box<dyn Logic>>) {
-        
+    fn collect_old_stage(
+        &mut self,
+        _old_scene: Option<Box<Scene>>,
+        _old_logic: Option<Box<dyn Logic>>,
+    ) {
     }
-
 }

@@ -1,6 +1,6 @@
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::time::{Duration, Instant};
 
 pub mod global;
 pub mod grid;
@@ -12,133 +12,184 @@ use object::Action;
 use renderer::Renderer;
 use scene::{ObjectIndex, Scene};
 
-pub struct RuntimeManager<K: Eq + Hash> {
-    runtime: Runtime,
-    contexts: HashMap<K, Context>,
-    active_context: Option<K>,
-}
+use crate::core::grid::SpatialGrid;
 
-pub struct Context {
-    logic: Box<dyn Logic>,
+pub struct Stage<K: Eq + Hash + Clone> {
+    logic: Box<dyn Logic<K>>,
     scene: Box<Scene>,
 }
 
-pub enum Command {
-    SwapScene(Box<Scene>),
-    SwapLogic(Box<dyn Logic>),
-    SwapFull {
+impl<K: Eq + Hash + Clone> Stage<K> {
+    pub fn new(logic: Box<dyn Logic<K>>, grid: SpatialGrid) -> Self {
+        Self {
+            logic,
+            scene: Box::new(Scene::new(grid)),
+        }
+    }
+
+    pub fn replace_scene(&mut self, scene: Box<Scene>) -> Box<Scene> {
+        let old_scene = std::mem::replace(&mut self.scene, scene);
+        old_scene
+    }
+
+    pub fn replace_logic(&mut self, logic: Box<dyn Logic<K>>) -> Box<dyn Logic<K>> {
+        let old_logic = std::mem::replace(&mut self.logic, logic);
+        old_logic
+    }
+
+    pub fn replace_stage(
+        &mut self,
+        logic: Box<dyn Logic<K>>,
         scene: Box<Scene>,
-        logic: Box<dyn Logic>,
+    ) -> (Box<dyn Logic<K>>, Box<Scene>) {
+        let old_logic = std::mem::replace(&mut self.logic, logic);
+        let old_scene = std::mem::replace(&mut self.scene, scene);
+        (old_logic, old_scene)
+    }
+}
+
+pub trait Logic<K: Eq + Hash + Clone> {
+    fn process_actions(&self, scene: &mut Scene, actions: Vec<Action>);
+    fn process_input(&self);
+    fn setup(&self, scene: &mut Scene);
+    fn update(&self, scene: &mut Scene) -> RuntimeCommand<K>;
+    fn collect_old_stage(
+        &mut self,
+        _old_scene: Option<Box<Scene>>,
+        _old_logic: Option<Box<dyn Logic<K>>>,
+    ) {
+    }
+}
+
+pub enum RuntimeCommand<K: Eq + Hash + Clone> {
+    ReplaceScene(Box<Scene>),
+    ReplaceLogic(Box<dyn Logic<K>>),
+    ReplaceStage {
+        scene: Box<Scene>,
+        logic: Box<dyn Logic<K>>,
     },
-    SetState(RuntimeState),
+    SwitchStage(K),
     Kill,
     None,
 }
 
-pub trait Logic {
-    fn process_actions(&self, scene: &mut Scene, actions: Vec<Action>);
-    fn process_input(&self);
-    fn setup(&self, scene: &mut Scene);
-    fn update(&self, scene: &mut Scene) -> Command;
-    fn post_swap(&mut self, _old_scene: Option<Box<Scene>>, _old_logic: Option<Box<dyn Logic>>) {}
-}
-
-pub enum RuntimeState {
-    Init,
-    Run,
+enum ManagerDirective<K: Eq + Hash + Clone> {
+    Switch(K),
     Kill,
 }
 
-pub struct Runtime<K: Eq + Hash + Clone> {
-    pub tick_rate: Duration,
-    last_update: Instant,
-    state: RuntimeState,
-    renderer: Renderer,
-    contexts: HashMap<K, Context>,
-    active_context: Option<K>,
+pub struct RuntimeManager<K: Eq + Hash + Clone> {
+    runtime: Runtime,
+    stages: HashMap<K, Stage<K>>,
+    active_key: Option<K>,
 }
 
-impl<K: Eq + Hash + Clone> Runtime<K> {
-    pub fn new<T: Logic + 'static>(tick_rate: Duration) -> Self {
+impl<K: Eq + Hash + Clone> RuntimeManager<K> {
+    pub fn new(tick_rate: Duration) -> Self {
+        Self {
+            runtime: Runtime::new(tick_rate),
+            stages: HashMap::new(),
+            active_key: None,
+        }
+    }
+
+    pub fn add_stage(&mut self, key: K, stage: Stage<K>) {
+        self.stages.insert(key, stage);
+    }
+
+    pub fn run_app(&mut self) {
+        loop {
+            let mut active_stage = match self.active_key.as_mut() {
+                Some(key) => self
+                    .stages
+                    .remove(&key)
+                    .expect("Fatal: Active stage does not exist!"),
+                None => continue,
+            };
+
+            let directive = self.runtime.run(&mut active_stage);
+
+            if let Some(key) = self.active_key.as_mut() {
+                self.stages.insert(key.clone(), active_stage);
+            }
+
+            match directive {
+                ManagerDirective::Switch(new_key) => {
+                    if !self.stages.contains_key(&new_key) {
+                        panic!("Fatal: Attempted to switch to a non-existent stage key!")
+                    }
+                    self.active_key = Some(new_key);
+                }
+                ManagerDirective::Kill => {
+                    self.runtime.renderer.kill();
+                    break;
+                }
+            }
+        }
+    }
+}
+
+pub struct Runtime {
+    pub tick_rate: Duration,
+    last_update: Instant,
+    renderer: Renderer,
+}
+
+impl Runtime {
+    pub fn new(tick_rate: Duration) -> Self {
         Self {
             tick_rate,
             last_update: Instant::now(),
-            state: RuntimeState::Init,
             renderer: Renderer::new(),
-            contexts: HashMap::new(),
-            active_context: None,
         }
     }
 
-    pub fn add_context(&mut self, key: K, context: Context) {
-        self.contexts.insert(key, context);
-    }
+    fn run<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) -> ManagerDirective<K> {
+        self.initialize(stage);
+        self.last_update = Instant::now();
 
-    pub fn set_active_context(&mut self, key: K) {
-        // TODO - Add checks
-        self.active_context = Some(key);
-        self.state = RuntimeState::Init;
-    }
-
-    pub fn begin(&mut self) {
         loop {
-            if matches!(self.state, RuntimeState::Kill) {
-                self.renderer.kill();
-                break;
-            }
+            stage.logic.process_input();
 
-            let active_key = if let Some(key) = &self.active_context {
-                key.clone()
-            } else {
-                continue;
-            };
+            let now = Instant::now();
+            let delta = now.duration_since(self.last_update);
 
-            if let Some(context) = self.contexts.get_mut(&active_key) {
-                match self.state {
-                    RuntimeState::Init => self.initialize(context),
-                    RuntimeState::Run => self.run(context),
-                    RuntimeState::Kill => unreachable!(),
+            if delta >= self.tick_rate {
+                self.last_update = now;
+                let command = stage.logic.update(&mut stage.scene);
+
+                if let Some(directive) = self.execute_command(command, stage) {
+                    return directive;
                 }
-            } else {
-                panic!("Active conext does not exist in the context map!");
+
+                self.tick(stage);
+                stage.scene.sync();
+                self.renderer.partial_render(
+                    &stage.scene.spatial_grid,
+                    &stage.scene.global_state.finalized,
+                );
             }
+
+            std::thread::sleep(Duration::from_millis(1));
         }
     }
 
-    fn initialize(&mut self, context: &mut Context) {
-        context.logic.setup(&mut context.scene);
+    fn initialize<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        stage.logic.setup(&mut stage.scene);
         self.renderer.init();
         self.renderer
-            .full_render(&mut context.scene.spatial_grid, &context.scene.objects);
-        self.state = RuntimeState::Run;
+            .full_render(&mut stage.scene.spatial_grid, &stage.scene.objects);
     }
 
-    fn run(&mut self, context: &mut Context) {
-        let now = Instant::now();
-        let delta = now.duration_since(self.last_update);
-
-        context.logic.process_input();
-
-        if delta >= self.tick_rate {
-            self.last_update = now;
-            let command = context.logic.update(&mut context.scene);
-            self.execute_command(command);
-            self.tick(context);
-            context.scene.sync();
-            self.renderer
-                .partial_render(&context.scene.spatial_grid, &context.scene.global_state.finalized);
-        }
-    }
-
-    fn tick(&mut self, context: &mut Context) {
-        let future_moves = context
+    fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        let future_moves = stage
             .scene
             .indexes
             .get(&ObjectIndex::Movable)
             .into_iter()
             .flat_map(|set| set.iter())
             .filter_map(|id| {
-                context
+                stage
                     .scene
                     .objects
                     .get(id)
@@ -147,48 +198,45 @@ impl<K: Eq + Hash + Clone> Runtime<K> {
             })
             .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
 
-        let mut probe_map = context.scene.spatial_grid.probe_moves(future_moves);
+        let mut probe_map = stage.scene.spatial_grid.probe_moves(future_moves);
 
         let mut actions: Vec<Action> = Vec::new();
         for (id, probe) in probe_map.drain() {
-            if let Some(object) = context.scene.objects.get_mut(&id) {
+            if let Some(object) = stage.scene.objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
                     actions.extend(movable.make_move(probe));
                 }
             }
         }
 
-        context.logic.process_actions(&mut context.scene, actions);
+        stage.logic.process_actions(&mut stage.scene, actions);
     }
 
-    fn execute_command(&mut self, command: Command) {
+    fn execute_command<K: Eq + Hash + Clone>(
+        &mut self,
+        command: RuntimeCommand<K>,
+        stage: &mut Stage<K>,
+    ) -> Option<ManagerDirective<K>> {
         match command {
-            Command::SwapScene(new_scene) => {
-                let old_scene = std::mem::replace(&mut self.context.scene, new_scene);
-                self.context.logic.post_swap(Some(old_scene), None);
-                self.state = RuntimeState::Init;
+            RuntimeCommand::ReplaceScene(scene) => {
+                let old_scene = stage.replace_scene(scene);
+                stage.logic.collect_old_stage(Some(old_scene), None);
             }
-            Command::SwapLogic(new_logic) => {
-                let old_logic = std::mem::replace(&mut self.context.logic, new_logic);
-                self.context.logic.post_swap(None, Some(old_logic));
+            RuntimeCommand::ReplaceLogic(logic) => {
+                let old_logic = stage.replace_logic(logic);
+                stage.logic.collect_old_stage(None, Some(old_logic));
             }
-            Command::SwapFull {
-                scene: new_scene,
-                logic: new_logic,
-            } => {
-                let old_scene = std::mem::replace(&mut self.context.scene, new_scene);
-                let old_logic = std::mem::replace(&mut self.context.logic, new_logic);
-                self.context.logic.post_swap(Some(old_scene), Some(old_logic));
-                self.state = RuntimeState::Init;
+            RuntimeCommand::ReplaceStage { scene, logic } => {
+                let old_stage = stage.replace_stage(logic, scene);
+                stage
+                    .logic
+                    .collect_old_stage(Some(old_stage.1), Some(old_stage.0));
             }
-            Command::SetState(new_state) => {
-                self.state = new_state;
-            }
-            Command::Kill => {
-                self.state = RuntimeState::Kill;
-            }
-            Command::None => {}
+            RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
+            RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
+            RuntimeCommand::None => {}
         }
+        None
     }
 }
 
