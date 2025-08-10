@@ -97,33 +97,36 @@ impl<K: Eq + Hash + Clone> RuntimeManager<K> {
         self.stages.insert(key, stage);
     }
 
+    pub fn set_active_key(&mut self, key: K) {
+        if !self.stages.contains_key(&key) {
+            panic!("Fatal: Attempted to switch to a non-existent stage key!");
+        }
+        self.active_key = Some(key);
+    }
+
     pub fn run_app(&mut self) {
         loop {
-            let mut active_stage = match self.active_key.as_mut() {
-                Some(key) => self
+            if let Some(active_key) = self.active_key.clone() {
+                let mut active_stage = self
                     .stages
-                    .remove(&key)
-                    .expect("Fatal: Active stage does not exist!"),
-                None => continue,
-            };
+                    .remove(&active_key)
+                    .expect("Fatal: Active stage does not exists!");
 
-            let directive = self.runtime.run(&mut active_stage);
+                let directive = self.runtime.run(&mut active_stage);
 
-            if let Some(key) = self.active_key.as_mut() {
-                self.stages.insert(key.clone(), active_stage);
-            }
+                self.stages.insert(active_key, active_stage);
 
-            match directive {
-                ManagerDirective::Switch(new_key) => {
-                    if !self.stages.contains_key(&new_key) {
-                        panic!("Fatal: Attempted to switch to a non-existent stage key!")
+                match directive {
+                    ManagerDirective::Switch(new_key) => {
+                        self.set_active_key(new_key);
                     }
-                    self.active_key = Some(new_key);
+                    ManagerDirective::Kill => {
+                        self.runtime.renderer.kill();
+                        break;
+                    }
                 }
-                ManagerDirective::Kill => {
-                    self.runtime.renderer.kill();
-                    break;
-                }
+            } else {
+                std::thread::sleep(Duration::from_millis(100));
             }
         }
     }
@@ -169,8 +172,7 @@ impl Runtime {
                     &stage.scene.global_state.finalized,
                 );
             }
-
-            std::thread::sleep(Duration::from_millis(1));
+            //std::thread::sleep(Duration::from_millis(1));
         }
     }
 
