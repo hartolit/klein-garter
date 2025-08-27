@@ -33,7 +33,7 @@ impl IdCounter {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Position {
     pub x: u16,
     pub y: u16,

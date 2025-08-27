@@ -1,5 +1,5 @@
 use crossterm::{
-    self, QueueableCommand, cursor, execute,
+    self, QueueableCommand, cursor, execute, style,
     style::{SetBackgroundColor, SetForegroundColor},
     terminal,
 };
@@ -9,7 +9,7 @@ use std::io::{Stdout, Write, stdout};
 use super::grid::SpatialGrid;
 use super::scene::global_state::CategorizedStates;
 use crate::core::global::{Id, Position};
-use crate::core::object::{Object, element::Glyph, state::StateChange};
+use crate::core::object::{Object, t_cell::Glyph, state::StateChange};
 
 pub struct Renderer {
     stdout: Stdout,
@@ -17,12 +17,12 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new() -> Self {
-        Self { stdout: stdout() }
-    }
+        let mut stdout = stdout();
 
-    pub fn init(&mut self) {
         terminal::enable_raw_mode().unwrap();
-        execute!(self.stdout, cursor::Hide).unwrap();
+        execute!(stdout, cursor::Hide).unwrap();
+
+        Self { stdout }
     }
 
     pub fn kill(&mut self) {
@@ -57,6 +57,8 @@ impl Renderer {
                 self.draw_glyph(glyph, &pos);
             }
         }
+
+        // TODO - Add rendering outside spatialgrid
         self.stdout.flush().unwrap();
     }
 
@@ -95,10 +97,12 @@ impl Renderer {
             }
         }
 
+        // TODO - Add rendering outside spatialgrid
+
         self.stdout.flush().unwrap();
     }
 
-    pub fn draw_glyph(&mut self, glyph: &Glyph, pos: &Position) {
+    fn draw_glyph(&mut self, glyph: &Glyph, pos: &Position) {
         if let Some(fg_color) = glyph.fg_clr {
             self.stdout.queue(SetForegroundColor(fg_color)).unwrap();
         }
@@ -108,9 +112,14 @@ impl Renderer {
         }
 
         self.stdout
-            .queue(crossterm::cursor::MoveTo(pos.x, pos.y))
+            .queue(cursor::MoveTo(pos.x, pos.y))
             .unwrap()
-            .queue(crossterm::style::Print(glyph.symbol))
+            .queue(style::Print(glyph.symbol))
             .unwrap();
     }
+
+    fn clear_glyph(&mut self, pos: &Position) {
+        self.stdout.queue(cursor::MoveTo(pos.x, pos.y)).unwrap().queue(style::Print(' ')).unwrap();
+    }
+    
 }

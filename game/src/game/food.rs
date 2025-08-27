@@ -4,7 +4,7 @@ use ::engine::core::{
     global::{Id, Position},
     object::{
         Destructible, Object, Occupant, Stateful,
-        element::{Element, Glyph},
+        t_cell::{TCell, Glyph},
         state::StateChange,
     },
 };
@@ -28,7 +28,7 @@ pub struct Food {
     id: Id,
     kind: Kind,
     meal: i16,
-    body: Element,
+    body: TCell,
     state: State,
 }
 
@@ -68,7 +68,7 @@ impl Food {
             id: obj_id,
             kind,
             meal,
-            body: Element {
+            body: TCell {
                 id: Id::new(0),
                 style: Glyph {
                     fg_clr: Some(color),
@@ -101,7 +101,7 @@ impl Object for Food {
         self.id
     }
 
-    fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_> {
+    fn elements(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
         Box::new(iter::once(&self.body))
     }
 

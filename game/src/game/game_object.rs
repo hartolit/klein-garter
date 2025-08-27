@@ -1,4 +1,4 @@
-use engine::core::object::element::Element;
+use engine::core::object::t_cell::TCell;
 
 pub trait Consumable {
     fn get_meal(&self) -> i16;
@@ -33,11 +33,11 @@ impl ResizeState {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BodySegment {
     pub orientation: Orientation,
-    pub elements: Vec<Element>,
+    pub elements: Vec<TCell>,
 }
 
 impl BodySegment {
-    pub fn new(orientation: Orientation, elements: Vec<Element>) -> Self {
+    pub fn new(orientation: Orientation, elements: Vec<TCell>) -> Self {
         Self {
             orientation,
             elements,

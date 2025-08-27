@@ -7,7 +7,7 @@ use ::engine::core::{
     global::{Id, Position},
     object::{
         Destructible, Object, Occupant, Stateful,
-        element::{Element, Glyph},
+        t_cell::{TCell, Glyph},
         state::StateChange,
     },
 };
@@ -26,7 +26,7 @@ pub struct Bomb {
     id: Id,
     kind: Kind,
     damage: i16,
-    body: Element,
+    body: TCell,
     state: State,
     is_dead: bool,
     //pub effect_area: u16,
@@ -74,7 +74,7 @@ impl Bomb {
             id: obj_id,
             kind,
             damage,
-            body: Element::new(Id::new(0), glyph, Some(pos)),
+            body: TCell::new(Id::new(0), glyph, Some(pos)),
             state: State::new(),
             is_dead: false,
         }
@@ -96,7 +96,7 @@ impl Object for Bomb {
         self.id
     }
 
-    fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_> {
+    fn elements(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
         Box::new(iter::once(&self.body))
     }
 

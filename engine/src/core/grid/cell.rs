@@ -2,8 +2,9 @@ use crossterm::style::Color;
 
 use crate::core::global::Position;
 use crate::core::object::Occupant;
-use crate::core::object::element::Glyph;
+use crate::core::object::t_cell::Glyph;
 
+// TODO - Make this configurable
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Ground,

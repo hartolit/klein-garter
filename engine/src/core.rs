@@ -178,7 +178,6 @@ impl Runtime {
 
     fn initialize<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
         stage.logic.setup(&mut stage.scene);
-        self.renderer.init();
         self.renderer
             .full_render(&mut stage.scene.spatial_grid, &stage.scene.objects);
     }

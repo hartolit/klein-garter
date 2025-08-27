@@ -9,7 +9,7 @@ use ::engine::core::{
     grid::cell::{CellRef, Kind},
     object::{
         Action, Destructible, Movable, Object, Occupant, Stateful,
-        element::{Element, Glyph},
+        t_cell::{TCell, Glyph},
         state::{State, StateChange},
     },
 };
@@ -45,7 +45,7 @@ pub struct Snake {
     effect: Option<Effect>,
     is_dead: bool,
     meals: i16,
-    head: Vec<Element>, // Unsorted 2d vec
+    head: Vec<TCell>, // Unsorted 2d vec
     body: VecDeque<BodySegment>,
     head_style: Glyph,
     body_style: Glyph,
@@ -75,7 +75,7 @@ impl Snake {
             effect: None,
             is_dead: true,
             meals: 1,
-            head: Vec::from([Element::new(first_id, head_style, Some(pos))]),
+            head: Vec::from([TCell::new(first_id, head_style, Some(pos))]),
             body: VecDeque::new(),
             head_style,
             body_style,
@@ -174,7 +174,7 @@ impl Snake {
                     y: new_buttom_left.y - row as u16,
                 };
 
-                let element = Element::new(self.id_counter.next(), self.head_style, Some(curr_pos));
+                let element = TCell::new(self.id_counter.next(), self.head_style, Some(curr_pos));
                 let create = StateChange::Create {
                     occupant: Occupant::new(self.id, element.id),
                     new_element: element,
@@ -208,7 +208,7 @@ impl Snake {
         let (dx, dy) = self.direction.get_move();
 
         let orientation: Orientation;
-        let mut new_body: Vec<Element> = Vec::new();
+        let mut new_body: Vec<TCell> = Vec::new();
 
         // TODO - use drain_filter when stable
         // shed_slice = self.head.drain_filter(|e| e.pos.x == max_x).collect();
@@ -229,7 +229,7 @@ impl Snake {
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
                     let new_element =
-                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
                         occupant: Occupant::new(self.id, new_element.id),
@@ -257,7 +257,7 @@ impl Snake {
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
                     let new_element =
-                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
                         occupant: Occupant::new(self.id, new_element.id),
@@ -286,7 +286,7 @@ impl Snake {
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
                     let new_element =
-                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
                         occupant: Occupant::new(self.id, new_element.id),
@@ -315,7 +315,7 @@ impl Snake {
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
                     let new_element =
-                        Element::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
                         occupant: Occupant::new(self.id, new_element.id),
@@ -407,7 +407,7 @@ impl Object for Snake {
         self.id
     }
 
-    fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_> {
+    fn elements(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
         Box::new(
             self.head
                 .iter()

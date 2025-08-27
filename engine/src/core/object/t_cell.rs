@@ -2,21 +2,21 @@ use crate::core::global::{Id, Position};
 use crossterm::style::Color;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Element {
+pub struct TCell {
     pub id: Id,
     pub style: Glyph,
     pub pos: Position,
 }
 
-impl Element {
+impl TCell {
     pub fn new(id: Id, style: Glyph, pos: Option<Position>) -> Self {
-        Element {
+        TCell {
             id,
             style,
             pos: {
                 match pos {
                     Some(pos) => pos,
-                    None => Position { x: 0, y: 0 },
+                    None => pos.unwrap_or_default(),
                 }
             },
         }
@@ -28,4 +28,14 @@ pub struct Glyph {
     pub fg_clr: Option<Color>,
     pub bg_clr: Option<Color>,
     pub symbol: char,
+}
+
+impl Glyph {
+    pub fn new(fg_clr: Option<Color>, bg_clr: Option<Color>, symbol: char) -> Self {
+        Self {
+            fg_clr,
+            bg_clr,
+            symbol,
+        }
+    }
 }

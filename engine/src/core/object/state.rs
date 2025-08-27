@@ -2,14 +2,14 @@ use std::collections::{HashMap, hash_map::Entry};
 use std::mem;
 
 use super::Occupant;
-use super::element::Element;
+use super::t_cell::TCell;
 use crate::core::global::Position;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateChange {
     Update {
         occupant: Occupant,
-        element: Element,
+        element: TCell,
         init_pos: Position,
     },
     Delete {
@@ -18,7 +18,7 @@ pub enum StateChange {
     },
     Create {
         occupant: Occupant,
-        new_element: Element,
+        new_element: TCell,
     },
 }
 

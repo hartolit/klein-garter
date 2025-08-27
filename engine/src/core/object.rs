@@ -1,13 +1,13 @@
 use std::any::Any;
 use std::fmt::Debug;
 
-pub mod element;
+pub mod t_cell;
 pub mod state;
 
 use super::global::{Id, Position};
 use super::grid::cell::CellRef;
 use crate::core::object::state::State;
-use element::Element;
+use t_cell::TCell;
 use state::StateChange;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -24,7 +24,7 @@ impl Occupant {
 
 pub trait Object: Debug {
     fn id(&self) -> Id;
-    fn elements(&self) -> Box<dyn Iterator<Item = &Element> + '_>;
+    fn elements(&self) -> Box<dyn Iterator<Item = &TCell> + '_>;
     fn z_index(&self) -> i16 {
         0
     } // TODO - Add z-index for object overlapping.

@@ -1,7 +1,7 @@
 use engine::core::global::{Id, IdCounter, Position};
 use engine::core::object::{
     Object, Stateful,
-    element::{Element, Glyph},
+    t_cell::{TCell, Glyph},
     state::{State, StateChange},
 };
 
@@ -11,7 +11,7 @@ pub struct Button {
     is_selected: bool,
     label: String,
     id_counter: IdCounter,
-    elements: Vec<Element>,
+    elements: Vec<TCell>,
     state: State,
     center_pos: Position,
 }
@@ -35,7 +35,7 @@ impl Object for Button {
         self.id
     }
 
-    fn elements(&self) -> Box<dyn Iterator<Item = &engine::core::object::element::Element> + '_> {
+    fn elements(&self) -> Box<dyn Iterator<Item = &engine::core::object::t_cell::TCell> + '_> {
         Box::new(self.elements.iter())
     }
 
