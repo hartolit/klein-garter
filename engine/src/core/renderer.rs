@@ -1,5 +1,7 @@
 use crossterm::{
-    self, cursor, execute, style::{self, ResetColor, SetBackgroundColor, SetForegroundColor}, terminal, QueueableCommand
+    self, QueueableCommand, cursor, execute,
+    style::{self, ResetColor, SetBackgroundColor, SetForegroundColor},
+    terminal,
 };
 use std::collections::HashMap;
 use std::io::{Stdout, Write, stdout};

@@ -1,7 +1,6 @@
 use crossterm::style::Color;
-use engine::core::object::state::State;
+use engine::{core::object::state::State, define_object};
 use rand::Rng;
-use std::iter;
 
 use ::engine::core::{
     global::{Id, Position},
@@ -90,51 +89,15 @@ impl Bomb {
     }
 }
 
-impl Object for Bomb {
-    fn id(&self) -> Id {
-        self.id
-    }
-
-    fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
-        Box::new(iter::once(&self.body))
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-
-    fn as_stateful(&self) -> Option<&dyn Stateful> {
-        Some(self)
-    }
-
-    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
-        Some(self)
-    }
-
-    fn as_destructible(&self) -> Option<&dyn Destructible> {
-        Some(self)
-    }
-
-    fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> {
-        Some(self)
+define_object! {
+    struct Bomb,
+    t_cells: single(body),
+    capabilities: {
+        Stateful { state_field: state }
+        Destructible {}
     }
 }
 
-impl Stateful for Bomb {
-    fn state(&self) -> &State {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut State {
-        &mut self.state
-    }
-}
-
-impl Destructible for Bomb {}
 
 impl Damaging for Bomb {
     fn get_damage(&self) -> i16 {

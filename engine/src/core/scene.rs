@@ -90,11 +90,7 @@ impl Scene {
         }
 
         for state in self.global_state.finalized.updates.iter() {
-            if let StateChange::Update {
-                t_cell,
-                init_pos,
-            } = state
-            {
+            if let StateChange::Update { t_cell, init_pos } = state {
                 if &t_cell.pos != init_pos {
                     self.spatial_grid.remove_cell_occ(t_cell.occ, *init_pos);
                     self.spatial_grid.add_cell_occ(t_cell.occ, t_cell.pos);
@@ -103,11 +99,9 @@ impl Scene {
         }
 
         for state in self.global_state.finalized.creates.iter() {
-            if let StateChange::Create {
-                new_t_cell,
-            } = state
-            {
-                self.spatial_grid.add_cell_occ(new_t_cell.occ, new_t_cell.pos);
+            if let StateChange::Create { new_t_cell } = state {
+                self.spatial_grid
+                    .add_cell_occ(new_t_cell.occ, new_t_cell.pos);
             }
         }
     }

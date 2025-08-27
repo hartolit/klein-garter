@@ -1,4 +1,4 @@
-use crate::core::{global::{Position}, object::Occupant};
+use crate::core::{global::Position, object::Occupant};
 use crossterm::style::Color;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

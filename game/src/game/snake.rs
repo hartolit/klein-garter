@@ -75,7 +75,11 @@ impl Snake {
             effect: None,
             is_dead: true,
             meals: 1,
-            head: Vec::from([TCell::new(Occupant::new(obj_id, first_id), head_style, Some(pos))]),
+            head: Vec::from([TCell::new(
+                Occupant::new(obj_id, first_id),
+                head_style,
+                Some(pos),
+            )]),
             body: VecDeque::new(),
             head_style,
             body_style,
@@ -174,10 +178,12 @@ impl Snake {
                     y: new_buttom_left.y - row as u16,
                 };
 
-                let t_cell = TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(curr_pos));
-                let create = StateChange::Create {
-                    new_t_cell: t_cell,
-                };
+                let t_cell = TCell::new(
+                    Occupant::new(self.id, self.id_counter.next()),
+                    self.head_style,
+                    Some(curr_pos),
+                );
+                let create = StateChange::Create { new_t_cell: t_cell };
                 self.state.upsert_change(create);
 
                 self.head.push(t_cell);
@@ -227,12 +233,13 @@ impl Snake {
 
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_t_cell =
-                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
+                    let new_t_cell = TCell::new(
+                        Occupant::new(self.id, self.id_counter.next()),
+                        self.head_style,
+                        Some(new_pos),
+                    );
 
-                    let create = StateChange::Create {
-                        new_t_cell,
-                    };
+                    let create = StateChange::Create { new_t_cell };
                     self.state.upsert_change(create);
                     self.head.push(new_t_cell);
                 }
@@ -254,12 +261,13 @@ impl Snake {
 
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_t_cell =
-                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
+                    let new_t_cell = TCell::new(
+                        Occupant::new(self.id, self.id_counter.next()),
+                        self.head_style,
+                        Some(new_pos),
+                    );
 
-                    let create = StateChange::Create {
-                        new_t_cell,
-                    };
+                    let create = StateChange::Create { new_t_cell };
                     self.state.upsert_change(create);
 
                     self.head.push(new_t_cell);
@@ -282,12 +290,13 @@ impl Snake {
 
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_t_cell =
-                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
+                    let new_t_cell = TCell::new(
+                        Occupant::new(self.id, self.id_counter.next()),
+                        self.head_style,
+                        Some(new_pos),
+                    );
 
-                    let create = StateChange::Create {
-                        new_t_cell,
-                    };
+                    let create = StateChange::Create { new_t_cell };
                     self.state.upsert_change(create);
 
                     self.head.push(new_t_cell);
@@ -310,12 +319,13 @@ impl Snake {
 
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_t_cell =
-                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
+                    let new_t_cell = TCell::new(
+                        Occupant::new(self.id, self.id_counter.next()),
+                        self.head_style,
+                        Some(new_pos),
+                    );
 
-                    let create = StateChange::Create {
-                        new_t_cell,
-                    };
+                    let create = StateChange::Create { new_t_cell };
                     self.state.upsert_change(create);
 
                     self.head.push(new_t_cell);

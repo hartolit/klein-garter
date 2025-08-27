@@ -100,3 +100,96 @@ pub enum Action {
     Collision { owner: Occupant, target: Occupant },
     Kill { obj_id: Id },
 }
+
+
+#[macro_export]
+macro_rules! define_object {
+    // --- Internal Rules for parsing capability traits ---
+    (@as_trait_impls) => {};
+    (@as_trait_impls Stateful { $($body:tt)* } $($tail:tt)*) => {
+        fn as_stateful(&self) -> Option<&dyn Stateful> { Some(self) }
+        fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> { Some(self) }
+        define_object!(@as_trait_impls $($tail)*);
+    };
+    (@as_trait_impls Destructible { $($body:tt)* } $($tail:tt)*) => {
+        fn as_destructible(&self) -> Option<&dyn Destructible> { Some(self) }
+        fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> { Some(self) }
+        define_object!(@as_trait_impls $($tail)*);
+    };
+    (@as_trait_impls Movable { $($body:tt)* } $($tail:tt)*) => {
+        fn as_movable(&self) -> Option<&dyn Movable> { Some(self) }
+        fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> { Some(self) }
+        define_object!(@as_trait_impls $($tail)*);
+    };
+    (@trait_impls $struct:ty, Movable { } $($tail:tt)*) => {
+        define_object!(@trait_impls $struct, $($tail)*);
+    };
+    (@trait_impls $struct:ty, ) => {};
+    (@trait_impls $struct:ty, Stateful { state_field: $state_field:ident } $($tail:tt)*) => {
+        impl Stateful for $struct {
+            fn state(&self) -> &State { &self.$state_field }
+            fn state_mut(&mut self) -> &mut State { &mut self.$state_field }
+        }
+        define_object!(@trait_impls $struct, $($tail)*);
+    };
+    (@trait_impls $struct:ty, Destructible { } $($tail:tt)*) => {
+        impl Destructible for $struct {}
+        define_object!(@trait_impls $struct, $($tail)*);
+    };
+
+    // --- Public-Facing Rules ---
+
+    // Rule for objects with a single TCell body.
+    (
+        struct $struct:ty,
+        t_cells: single($body_field:ident),
+        capabilities: { $($capabilities:tt)* }
+    ) => {
+        impl Object for $struct {
+            fn id(&self) -> Id { self.id }
+            fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
+                Box::new(std::iter::once(&self.$body_field))
+            }
+            fn as_any(&self) -> &dyn std::any::Any { self }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+            define_object!(@as_trait_impls $($capabilities)*);
+        }
+        define_object!(@trait_impls $struct, $($capabilities)*);
+    };
+
+    // Rule for objects with a Vec<TCell> or similar collection.
+    (
+        struct $struct:ty,
+        t_cells: multi($body_field:ident),
+        capabilities: { $($capabilities:tt)* }
+    ) => {
+        impl Object for $struct {
+            fn id(&self) -> Id { self.id }
+            fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
+                Box::new(self.$body_field.iter())
+            }
+            fn as_any(&self) -> &dyn std::any::Any { self }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+            define_object!(@as_trait_impls $($capabilities)*);
+        }
+        define_object!(@trait_impls $struct, $($capabilities)*);
+    };
+    
+    // Rule for objects with complex, custom t_cells logic.
+    (
+        struct $struct:ty,
+        t_cells: custom($t_cells_closure:expr),
+        capabilities: { $($capabilities:tt)* }
+    ) => {
+        impl Object for $struct {
+            fn id(&self) -> Id { self.id }
+            fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
+                Box::new(($t_cells_closure)(self))
+            }
+            fn as_any(&self) -> &dyn std::any::Any { self }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+            define_object!(@as_trait_impls $($capabilities)*);
+        }
+        define_object!(@trait_impls $struct, $($capabilities)*);
+    };
+}

@@ -4,7 +4,6 @@ use ::engine::core::{
     global::{Id, Position},
     object::{
         Destructible, Object, Occupant, Stateful,
-        state::StateChange,
         t_cell::{Glyph, TCell},
     },
 };
