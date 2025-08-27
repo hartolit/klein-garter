@@ -95,6 +95,7 @@ impl ObjectExt for dyn Object {
     }
 }
 
+// TODO - Make this configurable
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Action {
     Collision { owner: Occupant, target: Occupant },
