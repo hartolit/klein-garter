@@ -33,14 +33,14 @@ impl ResizeState {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BodySegment {
     pub orientation: Orientation,
-    pub elements: Vec<TCell>,
+    pub t_cells: Vec<TCell>,
 }
 
 impl BodySegment {
-    pub fn new(orientation: Orientation, elements: Vec<TCell>) -> Self {
+    pub fn new(orientation: Orientation, t_cells: Vec<TCell>) -> Self {
         Self {
             orientation,
-            elements,
+            t_cells,
         }
     }
 }

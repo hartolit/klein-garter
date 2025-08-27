@@ -7,8 +7,7 @@ use ::engine::core::{
     global::{Id, Position},
     object::{
         Destructible, Object, Occupant, Stateful,
-        t_cell::{TCell, Glyph},
-        state::StateChange,
+        t_cell::{Glyph, TCell},
     },
 };
 
@@ -74,7 +73,7 @@ impl Bomb {
             id: obj_id,
             kind,
             damage,
-            body: TCell::new(Id::new(0), glyph, Some(pos)),
+            body: TCell::new(Occupant::new(obj_id, Id::new(0)), glyph, Some(pos)),
             state: State::new(),
             is_dead: false,
         }
@@ -96,7 +95,7 @@ impl Object for Bomb {
         self.id
     }
 
-    fn elements(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
+    fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
         Box::new(iter::once(&self.body))
     }
 

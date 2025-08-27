@@ -1,17 +1,17 @@
-use crate::core::global::{Id, Position};
+use crate::core::{global::{Position}, object::Occupant};
 use crossterm::style::Color;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TCell {
-    pub id: Id,
+    pub occ: Occupant,
     pub style: Glyph,
     pub pos: Position,
 }
 
 impl TCell {
-    pub fn new(id: Id, style: Glyph, pos: Option<Position>) -> Self {
+    pub fn new(occ: Occupant, style: Glyph, pos: Option<Position>) -> Self {
         TCell {
-            id,
+            occ,
             style,
             pos: {
                 match pos {

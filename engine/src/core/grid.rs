@@ -51,7 +51,7 @@ impl SpatialGrid {
         }
 
         SpatialGrid {
-            cells: cells,
+            cells,
             empty_cells,
             full_width,
             full_height,
@@ -110,16 +110,14 @@ impl SpatialGrid {
     // !Fix - Single cell overlapping
 
     pub fn add_object(&mut self, object: &Box<dyn Object>) {
-        let obj_id = object.id();
-        for element in object.elements() {
-            self.add_cell_occ(Occupant::new(obj_id, element.id), element.pos);
+        for t_cell in object.t_cells() {
+            self.add_cell_occ(t_cell.occ, t_cell.pos);
         }
     }
 
     pub fn remove_object(&mut self, object: &Box<dyn Object>) {
-        let obj_id = object.id();
-        for element in object.elements() {
-            self.remove_cell_occ(Occupant::new(obj_id, element.id), element.pos);
+        for t_cell in object.t_cells() {
+            self.remove_cell_occ(t_cell.occ, t_cell.pos);
         }
     }
 
@@ -164,28 +162,4 @@ impl SpatialGrid {
             && pos.y >= self.border
             && pos.y < self.game_height + self.border
     }
-
-    // // TODO - Add tracking of empty positions
-    // pub fn rng_empty_pos(&self) -> Option<Position> {
-    //     let empty_pos: Vec<usize> = self
-    //         .cells
-    //         .iter()
-    //         .enumerate()
-    //         .filter(|(_, cell)| cell.occ_by.is_none())
-    //         .map(|(index, _)| index)
-    //         .collect();
-
-    //     if empty_pos.is_empty() {
-    //         return None;
-    //     }
-
-    //     let rnd_pos = rand::rng().random_range(0..empty_pos.len());
-
-    //     let pos = match empty_pos.get(rnd_pos) {
-    //         Some(pos) => pos,
-    //         None => return None,
-    //     };
-
-    //     self.get_pos_from_index(*pos)
-    // }
 }

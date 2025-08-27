@@ -8,8 +8,7 @@ use crate::core::global::Position;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateChange {
     Update {
-        occupant: Occupant,
-        element: TCell,
+        t_cell: TCell,
         init_pos: Position,
     },
     Delete {
@@ -17,8 +16,7 @@ pub enum StateChange {
         init_pos: Position,
     },
     Create {
-        occupant: Occupant,
-        new_element: TCell,
+        new_t_cell: TCell,
     },
 }
 
@@ -36,8 +34,8 @@ impl State {
 
     pub fn upsert_change(&mut self, new_state: StateChange) {
         let key = match new_state {
-            StateChange::Create { occupant, .. } => occupant,
-            StateChange::Update { occupant, .. } => occupant,
+            StateChange::Create { new_t_cell, .. } => new_t_cell.occ,
+            StateChange::Update { t_cell, .. } => t_cell.occ,
             StateChange::Delete { occupant, .. } => occupant,
         };
 
@@ -47,14 +45,14 @@ impl State {
 
                 match curr_state {
                     StateChange::Create {
-                        new_element: curr_element,
+                        new_t_cell: curr_t_cell,
                         ..
                     } => match new_state {
-                        StateChange::Create { new_element, .. } => {
-                            *curr_element = new_element;
+                        StateChange::Create { new_t_cell, .. } => {
+                            *curr_t_cell = new_t_cell;
                         }
-                        StateChange::Update { element, .. } => {
-                            *curr_element = element;
+                        StateChange::Update { t_cell, .. } => {
+                            *curr_t_cell = t_cell;
                         }
                         StateChange::Delete { .. } => {
                             entry.remove();
@@ -62,15 +60,15 @@ impl State {
                     },
 
                     StateChange::Update {
-                        element: curr_element,
+                        t_cell: curr_t_cell,
                         init_pos: curr_init_pos,
                         ..
                     } => match new_state {
-                        StateChange::Create { new_element, .. } => {
-                            *curr_element = new_element;
+                        StateChange::Create { new_t_cell, .. } => {
+                            *curr_t_cell = new_t_cell;
                         }
-                        StateChange::Update { element, .. } => {
-                            *curr_element = element;
+                        StateChange::Update { t_cell, .. } => {
+                            *curr_t_cell = t_cell;
                         }
                         StateChange::Delete { occupant, .. } => {
                             *curr_state = StateChange::Delete {

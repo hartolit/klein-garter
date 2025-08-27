@@ -9,8 +9,8 @@ use ::engine::core::{
     grid::cell::{CellRef, Kind},
     object::{
         Action, Destructible, Movable, Object, Occupant, Stateful,
-        t_cell::{TCell, Glyph},
         state::{State, StateChange},
+        t_cell::{Glyph, TCell},
     },
 };
 
@@ -40,7 +40,7 @@ impl Direction {
 #[derive(Debug)]
 pub struct Snake {
     id: Id,
-    id_counter: IdCounter, // For element ids (internal)
+    id_counter: IdCounter, // For t_cell ids (internal)
     head_size: ResizeState,
     effect: Option<Effect>,
     is_dead: bool,
@@ -75,7 +75,7 @@ impl Snake {
             effect: None,
             is_dead: true,
             meals: 1,
-            head: Vec::from([TCell::new(first_id, head_style, Some(pos))]),
+            head: Vec::from([TCell::new(Occupant::new(obj_id, first_id), head_style, Some(pos))]),
             body: VecDeque::new(),
             head_style,
             body_style,
@@ -141,15 +141,15 @@ impl Snake {
             let mut min_y = u16::MAX;
             let mut max_y = u16::MIN;
 
-            for element in self.head.iter_mut() {
-                min_x = min_x.min(element.pos.x);
-                max_x = max_x.max(element.pos.x);
-                min_y = min_y.min(element.pos.y);
-                max_y = max_y.max(element.pos.y);
+            for t_cell in self.head.iter_mut() {
+                min_x = min_x.min(t_cell.pos.x);
+                max_x = max_x.max(t_cell.pos.x);
+                min_y = min_y.min(t_cell.pos.y);
+                max_y = max_y.max(t_cell.pos.y);
 
                 let delete = StateChange::Delete {
-                    occupant: Occupant::new(self.id, element.id),
-                    init_pos: element.pos,
+                    occupant: t_cell.occ,
+                    init_pos: t_cell.pos,
                 };
                 self.state.upsert_change(delete);
             }
@@ -165,7 +165,7 @@ impl Snake {
             y: center_pos.y.saturating_sub(odd_size as u16 / 2),
         };
 
-        // Generates new elements
+        // Generates new t_cells
         self.head.clear();
         for row in 0..odd_size {
             for col in 0..odd_size {
@@ -174,20 +174,19 @@ impl Snake {
                     y: new_buttom_left.y - row as u16,
                 };
 
-                let element = TCell::new(self.id_counter.next(), self.head_style, Some(curr_pos));
+                let t_cell = TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(curr_pos));
                 let create = StateChange::Create {
-                    occupant: Occupant::new(self.id, element.id),
-                    new_element: element,
+                    new_t_cell: t_cell,
                 };
                 self.state.upsert_change(create);
 
-                self.head.push(element);
+                self.head.push(t_cell);
             }
         }
     }
 
     // TODO - CHANGE THIS
-    // fn get_resized_body_part(&mut self, new_size: usize) -> Option<Vec<Element>> {
+    // fn get_resized_body_part(&mut self, new_size: usize) -> Option<Vec<TCell>> {
     //     self.set_head_size(new_size)
     // }
 
@@ -198,11 +197,11 @@ impl Snake {
         let mut min_y = u16::MAX;
         let mut max_y = u16::MIN;
 
-        for element in &self.head {
-            min_x = min_x.min(element.pos.x);
-            max_x = max_x.max(element.pos.x);
-            min_y = min_y.min(element.pos.y);
-            max_y = max_y.max(element.pos.y);
+        for t_cell in &self.head {
+            min_x = min_x.min(t_cell.pos.x);
+            max_x = max_x.max(t_cell.pos.x);
+            min_y = min_y.min(t_cell.pos.y);
+            max_y = max_y.max(t_cell.pos.y);
         }
 
         let (dx, dy) = self.direction.get_move();
@@ -228,15 +227,14 @@ impl Snake {
 
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_element =
-                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_t_cell =
+                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        occupant: Occupant::new(self.id, new_element.id),
-                        new_element: new_element,
+                        new_t_cell,
                     };
                     self.state.upsert_change(create);
-                    self.head.push(new_element);
+                    self.head.push(new_t_cell);
                 }
 
                 orientation = Orientation::Horizontal;
@@ -256,16 +254,15 @@ impl Snake {
 
                 for i in 0..head_width {
                     let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_element =
-                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_t_cell =
+                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        occupant: Occupant::new(self.id, new_element.id),
-                        new_element: new_element,
+                        new_t_cell,
                     };
                     self.state.upsert_change(create);
 
-                    self.head.push(new_element);
+                    self.head.push(new_t_cell);
                 }
 
                 orientation = Orientation::Horizontal;
@@ -285,16 +282,15 @@ impl Snake {
 
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_element =
-                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_t_cell =
+                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        occupant: Occupant::new(self.id, new_element.id),
-                        new_element: new_element,
+                        new_t_cell,
                     };
                     self.state.upsert_change(create);
 
-                    self.head.push(new_element);
+                    self.head.push(new_t_cell);
                 }
 
                 orientation = Orientation::Vertical;
@@ -314,29 +310,27 @@ impl Snake {
 
                 for i in 0..head_height {
                     let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_element =
-                        TCell::new(self.id_counter.next(), self.head_style, Some(new_pos));
+                    let new_t_cell =
+                        TCell::new(Occupant::new(self.id, self.id_counter.next()), self.head_style, Some(new_pos));
 
                     let create = StateChange::Create {
-                        occupant: Occupant::new(self.id, new_element.id),
-                        new_element: new_element,
+                        new_t_cell,
                     };
                     self.state.upsert_change(create);
 
-                    self.head.push(new_element);
+                    self.head.push(new_t_cell);
                 }
 
                 orientation = Orientation::Vertical;
             }
         }
 
-        for element in new_body.iter_mut() {
-            element.style = self.body_style;
+        for t_cell in new_body.iter_mut() {
+            t_cell.style = self.body_style;
 
             let update = StateChange::Update {
-                occupant: Occupant::new(self.id, element.id),
-                element: *element,
-                init_pos: element.pos,
+                t_cell: *t_cell,
+                init_pos: t_cell.pos,
             };
             self.state.upsert_change(update);
         }
@@ -354,10 +348,10 @@ impl Snake {
                     break;
                 }
                 if let Some(segment) = self.body.pop_back() {
-                    for element in segment.elements {
+                    for t_cell in segment.t_cells {
                         let delete = StateChange::Delete {
-                            occupant: Occupant::new(self.id, element.id),
-                            init_pos: element.pos,
+                            occupant: t_cell.occ,
+                            init_pos: t_cell.pos,
                         };
                         self.state.upsert_change(delete);
                     }
@@ -365,10 +359,10 @@ impl Snake {
             }
         } else {
             if let Some(segment) = self.body.pop_back() {
-                for element in segment.elements {
+                for t_cell in segment.t_cells {
                     let delete = StateChange::Delete {
-                        occupant: Occupant::new(self.id, element.id),
-                        init_pos: element.pos,
+                        occupant: t_cell.occ,
+                        init_pos: t_cell.pos,
                     };
                     self.state.upsert_change(delete);
                 }
@@ -407,11 +401,11 @@ impl Object for Snake {
         self.id
     }
 
-    fn elements(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
+    fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
         Box::new(
             self.head
                 .iter()
-                .chain(self.body.iter().flat_map(|segment| &segment.elements)),
+                .chain(self.body.iter().flat_map(|segment| &segment.t_cells)),
         )
     }
 
@@ -464,9 +458,9 @@ impl Movable for Snake {
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
         let (dx, dy) = self.direction.get_move();
 
-        Box::new(self.head.iter().map(move |elem| Position {
-            x: (elem.pos.x as i16 + dx) as u16,
-            y: (elem.pos.y as i16 + dy) as u16,
+        Box::new(self.head.iter().map(move |t_cell| Position {
+            x: (t_cell.pos.x as i16 + dx) as u16,
+            y: (t_cell.pos.y as i16 + dy) as u16,
         }))
     }
 

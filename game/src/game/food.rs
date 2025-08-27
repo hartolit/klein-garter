@@ -4,8 +4,8 @@ use ::engine::core::{
     global::{Id, Position},
     object::{
         Destructible, Object, Occupant, Stateful,
-        t_cell::{TCell, Glyph},
         state::StateChange,
+        t_cell::{Glyph, TCell},
     },
 };
 use engine::core::object::state::State;
@@ -69,7 +69,7 @@ impl Food {
             kind,
             meal,
             body: TCell {
-                id: Id::new(0),
+                occ: Occupant::new(obj_id, Id::new(0)),
                 style: Glyph {
                     fg_clr: Some(color),
                     bg_clr: None,
@@ -101,7 +101,7 @@ impl Object for Food {
         self.id
     }
 
-    fn elements(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
+    fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
         Box::new(iter::once(&self.body))
     }
 

@@ -1,7 +1,5 @@
 use crossterm::{
-    self, QueueableCommand, cursor, execute, style,
-    style::{SetBackgroundColor, SetForegroundColor},
-    terminal,
+    self, cursor, execute, style::{self, ResetColor, SetBackgroundColor, SetForegroundColor}, terminal, QueueableCommand
 };
 use std::collections::HashMap;
 use std::io::{Stdout, Write, stdout};
@@ -9,7 +7,7 @@ use std::io::{Stdout, Write, stdout};
 use super::grid::SpatialGrid;
 use super::scene::global_state::CategorizedStates;
 use crate::core::global::{Id, Position};
-use crate::core::object::{Object, t_cell::Glyph, state::StateChange};
+use crate::core::object::{Object, state::StateChange, t_cell::Glyph};
 
 pub struct Renderer {
     stdout: Stdout,
@@ -30,7 +28,6 @@ impl Renderer {
         execute!(self.stdout, cursor::Show).unwrap();
     }
 
-    // TODO - Add indexing to handle overlapping elements
     pub fn full_render(
         &mut self,
         spatial_grid: &mut SpatialGrid,
@@ -38,8 +35,8 @@ impl Renderer {
     ) {
         let mut glyph_map: HashMap<Position, &Glyph> = HashMap::new();
         for object in objects.values() {
-            for element in object.elements() {
-                glyph_map.insert(element.pos, &element.style);
+            for t_cell in object.t_cells() {
+                glyph_map.insert(t_cell.pos, &t_cell.style);
             }
         }
 
@@ -58,7 +55,6 @@ impl Renderer {
             }
         }
 
-        // TODO - Add rendering outside spatialgrid
         self.stdout.flush().unwrap();
     }
 
@@ -72,32 +68,34 @@ impl Renderer {
                 if let Some(cell) = spatial_grid.get_cell(init_pos) {
                     let cell_glyph = cell.kind.appearance();
                     self.draw_glyph(&cell_glyph, init_pos);
+                } else {
+                    self.clear_glyph(init_pos);
                 }
             }
         }
 
         for state in finalized_state.updates.iter() {
             if let StateChange::Update {
-                element, init_pos, ..
+                t_cell, init_pos, ..
             } = state
             {
-                if &element.pos != init_pos {
+                if &t_cell.pos != init_pos {
                     if let Some(cell) = spatial_grid.get_cell(init_pos) {
                         let cell_glyph = cell.kind.appearance();
                         self.draw_glyph(&cell_glyph, init_pos);
+                    } else {
+                        self.clear_glyph(init_pos);
                     }
                 }
-                self.draw_glyph(&element.style, &element.pos);
+                self.draw_glyph(&t_cell.style, &t_cell.pos);
             }
         }
 
         for state in finalized_state.creates.iter() {
-            if let StateChange::Create { new_element, .. } = state {
-                self.draw_glyph(&new_element.style, &new_element.pos);
+            if let StateChange::Create { new_t_cell, .. } = state {
+                self.draw_glyph(&new_t_cell.style, &new_t_cell.pos);
             }
         }
-
-        // TODO - Add rendering outside spatialgrid
 
         self.stdout.flush().unwrap();
     }
@@ -119,7 +117,12 @@ impl Renderer {
     }
 
     fn clear_glyph(&mut self, pos: &Position) {
-        self.stdout.queue(cursor::MoveTo(pos.x, pos.y)).unwrap().queue(style::Print(' ')).unwrap();
+        self.stdout
+            .queue(cursor::MoveTo(pos.x, pos.y))
+            .unwrap()
+            .queue(ResetColor)
+            .unwrap()
+            .queue(style::Print(' '))
+            .unwrap();
     }
-    
 }
