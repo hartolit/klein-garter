@@ -7,7 +7,7 @@ use ::engine::core::{
         t_cell::{Glyph, TCell},
     },
 };
-use engine::core::object::state::State;
+use engine::{core::object::state::State, define_object};
 
 use crossterm::style::Color;
 use rand::Rng;
@@ -95,51 +95,14 @@ impl Food {
     }
 }
 
-impl Object for Food {
-    fn id(&self) -> Id {
-        self.id
-    }
-
-    fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
-        Box::new(iter::once(&self.body))
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-
-    fn as_stateful(&self) -> Option<&dyn Stateful> {
-        Some(self)
-    }
-
-    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
-        Some(self)
-    }
-
-    fn as_destructible(&self) -> Option<&dyn Destructible> {
-        Some(self)
-    }
-
-    fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> {
-        Some(self)
+define_object! {
+    struct Food,
+    t_cells: single(body),
+    capabilities: {
+        Stateful { state_field: state }
+        Destructible {}
     }
 }
-
-impl Stateful for Food {
-    fn state(&self) -> &State {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut State {
-        &mut self.state
-    }
-}
-
-impl Destructible for Food {}
 
 impl Consumable for Food {
     fn get_meal(&self) -> i16 {

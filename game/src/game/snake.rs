@@ -1,6 +1,7 @@
 pub mod animation;
 
 use crossterm::style::Color;
+use engine::define_object;
 use std::hash::Hash;
 use std::{any::Any, collections::VecDeque};
 
@@ -406,63 +407,20 @@ impl Snake {
     }
 }
 
-impl Object for Snake {
-    fn id(&self) -> Id {
-        self.id
-    }
-
-    fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
-        Box::new(
-            self.head
-                .iter()
-                .chain(self.body.iter().flat_map(|segment| &segment.t_cells)),
-        )
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn as_movable(&self) -> Option<&dyn Movable> {
-        Some(self)
-    }
-
-    fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> {
-        Some(self)
-    }
-
-    fn as_stateful(&self) -> Option<&dyn Stateful> {
-        Some(self)
-    }
-
-    fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
-        Some(self)
-    }
-
-    fn as_destructible(&self) -> Option<&dyn Destructible> {
-        Some(self)
-    }
-
-    fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> {
-        Some(self)
+define_object! {
+    struct Snake,
+    t_cells: custom |s| {
+        s.head
+            .iter()
+            .chain(s.body.iter().flat_map(|segment| segment.t_cells.iter()))
+    },
+    capabilities: {
+        Stateful { state_field: state }
+        Destructible {}
+        Movable {}
     }
 }
 
-impl Stateful for Snake {
-    fn state_mut(&mut self) -> &mut State {
-        &mut self.state
-    }
-
-    fn state(&self) -> &State {
-        &self.state
-    }
-}
-
-impl Destructible for Snake {}
 
 impl Movable for Snake {
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
