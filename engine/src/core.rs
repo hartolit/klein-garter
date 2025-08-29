@@ -173,7 +173,7 @@ impl Runtime {
                     &stage.scene.global_state.finalized,
                 );
             }
-            //std::thread::sleep(Duration::from_millis(1));
+            std::thread::sleep(Duration::from_millis(1));
         }
     }
 

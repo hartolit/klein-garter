@@ -21,6 +21,7 @@ struct GameLogic {
     player: Player,
     speed: u64,
     counter: u64,
+    skip: bool,
 }
 
 impl GameLogic {
@@ -35,14 +36,22 @@ impl GameLogic {
             player: Player::new(PlayerKind::Local, keys),
             speed: 150,
             counter: 0,
+            skip: true,
         }
     }
 }
 
 impl Logic<String> for GameLogic {
     fn setup(&mut self, scene: &mut Scene) {
+
+        for i in 0..9 {
+            let _ = scene.attach_object(|id| {
+                Box::new(Snake::new(Position::new(i*10+10, 20), id, (i+2) as usize))
+            });
+        }
+
         let snake_id = scene.attach_object(|id| {
-            Box::new(Snake::new(Position::new(30, 10), id, 5))
+            Box::new(Snake::new(Position::new(50, 40), id, 9))
         });
 
         self.player.set_snake(snake_id);
@@ -50,7 +59,7 @@ impl Logic<String> for GameLogic {
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<String> {
         self.counter += 1;
-        if self.speed > 40 {
+        if self.speed > 20 {
             self.speed -= 1;
         }
 
@@ -58,12 +67,12 @@ impl Logic<String> for GameLogic {
             if let Some(object) = scene.objects.get_mut(&snake_id) {
                 if let Some(snake) = object.get_mut::<Snake>() {
                     if self.counter < 20 {
-                        snake.meals = 1;
+                        snake.meals += 1;
                     }
 
-                    if self.counter % 200 == 0 {
+                    if self.counter % 400 == 0 {
                         snake.resize_head_brief(3);
-                    } else if self.counter % 100 == 0 {
+                    } else if self.counter % 300 == 0 {
                         snake.resize_head_native();
                     }
 
@@ -72,6 +81,40 @@ impl Logic<String> for GameLogic {
                     }
                 }
             }
+        }
+
+        if !self.skip {
+            let test_id = Id::new(2);
+            if let Some(object) = scene.objects.get_mut(&test_id) {
+                if let Some(snake) = object.get_mut::<Snake>() {
+                    match self.counter % 4 {
+                        0 => snake.direction = Direction::Up,
+                        1 => snake.direction = Direction::Left,
+                        2 => snake.direction = Direction::Down,
+                        3 => snake.direction = Direction::Right,
+                        _ => {},
+                    }
+                }
+            }
+
+            let test_id = Id::new(5);
+            if let Some(object) = scene.objects.get_mut(&test_id) {
+                if let Some(snake) = object.get_mut::<Snake>() {
+                    match self.counter % 4 {
+                        0 => snake.direction = Direction::Up,
+                        1 => snake.direction = Direction::Left,
+                        2 => snake.direction = Direction::Down,
+                        3 => snake.direction = Direction::Right,
+                        _ => {},
+                    }
+                }
+            }
+        }
+
+        if self.counter % 7 == 0 {
+            self.skip = false;
+        } else {
+            self.skip = true;
         }
 
         RuntimeCommand::SetTickRate(Duration::from_millis(self.speed))
@@ -106,10 +149,10 @@ impl Logic<String> for GameLogic {
 }
 
 fn main() {
-    let mut manager: RuntimeManager<String> = RuntimeManager::new(Duration::from_millis(150));
+    let mut manager: RuntimeManager<String> = RuntimeManager::new(Duration::from_millis(0));
 
     // TODO - Make spatial grid attachable :)
-    let grid = SpatialGrid::new(100, 50, 3, Kind::Ground);
+    let grid = SpatialGrid::new(100, 40, 1, Kind::Ground);
     let game_logic = Box::new(GameLogic::new());
     let game_stage = Stage::new(game_logic, grid);
 

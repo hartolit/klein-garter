@@ -66,7 +66,7 @@ impl Snake {
             head_size: ResizeState::Normal { size: 1 },
             effect: None,
             is_alive: true,
-            meals: 1,
+            meals: 10,
             head: Vec::from([TCell::new(
                 Occupant::new(obj_id, first_id),
                 head_style,
@@ -435,7 +435,7 @@ define_object! {
 
                     for hit in probe {
                         if let Kind::Border | Kind::Lava = hit.cell.kind {
-                            self.is_alive = false;
+                            //self.is_alive = false;
                             new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
                         }
 

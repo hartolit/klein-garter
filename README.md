@@ -1,1 +1,1 @@
-A terminal snake game in Rust, built without AI.
+A terminal game engine and snake game implementation in Rust
