@@ -49,10 +49,10 @@ impl<K: Eq + Hash + Clone> Stage<K> {
 }
 
 pub trait Logic<K: Eq + Hash + Clone> {
-    fn process_actions(&self, scene: &mut Scene, actions: Vec<Action>);
-    fn process_input(&self);
-    fn setup(&self, scene: &mut Scene);
-    fn update(&self, scene: &mut Scene) -> RuntimeCommand<K>;
+    fn process_actions(&mut self, scene: &mut Scene, actions: Vec<Action>);
+    fn process_input(&mut self, scene: &mut Scene);
+    fn setup(&mut self, scene: &mut Scene);
+    fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<K>;
     fn collect_old_stage(
         &mut self,
         _old_scene: Option<Box<Scene>>,
@@ -69,6 +69,7 @@ pub enum RuntimeCommand<K: Eq + Hash + Clone> {
         logic: Box<dyn Logic<K>>,
     },
     SwitchStage(K),
+    SetTickRate(Duration),
     Kill,
     None,
 }
@@ -152,7 +153,7 @@ impl Runtime {
         self.last_update = Instant::now();
 
         loop {
-            stage.logic.process_input();
+            stage.logic.process_input(&mut stage.scene);
 
             let now = Instant::now();
             let delta = now.duration_since(self.last_update);
@@ -234,6 +235,7 @@ impl Runtime {
                     .collect_old_stage(Some(old_stage.1), Some(old_stage.0));
             }
             RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
+            RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
             RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
             RuntimeCommand::None => {}
         }

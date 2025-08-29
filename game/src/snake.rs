@@ -35,8 +35,8 @@ pub struct Snake {
     id_counter: IdCounter, // For t_cell ids (internal)
     head_size: ResizeState,
     effect: Option<Effect>,
-    is_dead: bool,
-    meals: i16,
+    pub is_alive: bool,
+    pub meals: i16,
     head: Vec<TCell>, // Unsorted 2d vec
     body: VecDeque<BodySegment>,
     head_style: Glyph,
@@ -65,7 +65,7 @@ impl Snake {
             id_counter: id_counter,
             head_size: ResizeState::Normal { size: 1 },
             effect: None,
-            is_dead: true,
+            is_alive: true,
             meals: 1,
             head: Vec::from([TCell::new(
                 Occupant::new(obj_id, first_id),
@@ -84,7 +84,7 @@ impl Snake {
     }
 
     // TODO! - SIMPLIFY
-    fn resize_head(&mut self, new_size: usize) {
+    pub fn resize_head(&mut self, new_size: usize) {
         if let ResizeState::Normal { size } = self.head_size
             && size == new_size
         {
@@ -99,7 +99,7 @@ impl Snake {
         self.head_size = ResizeState::Normal { size: new_size };
     }
 
-    fn resize_head_brief(&mut self, new_size: usize) {
+    pub fn resize_head_brief(&mut self, new_size: usize) {
         if self.head_size.size() == new_size {
             return;
         }
@@ -111,7 +111,7 @@ impl Snake {
         };
     }
 
-    fn resize_head_native(&mut self) {
+    pub fn resize_head_native(&mut self) {
         if let ResizeState::Brief { native_size, .. } = self.head_size {
             self.set_head_size(native_size);
             self.head_size = ResizeState::Normal { size: native_size };
@@ -167,7 +167,7 @@ impl Snake {
             for col in 0..odd_size {
                 let curr_pos = Position {
                     x: new_buttom_left.x + col as u16,
-                    y: new_buttom_left.y - row as u16,
+                    y: new_buttom_left.y.saturating_sub(row as u16),
                 };
 
                 let t_cell = TCell::new(
@@ -220,7 +220,7 @@ impl Snake {
                     }
                 });
 
-                let new_pos_y = min_y + dy as u16;
+                let new_pos_y = min_y.saturating_add_signed(dy);
                 let head_width = (max_x - min_x) + 1;
 
                 for i in 0..head_width {
@@ -248,7 +248,7 @@ impl Snake {
                     }
                 });
 
-                let new_pos_y = max_y + dy as u16;
+                let new_pos_y = max_y.saturating_add_signed(dy);
                 let head_width = (max_x - min_x) + 1;
 
                 for i in 0..head_width {
@@ -277,7 +277,7 @@ impl Snake {
                     }
                 });
 
-                let new_pos_x = min_x + dx as u16;
+                let new_pos_x = min_x.saturating_add_signed(dx);
                 let head_height = (max_y - min_y) + 1;
 
                 for i in 0..head_height {
@@ -306,7 +306,7 @@ impl Snake {
                     }
                 });
 
-                let new_pos_x = max_x + dx as u16;
+                let new_pos_x = max_x.saturating_add_signed(dx);
                 let head_height = (max_y - min_y) + 1;
 
                 for i in 0..head_height {
@@ -346,7 +346,7 @@ impl Snake {
             let segments_to_remove = self.meals.abs() as u16;
             for _ in 0..segments_to_remove {
                 if self.body.len() == 0 {
-                    self.is_dead = false;
+                    self.is_alive = false;
                     break;
                 }
                 if let Some(segment) = self.body.pop_back() {
@@ -419,15 +419,15 @@ define_object! {
                     let (dx, dy) = self.direction.get_move();
 
                     Box::new(self.head.iter().map(move |t_cell| Position {
-                        x: (t_cell.pos.x as i16 + dx) as u16,
-                        y: (t_cell.pos.y as i16 + dy) as u16,
+                        x: t_cell.pos.x.saturating_add_signed(dx),
+                        y: t_cell.pos.y.saturating_add_signed(dy),
                     }))
                 }
 
                 fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action> {
                     let actions: Vec<Action> = Vec::new();
                     self.state.changes.clear();
-                    if !self.is_dead {
+                    if !self.is_alive {
                         return actions;
                     }
 
@@ -435,7 +435,7 @@ define_object! {
 
                     for hit in probe {
                         if let Kind::Border | Kind::Lava = hit.cell.kind {
-                            self.is_dead = false;
+                            self.is_alive = false;
                             new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
                         }
 
