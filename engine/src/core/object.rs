@@ -102,103 +102,81 @@ pub enum Action {
     Kill { obj_id: Id },
 }
 
+// TODO - Revisit
 #[macro_export]
 macro_rules! define_object {
     // --- Internal Rules for parsing capability traits ---
-
     (@as_trait_impls) => {};
 
     (@as_trait_impls Stateful { $($body:tt)* } $($tail:tt)*) => {
-        fn as_stateful(&self) -> Option<&dyn Stateful> { Some(self) }
-        fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> { Some(self) }
-        define_object!(@as_trait_impls $($tail)*);
+        fn as_stateful(&self) -> Option<&dyn $crate::core::object::Stateful> { Some(self) }
+        fn as_stateful_mut(&mut self) -> Option<&mut dyn $crate::core::object::Stateful> { Some(self) }
+        $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
     (@as_trait_impls Destructible { $($body:tt)* } $($tail:tt)*) => {
-        fn as_destructible(&self) -> Option<&dyn Destructible> { Some(self) }
-        fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> { Some(self) }
-        define_object!(@as_trait_impls $($tail)*);
+        fn as_destructible(&self) -> Option<&dyn $crate::core::object::Destructible> { Some(self) }
+        fn as_destructible_mut(&mut self) -> Option<&mut dyn $crate::core::object::Destructible> { Some(self) }
+        $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
     (@as_trait_impls Movable { $($body:tt)* } $($tail:tt)*) => {
-        fn as_movable(&self) -> Option<&dyn Movable> { Some(self) }
-        fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> { Some(self) }
-        define_object!(@as_trait_impls $($tail)*);
+        fn as_movable(&self) -> Option<&dyn $crate::core::object::Movable> { Some(self) }
+        fn as_movable_mut(&mut self) -> Option<&mut dyn $crate::core::object::Movable> { Some(self) }
+        $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
-    (@trait_impls $struct:ty,) => {};
+    (@trait_impls $struct:ty, ) => {};
 
     (@trait_impls $struct:ty, Stateful { state_field: $state_field:ident } $($tail:tt)*) => {
-        impl Stateful for $struct {
-            fn state(&self) -> &State { &self.$state_field }
-            fn state_mut(&mut self) -> &mut State { &mut self.$state_field }
+        impl $crate::core::object::Stateful for $struct {
+            fn state(&self) -> &$crate::core::object::state::State { &self.$state_field }
+            fn state_mut(&mut self) -> &mut $crate::core::object::state::State { &mut self.$state_field }
         }
-        define_object!(@trait_impls $struct, $($tail)*);
+        $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
     (@trait_impls $struct:ty, Destructible { } $($tail:tt)*) => {
-        impl Destructible for $struct {}
-        define_object!(@trait_impls $struct, $($tail)*);
+        impl $crate::core::object::Destructible for $struct {}
+        $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
-    (@trait_impls $struct:ty, Movable { } $($tail:tt)*) => {
-        define_object!(@trait_impls $struct, $($tail)*);
+    (@trait_impls $struct:ty, Movable { impl { $($body:tt)* } } $($tail:tt)*) => {
+        impl $crate::core::object::Movable for $struct {
+            $($body)*
+        }
+        $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
-    // --- Public-Facing Rules ---
+    // --- Internal helper for t_cells logic ---
+    (@expand_t_cells $self_expr:expr, single($body_field:ident)) => {
+        Box::new(std::iter::once(&$self_expr.$body_field))
+    };
+    (@expand_t_cells $self_expr:expr, multi($body_field:ident)) => {
+        Box::new($self_expr.$body_field.iter())
+    };
+    (@expand_t_cells $self_expr:expr, custom($func_name:ident)) => {
+        $self_expr.$func_name()
+    };
 
-    // Rule for single t_cell
+    // --- Public-Facing Rule ---
     (
         struct $struct:ty,
-        t_cells: single($body_field:ident),
+        id_field: $id_field:ident,
+        t_cells: $kind:ident($($args:tt)*),
         capabilities: { $($capabilities:tt)* }
     ) => {
-        impl Object for $struct {
-            fn id(&self) -> Id { self.id }
-            fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
-                Box::new(std::iter::once(&self.$body_field))
+        impl $crate::core::object::Object for $struct {
+            fn id(&self) -> $crate::core::global::Id { self.$id_field }
+            fn t_cells(&self) -> Box<dyn Iterator<Item = &$crate::core::object::t_cell::TCell> + '_> {
+                $crate::define_object!(@expand_t_cells self, $kind($($args)*))
             }
             fn as_any(&self) -> &dyn std::any::Any { self }
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
-            define_object!(@as_trait_impls $($capabilities)*);
-        }
-        define_object!(@trait_impls $struct, $($capabilities)*);
-    };
 
-    // Rule for multiple t_cells
-    (
-        struct $struct:ty,
-        t_cells: multi($body_field:ident),
-        capabilities: { $($capabilities:tt)* }
-    ) => {
-        impl Object for $struct {
-            fn id(&self) -> Id { self.id }
-            fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
-                Box::new(self.$body_field.iter())
-            }
-            fn as_any(&self) -> &dyn std::any::Any { self }
-            fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
-            define_object!(@as_trait_impls $($capabilities)*);
+            $crate::define_object!(@as_trait_impls $($capabilities)*);
         }
-        define_object!(@trait_impls $struct, $($capabilities)*);
-    };
-    
-    // Rule for objects with custom t_cells logic
-    (
-        struct $struct:ty,
-        t_cells: custom |$self_ident:ident| { $($t_cells_body:tt)* },
-        capabilities: { $($capabilities:tt)* }
-    ) => {
-        impl Object for $struct {
-            fn id(&self) -> Id { self.id }
-            fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
-                let $self_ident = self;
-                Box::new($($t_cells_body)*)
-            }
-            fn as_any(&self) -> &dyn std::any::Any { self }
-            fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
-            define_object!(@as_trait_impls $($capabilities)*);
-        }
-        define_object!(@trait_impls $struct, $($capabilities)*);
+
+        $crate::define_object!(@trait_impls $struct, $($capabilities)*);
     };
 }

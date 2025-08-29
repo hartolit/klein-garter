@@ -97,6 +97,7 @@ impl Food {
 
 define_object! {
     struct Food,
+    id_field: id,
     t_cells: single(body),
     capabilities: {
         Stateful { state_field: state }

@@ -91,6 +91,7 @@ impl Bomb {
 
 define_object! {
     struct Bomb,
+    id_field: id,
     t_cells: single(body),
     capabilities: {
         Stateful { state_field: state }

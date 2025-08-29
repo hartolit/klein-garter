@@ -1,19 +1,10 @@
 pub mod animation;
 
 use crossterm::style::Color;
-use engine::define_object;
 use std::hash::Hash;
-use std::{any::Any, collections::VecDeque};
+use std::{collections::VecDeque};
 
-use ::engine::core::{
-    global::{Id, IdCounter, Position},
-    grid::cell::{CellRef, Kind},
-    object::{
-        Action, Destructible, Movable, Object, Occupant, Stateful,
-        state::{State, StateChange},
-        t_cell::{Glyph, TCell},
-    },
-};
+use engine::prelude::*;
 
 use super::game_object::{BodySegment, Orientation, ResizeState};
 use animation::{Effect, EffectStyle, EffectZone};
@@ -405,82 +396,86 @@ impl Snake {
         }
         self.effect = Some(new_effect);
     }
+
+    pub fn get_t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_> {
+        Box::new(
+            self.head
+                .iter()
+                .chain(self.body.iter().flat_map(|segment| segment.t_cells.iter())),
+        )
+    }
 }
 
 define_object! {
     struct Snake,
-    t_cells: custom |s| {
-        s.head
-            .iter()
-            .chain(s.body.iter().flat_map(|segment| segment.t_cells.iter()))
-    },
+    id_field: id,
+    t_cells: custom(get_t_cells),
     capabilities: {
         Stateful { state_field: state }
         Destructible {}
-        Movable {}
-    }
-}
+        Movable {
+            impl {
+                fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
+                    let (dx, dy) = self.direction.get_move();
 
+                    Box::new(self.head.iter().map(move |t_cell| Position {
+                        x: (t_cell.pos.x as i16 + dx) as u16,
+                        y: (t_cell.pos.y as i16 + dy) as u16,
+                    }))
+                }
 
-impl Movable for Snake {
-    fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
-        let (dx, dy) = self.direction.get_move();
+                fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action> {
+                    let actions: Vec<Action> = Vec::new();
+                    self.state.changes.clear();
+                    if !self.is_dead {
+                        return actions;
+                    }
 
-        Box::new(self.head.iter().map(move |t_cell| Position {
-            x: (t_cell.pos.x as i16 + dx) as u16,
-            y: (t_cell.pos.y as i16 + dy) as u16,
-        }))
-    }
+                    let mut new_effect: Option<Effect> = None;
 
-    fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action> {
-        let actions: Vec<Action> = Vec::new();
-        self.state.changes.clear();
-        if !self.is_dead {
-            return actions;
-        }
+                    for hit in probe {
+                        if let Kind::Border | Kind::Lava = hit.cell.kind {
+                            self.is_dead = false;
+                            new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
+                        }
 
-        let mut new_effect: Option<Effect> = None;
+                        // let hit_object = match game_objects.get(&hit.cell.occ_by.obj_id) {
+                        //     Some(object) => object,
+                        //     None => continue,
+                        // };
 
-        for hit in probe {
-            if let Kind::Border | Kind::Lava = hit.cell.kind {
-                self.is_dead = false;
-                new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
+                        // if let Some(consumable) = hit_object.as_consumable() {
+                        //     self.meals += consumable.get_meal();
+                        //     let change = consumable.on_consumed(hit.cell.occ_by.element_id, hit.pos, self.id);
+                        //     new_effect = Some(Effect::new(
+                        //         2,
+                        //         EffectStyle::Grow,
+                        //         Some(self.head_size.size() + 2),
+                        //         EffectZone::All,
+                        //     ));
+                        //     self.state_manager.upsert_change(change);
+                        // }
+
+                        // if let Some(damaging) = hit_object.as_damaging() {
+                        //     self.meals += damaging.get_damage();
+                        //     new_effect = Some(Effect::new(2, EffectStyle::Damage, None, EffectZone::All));
+                        // }
+
+                        // if let Some(_) = hit_object.get::<Snake>() {
+                        //     self.is_dead = false;
+                        // }
+                    }
+
+                    self.slither();
+                    if let Some(effect) = new_effect {
+                        self.apply_effect(effect);
+                    }
+
+                    self.tick_effect();
+
+                    actions
+                }
             }
-
-            // let hit_object = match game_objects.get(&hit.cell.occ_by.obj_id) {
-            //     Some(object) => object,
-            //     None => continue,
-            // };
-
-            // if let Some(consumable) = hit_object.as_consumable() {
-            //     self.meals += consumable.get_meal();
-            //     let change = consumable.on_consumed(hit.cell.occ_by.element_id, hit.pos, self.id);
-            //     new_effect = Some(Effect::new(
-            //         2,
-            //         EffectStyle::Grow,
-            //         Some(self.head_size.size() + 2),
-            //         EffectZone::All,
-            //     ));
-            //     self.state_manager.upsert_change(change);
-            // }
-
-            // if let Some(damaging) = hit_object.as_damaging() {
-            //     self.meals += damaging.get_damage();
-            //     new_effect = Some(Effect::new(2, EffectStyle::Damage, None, EffectZone::All));
-            // }
-
-            // if let Some(_) = hit_object.get::<Snake>() {
-            //     self.is_dead = false;
-            // }
         }
-
-        self.slither();
-        if let Some(effect) = new_effect {
-            self.apply_effect(effect);
-        }
-
-        self.tick_effect();
-
-        actions
     }
 }
