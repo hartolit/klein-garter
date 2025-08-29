@@ -15,7 +15,6 @@ use snake::{Direction, Snake};
 use std::collections::HashMap;
 use std::time::Duration;
 
-// A unique key for our game stage
 const GAME_STAGE_KEY: &str = "game";
 
 struct GameLogic {
@@ -109,6 +108,7 @@ impl Logic<String> for GameLogic {
 fn main() {
     let mut manager: RuntimeManager<String> = RuntimeManager::new(Duration::from_millis(150));
 
+    // TODO - Make spatial grid attachable :)
     let grid = SpatialGrid::new(100, 50, 3, Kind::Ground);
     let game_logic = Box::new(GameLogic::new());
     let game_stage = Stage::new(game_logic, grid);
