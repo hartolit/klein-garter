@@ -127,6 +127,7 @@ impl Logic<String> for GameLogic {
                                 KeyCode::Char('q') => snake.resize_head(snake.head_size.native().saturating_sub(1)),
                                 KeyCode::Char('e') => snake.resize_head(snake.head_size.native().saturating_add(1)),
                                 KeyCode::Char('½') => println!("                                                                        Objects: {}", scene.objects.len()),
+                                KeyCode::Char('r') => self.skip = false,
                                 KeyCode::Tab => {
                                     let _ = scene.attach_object(|id| {
                                         let x = self.counter % 100;
