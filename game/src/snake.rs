@@ -33,7 +33,7 @@ impl Direction {
 pub struct Snake {
     id: Id,
     id_counter: IdCounter, // For t_cell ids (internal)
-    head_size: ResizeState,
+    pub head_size: ResizeState,
     effect: Option<Effect>,
     pub is_alive: bool,
     pub meals: i16,
