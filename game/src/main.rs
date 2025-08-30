@@ -22,6 +22,7 @@ struct GameLogic {
     speed: u64,
     counter: u64,
     skip: bool,
+    quit: bool,
 }
 
 impl GameLogic {
@@ -34,9 +35,10 @@ impl GameLogic {
 
         Self {
             player: Player::new(PlayerKind::Local, keys),
-            speed: 150,
+            speed: 40,
             counter: 0,
             skip: true,
+            quit: false,
         }
     }
 }
@@ -66,10 +68,11 @@ impl Logic<String> for GameLogic {
     }
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<String> {
-        self.counter += 1;
-        if self.speed > 40 {
-            self.speed -= 1;
+        if self.quit {
+            return RuntimeCommand::Kill;
         }
+
+        self.counter += 1;
 
         if let Some(snake_id) = self.player.snake {
             if let Some(object) = scene.objects.get_mut(&snake_id) {
@@ -126,15 +129,20 @@ impl Logic<String> for GameLogic {
                                 KeyCode::Char('d') => snake.direction = Direction::Right,
                                 KeyCode::Char('q') => snake.resize_head(snake.head_size.native().saturating_sub(1)),
                                 KeyCode::Char('e') => snake.resize_head(snake.head_size.native().saturating_add(1)),
-                                KeyCode::Char('½') => println!("                                                                        Objects: {}", scene.objects.len()),
+                                KeyCode::Char('t') => println!("                                                                        Objects: {}", scene.objects.len()),
                                 KeyCode::Char('r') => self.skip = false,
+                                KeyCode::Char('+') => self.speed = self.speed.saturating_add(2),
+                                KeyCode::Char('-') => self.speed = self.speed.saturating_sub(2),
+                                KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    let _ = scene.attach_object(|id| {
-                                        let x = self.counter % 100;
-                                        let y = self.counter % 40;
-                                        Box::new(Snake::new(Position::new(x as u16, y as u16), id, (1) as usize))
-                                    });
-                                }
+                                    for i in 0..20 {
+                                        let x = (self.counter + i) % scene.spatial_grid.game_width as u64;
+                                        let y = (self.counter + i) % scene.spatial_grid.game_height as u64;
+                                        let _ = scene.attach_object(|id| {
+                                            Box::new(Snake::new(Position::new(x as u16, y as u16), id, (1) as usize))
+                                        });
+                                    }
+                                },
                                 _ => {}
                             }
                         }
