@@ -7,16 +7,18 @@ pub mod grid;
 pub mod object;
 pub mod renderer;
 pub mod scene;
+pub mod event;
 
-use object::Action;
 use renderer::Renderer;
 use scene::{ObjectIndex, Scene};
 
+use crate::core::event::EventManager;
 use crate::core::grid::SpatialGrid;
 
 pub struct Stage<K: Eq + Hash + Clone> {
     logic: Box<dyn Logic<K>>,
     scene: Box<Scene>,
+    event_manager: EventManager,
 }
 
 impl<K: Eq + Hash + Clone> Stage<K> {
@@ -24,6 +26,7 @@ impl<K: Eq + Hash + Clone> Stage<K> {
         Self {
             logic,
             scene: Box::new(Scene::new(grid)),
+            event_manager: EventManager::new(),
         }
     }
 
@@ -36,20 +39,9 @@ impl<K: Eq + Hash + Clone> Stage<K> {
         let old_logic = std::mem::replace(&mut self.logic, logic);
         old_logic
     }
-
-    pub fn replace_stage(
-        &mut self,
-        logic: Box<dyn Logic<K>>,
-        scene: Box<Scene>,
-    ) -> (Box<dyn Logic<K>>, Box<Scene>) {
-        let old_logic = std::mem::replace(&mut self.logic, logic);
-        let old_scene = std::mem::replace(&mut self.scene, scene);
-        (old_logic, old_scene)
-    }
 }
 
 pub trait Logic<K: Eq + Hash + Clone> {
-    fn process_actions(&mut self, scene: &mut Scene, actions: Vec<Action>);
     fn process_input(&mut self, scene: &mut Scene);
     fn setup(&mut self, scene: &mut Scene);
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<K>;
@@ -64,10 +56,6 @@ pub trait Logic<K: Eq + Hash + Clone> {
 pub enum RuntimeCommand<K: Eq + Hash + Clone> {
     ReplaceScene(Box<Scene>),
     ReplaceLogic(Box<dyn Logic<K>>),
-    ReplaceStage {
-        scene: Box<Scene>,
-        logic: Box<dyn Logic<K>>,
-    },
     SwitchStage(K),
     SetTickRate(Duration),
     Kill,
@@ -98,9 +86,9 @@ impl<K: Eq + Hash + Clone> RuntimeManager<K> {
         self.stages.insert(key, stage);
     }
 
-    pub fn set_active_key(&mut self, key: K) {
+    pub fn set_active_stage(&mut self, key: K) {
         if !self.stages.contains_key(&key) {
-            panic!("Attempted to switch to a non-existent stage key!");
+            panic!("Attempted to set stage with a non-existent key!");
         }
         self.active_key = Some(key);
     }
@@ -119,7 +107,7 @@ impl<K: Eq + Hash + Clone> RuntimeManager<K> {
 
                 match directive {
                     ManagerDirective::Switch(new_key) => {
-                        self.set_active_key(new_key);
+                        self.set_active_stage(new_key);
                     }
                     ManagerDirective::Kill => {
                         self.runtime.renderer.kill();
@@ -202,16 +190,15 @@ impl Runtime {
 
         let mut probe_map = stage.scene.spatial_grid.probe_moves(future_moves);
 
-        let mut actions: Vec<Action> = Vec::new();
         for (id, probe) in probe_map.drain() {
             if let Some(object) = stage.scene.objects.get_mut(&id) {
                 if let Some(movable) = object.as_movable_mut() {
-                    actions.extend(movable.make_move(probe));
+                    stage.scene.event_bus.extend(movable.make_move(probe));
                 }
             }
         }
 
-        stage.logic.process_actions(&mut stage.scene, actions);
+        stage.event_manager.dispatch(&mut stage.scene);
     }
 
     fn execute_command<K: Eq + Hash + Clone>(
@@ -227,12 +214,6 @@ impl Runtime {
             RuntimeCommand::ReplaceLogic(logic) => {
                 let old_logic = stage.replace_logic(logic);
                 stage.logic.collect_old_stage(None, Some(old_logic));
-            }
-            RuntimeCommand::ReplaceStage { scene, logic } => {
-                let old_stage = stage.replace_stage(logic, scene);
-                stage
-                    .logic
-                    .collect_old_stage(Some(old_stage.1), Some(old_stage.0));
             }
             RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
             RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,

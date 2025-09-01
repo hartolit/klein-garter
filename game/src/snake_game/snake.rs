@@ -7,6 +7,7 @@ use std::{collections::VecDeque};
 use engine::prelude::*;
 
 use super::game_object::{BodySegment, Orientation, ResizeState};
+use super::events::{CollisionEvent, FoodEatenEvent};
 use animation::{Effect, EffectStyle, EffectZone};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -80,6 +81,7 @@ impl Snake {
         };
 
         snake.resize_head(size);
+
         snake
     }
 
@@ -424,56 +426,29 @@ define_object! {
                     }))
                 }
 
-                fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action> {
-                    let actions: Vec<Action> = Vec::new();
+                fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>> {
                     self.state.changes.clear();
+
+                    let mut events: Vec<Box<dyn Event>> = Vec::new();
+                    
                     if !self.is_alive {
-                        return actions;
+                        return events;
                     }
 
-                    let mut new_effect: Option<Effect> = None;
-
                     for hit in probe {
-                        if let Kind::Border | Kind::Lava = hit.cell.kind {
-                            //self.is_alive = false;
-                            new_effect = Some(Effect::new(1, EffectStyle::Damage, None, EffectZone::All))
+                        if let Some(occupant) = hit.cell.occ_by {
+                            let event = CollisionEvent {
+                                actor: self.id,
+                                target: occupant.obj_id,
+                                pos: hit.pos,
+                            };   
+                            events.push(Box::new(event));
                         }
-
-                        // let hit_object = match game_objects.get(&hit.cell.occ_by.obj_id) {
-                        //     Some(object) => object,
-                        //     None => continue,
-                        // };
-
-                        // if let Some(consumable) = hit_object.as_consumable() {
-                        //     self.meals += consumable.get_meal();
-                        //     let change = consumable.on_consumed(hit.cell.occ_by.element_id, hit.pos, self.id);
-                        //     new_effect = Some(Effect::new(
-                        //         2,
-                        //         EffectStyle::Grow,
-                        //         Some(self.head_size.size() + 2),
-                        //         EffectZone::All,
-                        //     ));
-                        //     self.state_manager.upsert_change(change);
-                        // }
-
-                        // if let Some(damaging) = hit_object.as_damaging() {
-                        //     self.meals += damaging.get_damage();
-                        //     new_effect = Some(Effect::new(2, EffectStyle::Damage, None, EffectZone::All));
-                        // }
-
-                        // if let Some(_) = hit_object.get::<Snake>() {
-                        //     self.is_dead = false;
-                        // }
                     }
 
                     self.slither();
-                    if let Some(effect) = new_effect {
-                        self.apply_effect(effect);
-                    }
 
-                    self.tick_effect();
-
-                    actions
+                    events
                 }
             }
         }

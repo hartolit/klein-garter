@@ -6,6 +6,7 @@ pub mod t_cell;
 
 use super::global::{Id, Position};
 use super::grid::cell::CellRef;
+use crate::core::event::Event;
 use crate::core::object::state::State;
 use state::StateChange;
 use t_cell::TCell;
@@ -53,17 +54,17 @@ pub trait Object: Debug {
     }
 }
 
-pub trait Movable {
-    fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
-    fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Action>;
-}
-
 pub trait Stateful {
     fn state_mut(&mut self) -> &mut State;
     fn state(&self) -> &State;
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
         Box::new(self.state().changes.values())
     }
+}
+
+pub trait Movable: Object + Stateful {
+    fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+    fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>>;
 }
 
 pub trait Destructible: Object + Stateful {
@@ -93,13 +94,6 @@ impl ObjectExt for dyn Object {
     fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.as_any_mut().downcast_mut::<T>()
     }
-}
-
-// TODO - Make this configurable
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Action {
-    Collision { owner: Occupant, target: Occupant },
-    Kill { obj_id: Id },
 }
 
 // TODO - Revisit

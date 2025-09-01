@@ -4,6 +4,8 @@ pub mod global_state;
 
 use global_state::GlobalState;
 
+use crate::core::event::Event;
+
 use super::global::{Id, IdCounter};
 use super::grid::SpatialGrid;
 use super::object::{Object, state::StateChange};
@@ -15,13 +17,13 @@ pub enum ObjectIndex {
     Stateful,
 }
 
-#[derive(Debug)]
 pub struct Scene {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
     pub spatial_grid: SpatialGrid,
     pub global_state: GlobalState,
+    pub event_bus: Vec<Box<dyn Event>>,
 }
 
 impl Scene {
@@ -32,6 +34,7 @@ impl Scene {
             indexes: HashMap::new(),
             spatial_grid,
             global_state: GlobalState::new(),
+            event_bus: Vec::new(),
         }
     }
 
@@ -44,7 +47,14 @@ impl Scene {
 
         self.add_indexes(&new_object);
         self.spatial_grid.add_object(&new_object);
+
+        // First draw
+        for tcell in new_object.t_cells() {
+            self.global_state.state.changes.insert(tcell.occ, StateChange::Create { new_t_cell: *tcell });
+        }
+
         self.objects.insert(new_id, new_object);
+
         new_id
     }
 
@@ -59,6 +69,10 @@ impl Scene {
                 self.remove_indexes(&object);
             }
         }
+    }
+
+    pub fn push_event<E: Event>(&mut self, event: E) {
+        self.event_bus.push(Box::new(event));
     }
 
     pub fn sync(&mut self) {

@@ -1,9 +1,7 @@
-use std::iter;
-
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Destructible, Object, Occupant, Stateful,
+        Occupant,
         t_cell::{Glyph, TCell},
     },
 };
@@ -78,10 +76,6 @@ impl Food {
             },
             state: State::new(),
         }
-    }
-
-    pub fn replace_meal(&mut self, meals: i16) {
-        self.meal = meals;
     }
 
     pub fn rng_food(obj_id: Id, pos: Position) -> Self {
