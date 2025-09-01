@@ -437,12 +437,14 @@ define_object! {
 
                     for hit in probe {
                         if let Some(occupant) = hit.cell.occ_by {
-                            let event = CollisionEvent {
-                                actor: self.id,
-                                target: occupant.obj_id,
-                                pos: hit.pos,
-                            };
-                            events.push(Box::new(event));
+                            if occupant.obj_id != self.id {
+                                let event = CollisionEvent {
+                                    actor: self.id,
+                                    target: occupant.obj_id,
+                                    pos: hit.pos,
+                                };
+                                events.push(Box::new(event));
+                            }
                         }
 
                         if let Kind::Border = hit.cell.kind {

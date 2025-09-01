@@ -80,46 +80,49 @@ impl Logic<StageKey> for GameLogic {
     }
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
-        if self.quit {
+    if self.quit {
+        return RuntimeCommand::Kill;
+    }
+
+    self.counter += 1;
+
+    if let Some(snake_id) = self.player.snake {
+        if let None = scene.objects.get_mut(&snake_id) {
             return RuntimeCommand::Kill;
         }
+    }
 
-        self.counter += 1;
+    let mut rng = rand::rng();
+    if !self.skip {
+        let player_snake_id = self.player.snake;
 
-        if let Some(snake_id) = self.player.snake {
-            if let None = scene.objects.get_mut(&snake_id) {
-                return RuntimeCommand::Kill;
+        for (id, object) in scene.objects.iter_mut() {
+            if Some(*id) == player_snake_id {
+                continue;
             }
-        }
 
-        let mut rng = rand::rng();
-        if !self.skip {
-            for i in 1..scene.objects.len() {
-                let test_id = Id::new(i as u64);
-                if let Some(object) = scene.objects.get_mut(&test_id) {
-                    if let Some(snake) = object.get_mut::<Snake>() {
-                        let rnd_dir = rng.random_range(0..4);
+            if let Some(snake) = object.get_mut::<Snake>() {
+                let rnd_dir = rng.random_range(0..4);
 
-                        match rnd_dir {
-                            0 => snake.direction = Direction::Up,
-                            1 => snake.direction = Direction::Left,
-                            2 => snake.direction = Direction::Down,
-                            _ => snake.direction = Direction::Right,
-                        }
-                    }
+                match rnd_dir {
+                    0 => snake.direction = Direction::Up,
+                    1 => snake.direction = Direction::Left,
+                    2 => snake.direction = Direction::Down,
+                    _ => snake.direction = Direction::Right,
                 }
             }
         }
-
-        let random_counter = rng.random_range(1..10);
-
-        if self.counter % random_counter == 0 {
-            self.skip = false;
-        } else {
-            self.skip = true;
-        }
-        RuntimeCommand::SetTickRate(Duration::from_millis(self.speed))
     }
+
+    let random_counter = rng.random_range(1..10);
+
+    if self.counter % random_counter == 0 {
+        self.skip = false;
+    } else {
+        self.skip = true;
+    }
+    RuntimeCommand::SetTickRate(Duration::from_millis(self.speed))
+}
 
     fn process_input(&mut self, scene: &mut Scene) {
         if event::poll(Duration::from_millis(0)).unwrap() {

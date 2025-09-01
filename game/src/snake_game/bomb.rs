@@ -5,7 +5,7 @@ use rand::Rng;
 use ::engine::core::{
     global::{Id, Position},
     object::{
-        Destructible, Object, Occupant, Stateful,
+        Object, Occupant,
         t_cell::{Glyph, TCell},
     },
 };
@@ -94,8 +94,6 @@ define_object! {
     id_field: id,
     t_cells: single(body),
     capabilities: {
-        Stateful { state_field: state }
-        Destructible {}
     }
 }
 

@@ -15,7 +15,7 @@ pub enum StageKey {
 
 
 fn main() {
-    let mut manager: RuntimeManager<StageKey> = RuntimeManager::new(Duration::from_millis(0));
+    let mut manager: RuntimeManager<StageKey> = RuntimeManager::new(Duration::from_millis(40));
 
     // TODO - Make spatial grid attachable :)
     let grid = SpatialGrid::new(100, 40, 1, Kind::Ground);
