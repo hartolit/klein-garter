@@ -76,8 +76,6 @@ impl Scene {
     }
 
     pub fn sync(&mut self) {
-        self.global_state.state.changes.clear();
-
         let stateful_ids: Vec<Id> = self
             .indexes
             .get(&ObjectIndex::Stateful)

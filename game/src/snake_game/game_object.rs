@@ -15,14 +15,14 @@ pub enum ResizeState {
 }
 
 impl ResizeState {
-    pub fn size(&self) -> usize {
+    pub fn current_size(&self) -> usize {
         match self {
             ResizeState::Normal { size } => *size,
             ResizeState::Brief { size, .. } => *size,
         }
     }
 
-    pub fn native(&self) -> usize {
+    pub fn native_size(&self) -> usize {
         match self {
             ResizeState::Normal { size } => *size,
             ResizeState::Brief { native_size, .. } => *native_size,

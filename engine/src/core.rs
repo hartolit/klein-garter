@@ -12,13 +12,11 @@ pub mod event;
 use renderer::Renderer;
 use scene::{ObjectIndex, Scene};
 
-use crate::core::event::EventManager;
 use crate::core::grid::SpatialGrid;
 
 pub struct Stage<K: Eq + Hash + Clone> {
     logic: Box<dyn Logic<K>>,
     scene: Box<Scene>,
-    event_manager: EventManager,
 }
 
 impl<K: Eq + Hash + Clone> Stage<K> {
@@ -26,7 +24,6 @@ impl<K: Eq + Hash + Clone> Stage<K> {
         Self {
             logic,
             scene: Box::new(Scene::new(grid)),
-            event_manager: EventManager::new(),
         }
     }
 
@@ -42,6 +39,7 @@ impl<K: Eq + Hash + Clone> Stage<K> {
 }
 
 pub trait Logic<K: Eq + Hash + Clone> {
+    fn process_events(&mut self, scene: &mut Scene);
     fn process_input(&mut self, scene: &mut Scene);
     fn setup(&mut self, scene: &mut Scene);
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<K>;
@@ -198,7 +196,7 @@ impl Runtime {
             }
         }
 
-        stage.event_manager.dispatch(&mut stage.scene);
+        stage.logic.process_events(&mut stage.scene);
     }
 
     fn execute_command<K: Eq + Hash + Clone>(

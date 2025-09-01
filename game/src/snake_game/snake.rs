@@ -7,8 +7,8 @@ use std::{collections::VecDeque};
 use engine::prelude::*;
 
 use super::game_object::{BodySegment, Orientation, ResizeState};
-use super::events::{CollisionEvent, FoodEatenEvent};
-use animation::{Effect, EffectStyle, EffectZone};
+use super::events::{CollisionEvent, DeathEvent};
+use animation::{Effect};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Direction {
@@ -67,7 +67,7 @@ impl Snake {
             head_size: ResizeState::Normal { size: 1 },
             effect: None,
             is_alive: true,
-            meals: 10,
+            meals: 30,
             head: Vec::from([TCell::new(
                 Occupant::new(obj_id, first_id),
                 head_style,
@@ -102,14 +102,14 @@ impl Snake {
     }
 
     pub fn resize_head_brief(&mut self, new_size: usize) {
-        if self.head_size.size() == new_size {
+        if self.head_size.current_size() == new_size {
             return;
         }
 
         self.set_head_size(new_size);
         self.head_size = ResizeState::Brief {
             size: new_size,
-            native_size: self.head_size.native(),
+            native_size: self.head_size.native_size(),
         };
     }
 
@@ -390,7 +390,7 @@ impl Snake {
         }
     }
 
-    fn apply_effect(&mut self, new_effect: Effect) {
+    pub fn apply_effect(&mut self, new_effect: Effect) {
         if let Some(size) = new_effect.action_size {
             self.resize_head_brief(size);
         } else {
@@ -441,12 +441,22 @@ define_object! {
                                 actor: self.id,
                                 target: occupant.obj_id,
                                 pos: hit.pos,
-                            };   
+                            };
+                            events.push(Box::new(event));
+                        }
+
+                        if let Kind::Border = hit.cell.kind {
+                            self.is_alive = false;
+                            let event = DeathEvent {
+                                actor: self.id,
+                                pos: hit.pos,
+                            };
                             events.push(Box::new(event));
                         }
                     }
 
                     self.slither();
+                    self.tick_effect();
 
                     events
                 }

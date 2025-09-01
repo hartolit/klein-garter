@@ -7,5 +7,7 @@ pub use crate::core::object::{
 };
 
 pub use crate::core::event::{EventManager, Event, EventHandler};
+pub use crate::core::scene::Scene;
+pub use crate::core::Stage;
 
 pub use crate::define_object;

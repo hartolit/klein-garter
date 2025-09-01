@@ -1,25 +1,7 @@
-use engine::prelude::{Event, Id, Position};
-use std::any::Any;
+mod collision_event;
+mod death_event;
+mod food_eaten_event;
 
-pub struct CollisionEvent {
-    pub actor: Id,
-    pub target: Id,
-    pub pos: Position,
-}
-
-impl Event for CollisionEvent {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-pub struct FoodEatenEvent {
-    pub snake_id: Id,
-    pub food_id: Id,
-}
-
-impl Event for FoodEatenEvent {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
+pub use collision_event::{CollisionEvent, CollisionHandler};
+pub use death_event::{DeathEvent, DeathHandler};
+pub use food_eaten_event::{FoodEatenEvent, FoodEatenHandler};

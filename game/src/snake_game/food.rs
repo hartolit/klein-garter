@@ -5,7 +5,7 @@ use ::engine::core::{
         t_cell::{Glyph, TCell},
     },
 };
-use engine::{core::object::state::State, define_object};
+use engine::{define_object};
 
 use crossterm::style::Color;
 use rand::Rng;
@@ -26,7 +26,6 @@ pub struct Food {
     kind: Kind,
     meal: i16,
     body: TCell,
-    state: State,
 }
 
 impl Food {
@@ -74,7 +73,6 @@ impl Food {
                 },
                 pos,
             },
-            state: State::new(),
         }
     }
 
@@ -94,8 +92,6 @@ define_object! {
     id_field: id,
     t_cells: single(body),
     capabilities: {
-        Stateful { state_field: state }
-        Destructible {}
     }
 }
 

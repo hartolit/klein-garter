@@ -9,17 +9,19 @@ mod snake;
 mod food;
 mod game_object;
 mod events;
-mod handlers;
 
 use player::{Player, PlayerKind};
+use rand::Rng;
 use snake::{Direction, Snake};
 use food::Food;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use events::{CollisionHandler, DeathHandler, FoodEatenHandler};
 use crate::StageKey;
 
 pub struct GameLogic {
+    event_manager: EventManager,
     player: Player,
     speed: u64,
     counter: u64,
@@ -29,6 +31,12 @@ pub struct GameLogic {
 
 impl GameLogic {
     pub fn new() -> Self {
+        let mut event_manager = EventManager::new();
+
+        event_manager.register(CollisionHandler);
+        event_manager.register(FoodEatenHandler);
+        event_manager.register(DeathHandler);
+
         let mut keys = HashMap::new();
         keys.insert(Direction::Up, 'w');
         keys.insert(Direction::Down, 's');
@@ -36,6 +44,7 @@ impl GameLogic {
         keys.insert(Direction::Right, 'd');
 
         Self {
+            event_manager,
             player: Player::new(PlayerKind::Local, keys),
             speed: 40,
             counter: 0,
@@ -47,9 +56,10 @@ impl GameLogic {
 
 impl Logic<StageKey> for GameLogic {
     fn setup(&mut self, scene: &mut Scene) {
+        
 
         let snake_id = scene.attach_object(|id| {
-            Box::new(Snake::new(Position::new(50, 40), id, 1))
+            Box::new(Snake::new(Position::new(50, 10), id, 1))
         });
 
         self.player.set_snake(snake_id);
@@ -77,37 +87,33 @@ impl Logic<StageKey> for GameLogic {
         self.counter += 1;
 
         if let Some(snake_id) = self.player.snake {
-            if let Some(object) = scene.objects.get_mut(&snake_id) {
-                if let Some(snake) = object.get_mut::<Snake>() {
-                    if self.counter < 20 {
-                        snake.meals += 1;
-                    }
-
-                    if !snake.is_alive {
-                        return RuntimeCommand::Kill;
-                    }
-                }
+            if let None = scene.objects.get_mut(&snake_id) {
+                return RuntimeCommand::Kill;
             }
         }
 
+        let mut rng = rand::rng();
         if !self.skip {
             for i in 1..scene.objects.len() {
                 let test_id = Id::new(i as u64);
                 if let Some(object) = scene.objects.get_mut(&test_id) {
                     if let Some(snake) = object.get_mut::<Snake>() {
-                        match self.counter % 4 {
+                        let rnd_dir = rng.random_range(0..4);
+
+                        match rnd_dir {
                             0 => snake.direction = Direction::Up,
                             1 => snake.direction = Direction::Left,
                             2 => snake.direction = Direction::Down,
-                            3 => snake.direction = Direction::Right,
-                            _ => {},
+                            _ => snake.direction = Direction::Right,
                         }
                     }
                 }
             }
         }
 
-        if self.counter % 5 == 0 {
+        let random_counter = rng.random_range(1..10);
+
+        if self.counter % random_counter == 0 {
             self.skip = false;
         } else {
             self.skip = true;
@@ -126,14 +132,14 @@ impl Logic<StageKey> for GameLogic {
                                 KeyCode::Char('s') => snake.direction = Direction::Down,
                                 KeyCode::Char('a') => snake.direction = Direction::Left,
                                 KeyCode::Char('d') => snake.direction = Direction::Right,
-                                KeyCode::Char('q') => snake.resize_head(snake.head_size.native().saturating_sub(1)),
-                                KeyCode::Char('e') => snake.resize_head(snake.head_size.native().saturating_add(1)),
+                                KeyCode::Char('q') => snake.resize_head(snake.head_size.native_size().saturating_sub(1)),
+                                KeyCode::Char('e') => snake.resize_head(snake.head_size.native_size().saturating_add(1)),
                                 KeyCode::Char('t') => println!("                                                                        Objects: {}", scene.objects.len()),
                                 KeyCode::Char('r') => self.skip = false,
                                 KeyCode::Char('+') => self.speed = self.speed.saturating_add(2),
                                 KeyCode::Char('-') => self.speed = self.speed.saturating_sub(2),
                                 KeyCode::Char('f') => {
-                                    for i in 0..100 {
+                                    for _ in 0..100 {
                                         let random_pos = scene.spatial_grid.random_empty_pos();
                                         if let Some(pos) = random_pos {
                                             scene.attach_object(|id| {
@@ -159,5 +165,9 @@ impl Logic<StageKey> for GameLogic {
                 }
             }
         }
+    }
+
+    fn process_events(&mut self, scene: &mut Scene) {
+        self.event_manager.dispatch(scene);
     }
 }
