@@ -46,7 +46,7 @@ impl GameLogic {
         Self {
             event_manager,
             player: Player::new(PlayerKind::Local, keys),
-            speed: 100,
+            speed: 40,
             counter: 0,
             skip: true,
             quit: false,
@@ -57,7 +57,11 @@ impl GameLogic {
 impl Logic<StageKey> for GameLogic {
     fn setup(&mut self, scene: &mut Scene) {
         let snake_id = scene.attach_object(|id| {
-            Box::new(Snake::new(Position::new(50, 10), id, 3))
+            Box::new({
+                let mut snake = Snake::new(Position::new(50, 10), id, 3);
+                snake.ignore_death = true;
+                snake
+            })
         });
 
         self.player.set_snake(snake_id);

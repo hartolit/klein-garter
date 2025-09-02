@@ -44,6 +44,7 @@ pub struct Snake {
     body_style: Glyph,
     state: State,
     pub direction: Direction,
+    pub ignore_death: bool,
 }
 
 impl Snake {
@@ -78,6 +79,7 @@ impl Snake {
             body_style,
             state: State::new(),
             direction: Direction::Down,
+            ignore_death: false,
         };
 
         snake.resize_head(size);
@@ -479,6 +481,10 @@ define_object! {
                     for hit in probe {
                         if let Some(occupant) = hit.cell.occ_by {
                             if occupant.obj_id == self.id {
+                                if self.ignore_death {
+                                    continue;
+                                }
+
                                 self.is_alive = false;
                                 let event = DeathEvent {
                                     actor: self.id,
@@ -497,6 +503,10 @@ define_object! {
                         }
 
                         if let Kind::Border = hit.cell.kind {
+                            if self.ignore_death {
+                                    continue;
+                            }
+
                             self.is_alive = false;
                             let event = DeathEvent {
                                 actor: self.id,

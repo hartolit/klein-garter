@@ -29,7 +29,7 @@ impl EventHandler<FoodEatenEvent> for FoodEatenHandler {
         if meals != 0 {
             if let Some(snake) = scene.objects.get_mut(&event.snake_id).and_then(|obj| obj.get_mut::<Snake>()) {
                 snake.meals += meals;
-                //snake.apply_effect(Effect::new(2, EffectStyle::Grow, Some(snake.head_size.native_size() + 2), EffectZone::All));
+                snake.apply_effect(Effect::new(3, EffectStyle::Grow, Some(snake.head_size.native_size() + 2), EffectZone::All));
             }
         }
 
