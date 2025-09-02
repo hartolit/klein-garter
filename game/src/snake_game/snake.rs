@@ -33,12 +33,12 @@ impl Direction {
 #[derive(Debug)]
 pub struct Snake {
     id: Id,
-    id_counter: IdCounter, // For t_cell ids (internal)
+    id_counter: IdCounter,          // For t_cell ids (internal)
     pub head_size: ResizeState,
     effect: Option<Effect>,
     pub is_alive: bool,
     pub meals: i16,
-    head: Vec<TCell>, // Unsorted 2d vec
+    head: Vec<TCell>,               // Unsorted 2d vec
     body: VecDeque<BodySegment>,
     head_style: Glyph,
     body_style: Glyph,
@@ -204,17 +204,20 @@ impl Snake {
 
     // TODO! - SIMPLIFY
     fn slither(&mut self) {
-        let mut min_x = u16::MAX;
-        let mut max_x = u16::MIN;
-        let mut min_y = u16::MAX;
-        let mut max_y = u16::MIN;
+        let (min_x, max_x, min_y, max_y) = {
+            let mut min_x = u16::MAX;
+            let mut max_x = u16::MIN;
+            let mut min_y = u16::MAX;
+            let mut max_y = u16::MIN;
 
-        for t_cell in &self.head {
-            min_x = min_x.min(t_cell.pos.x);
-            max_x = max_x.max(t_cell.pos.x);
-            min_y = min_y.min(t_cell.pos.y);
-            max_y = max_y.max(t_cell.pos.y);
-        }
+            for t_cell in self.head.iter() {
+                min_x = min_x.min(t_cell.pos.x);
+                max_x = max_x.max(t_cell.pos.x);
+                min_y = min_y.min(t_cell.pos.y);
+                max_y = max_y.max(t_cell.pos.y);
+            }
+            (min_x, max_x, min_y, max_y)
+        };
 
         let (dx, dy) = self.direction.get_move();
 
@@ -430,16 +433,43 @@ define_object! {
         Movable {
             impl {
                 fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
+                    if self.head.is_empty() {
+                        return Box::new(std::iter::empty());
+                    }
+
                     let (dx, dy) = self.direction.get_move();
 
-                    Box::new(self.head.iter().map(move |t_cell| Position {
+                    let (min_x, max_x, min_y, max_y) = {
+                        let mut min_x = u16::MAX;
+                        let mut max_x = u16::MIN;
+                        let mut min_y = u16::MAX;
+                        let mut max_y = u16::MIN;
+
+                        for t_cell in self.head.iter() {
+                            min_x = min_x.min(t_cell.pos.x);
+                            max_x = max_x.max(t_cell.pos.x);
+                            min_y = min_y.min(t_cell.pos.y);
+                            max_y = max_y.max(t_cell.pos.y);
+                        }
+                        (min_x, max_x, min_y, max_y)
+                    };
+
+                    // Filter for only the "leading edge" cells based on direction
+                    let leading_edge = self.head.iter().filter(move |t_cell| match self.direction {
+                        Direction::Up => t_cell.pos.y == min_y,
+                        Direction::Down => t_cell.pos.y == max_y,
+                        Direction::Left => t_cell.pos.x == min_x,
+                        Direction::Right => t_cell.pos.x == max_x,
+                    });
+
+                    // Predict the next position for only those leading cells
+                    Box::new(leading_edge.map(move |t_cell| Position {
                         x: t_cell.pos.x.saturating_add_signed(dx),
                         y: t_cell.pos.y.saturating_add_signed(dy),
                     }))
                 }
 
                 fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>> {
-                    self.state.changes.clear();
                     let mut events: Vec<Box<dyn Event>> = Vec::new();
 
                     if !self.is_alive {
@@ -449,13 +479,13 @@ define_object! {
                     for hit in probe {
                         if let Some(occupant) = hit.cell.occ_by {
                             if occupant.obj_id == self.id {
-                                // self.is_alive = false;
-                                // let event = DeathEvent {
-                                //     actor: self.id,
-                                //     pos: hit.pos,
-                                // };
-                                // events.push(Box::new(event));
-                                // return events;
+                                self.is_alive = false;
+                                let event = DeathEvent {
+                                    actor: self.id,
+                                    pos: hit.pos,
+                                };
+                                events.push(Box::new(event));
+                                return events;
                             } else {
                                 let event = CollisionEvent {
                                     actor: self.id,

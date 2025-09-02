@@ -46,7 +46,7 @@ impl GameLogic {
         Self {
             event_manager,
             player: Player::new(PlayerKind::Local, keys),
-            speed: 40,
+            speed: 100,
             counter: 0,
             skip: true,
             quit: false,
@@ -56,10 +56,8 @@ impl GameLogic {
 
 impl Logic<StageKey> for GameLogic {
     fn setup(&mut self, scene: &mut Scene) {
-        
-
         let snake_id = scene.attach_object(|id| {
-            Box::new(Snake::new(Position::new(50, 10), id, 1))
+            Box::new(Snake::new(Position::new(50, 10), id, 3))
         });
 
         self.player.set_snake(snake_id);
@@ -135,8 +133,8 @@ impl Logic<StageKey> for GameLogic {
                                 KeyCode::Char('s') => snake.direction = Direction::Down,
                                 KeyCode::Char('a') => snake.direction = Direction::Left,
                                 KeyCode::Char('d') => snake.direction = Direction::Right,
-                                KeyCode::Char('q') => snake.resize_head(snake.head_size.native_size().saturating_sub(1)),
-                                KeyCode::Char('e') => snake.resize_head(snake.head_size.native_size().saturating_add(1)),
+                                KeyCode::Char('q') => snake.resize_head(snake.head_size.native_size().saturating_sub(2)),
+                                KeyCode::Char('e') => snake.resize_head(snake.head_size.native_size().saturating_add(2)),
                                 KeyCode::Char('t') => println!("                                                                        Objects: {}", scene.objects.len()),
                                 KeyCode::Char('r') => self.skip = false,
                                 KeyCode::Char('+') => self.speed = self.speed.saturating_add(2),

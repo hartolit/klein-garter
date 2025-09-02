@@ -38,6 +38,16 @@ impl Scene {
         }
     }
 
+    // TODO - FIX
+    pub fn clear(&mut self) {
+        self.id_counter = IdCounter::new();
+        self.objects.clear();
+        self.indexes.clear();
+        self.global_state = GlobalState::new();
+        self.spatial_grid = SpatialGrid::new(self.spatial_grid.game_width, self.spatial_grid.game_width, self.spatial_grid.border, crate::prelude::Kind::Ground);
+        self.event_bus.clear();
+    }
+
     pub fn attach_object<F>(&mut self, create_fn: F) -> Id
     where
         F: FnOnce(Id) -> Box<dyn Object>,

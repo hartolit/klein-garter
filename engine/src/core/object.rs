@@ -63,6 +63,9 @@ pub trait Stateful {
 }
 
 pub trait Movable: Object + Stateful {
+    /// Detect collisions by probing an objects future positions.
+    /// If the predicted move is "non-pure" and includes itself,
+    /// the collision system will treat this overlap as a collision.
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
     fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>>;
 }

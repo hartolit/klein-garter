@@ -1,4 +1,4 @@
-use engine::core::object::t_cell::TCell;
+use engine::{core::object::t_cell::TCell, prelude::Position};
 
 pub trait Consumable {
     fn get_meal(&self) -> i16;

@@ -56,12 +56,14 @@ pub enum RuntimeCommand<K: Eq + Hash + Clone> {
     ReplaceLogic(Box<dyn Logic<K>>),
     SwitchStage(K),
     SetTickRate(Duration),
+    Reset,
     Kill,
     None,
 }
 
 enum ManagerDirective<K: Eq + Hash + Clone> {
     Switch(K),
+    Reset,
     Kill,
 }
 
@@ -106,6 +108,9 @@ impl<K: Eq + Hash + Clone> RuntimeManager<K> {
                 match directive {
                     ManagerDirective::Switch(new_key) => {
                         self.set_active_stage(new_key);
+                    }
+                    ManagerDirective::Reset => {
+                        continue;
                     }
                     ManagerDirective::Kill => {
                         self.runtime.renderer.kill();
@@ -215,6 +220,11 @@ impl Runtime {
             }
             RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
             RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
+            // TODO - FIX
+            RuntimeCommand::Reset => {
+                stage.scene.clear();
+                return Some(ManagerDirective::Reset)
+            }
             RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
             RuntimeCommand::None => {}
         }
