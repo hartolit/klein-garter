@@ -120,7 +120,6 @@ impl Snake {
         }
     }
 
-    // TODO! - SIMPLIFY
     fn set_head_size(&mut self, new_size: usize) {
         if self.head.is_empty() {
             return;
@@ -132,44 +131,62 @@ impl Snake {
             new_size
         };
 
-        let center_pos = {
-            // Calculate physical boundaries
+        // Calculates the boundaries of the head.
+        let (min_x, max_x, min_y, max_y) = {
             let mut min_x = u16::MAX;
             let mut max_x = u16::MIN;
             let mut min_y = u16::MAX;
             let mut max_y = u16::MIN;
 
-            for t_cell in self.head.iter_mut() {
+            for t_cell in self.head.iter() {
                 min_x = min_x.min(t_cell.pos.x);
                 max_x = max_x.max(t_cell.pos.x);
                 min_y = min_y.min(t_cell.pos.y);
                 max_y = max_y.max(t_cell.pos.y);
 
+                // Deletes the old head.
                 let delete = StateChange::Delete {
                     occupant: t_cell.occ,
                     init_pos: t_cell.pos,
                 };
                 self.state.upsert_change(delete);
             }
-
-            Position {
-                x: min_x + (max_x - min_x) / 2,
-                y: min_y + (max_y - min_y) / 2,
-            }
+            (min_x, max_x, min_y, max_y)
         };
 
-        let new_buttom_left = Position {
-            x: center_pos.x.saturating_sub(odd_size as u16 / 2),
-            y: center_pos.y.saturating_sub(odd_size as u16 / 2),
-        };
-
-        // Generates new t_cells
         self.head.clear();
+
+        let half_size = odd_size as u16 / 2;
+        let center_x = min_x + (max_x - min_x) / 2;
+        let center_y = min_y + (max_y - min_y) / 2;
+
+        // Determines the top-left corner of the new head based on the snake's direction.
+        // This anchors the resize to the "back" of the head, preventing an overlap with the body.
+        let top_left = match self.direction {
+            Direction::Up => Position {
+                x: center_x.saturating_sub(half_size),
+                y: max_y.saturating_sub(odd_size as u16 - 1),
+            },
+            Direction::Down => Position {
+                x: center_x.saturating_sub(half_size),
+                y: min_y,
+            },
+            Direction::Left => Position {
+                x: max_x.saturating_sub(odd_size as u16 - 1),
+                y: center_y.saturating_sub(half_size),
+            },
+            Direction::Right => Position {
+                x: min_x,
+                y: center_y.saturating_sub(half_size),
+            },
+        };
+
+        // Generates the new head
         for row in 0..odd_size {
             for col in 0..odd_size {
                 let curr_pos = Position {
-                    x: new_buttom_left.x + col as u16,
-                    y: new_buttom_left.y.saturating_sub(row as u16),
+                    x: top_left.x + col as u16,
+                    y: top_left.y + row as u16,
                 };
 
                 let t_cell = TCell::new(
@@ -184,11 +201,6 @@ impl Snake {
             }
         }
     }
-
-    // TODO - CHANGE THIS
-    // fn get_resized_body_part(&mut self, new_size: usize) -> Option<Vec<TCell>> {
-    //     self.set_head_size(new_size)
-    // }
 
     // TODO! - SIMPLIFY
     fn slither(&mut self) {
@@ -428,16 +440,23 @@ define_object! {
 
                 fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>> {
                     self.state.changes.clear();
-
                     let mut events: Vec<Box<dyn Event>> = Vec::new();
-                    
+
                     if !self.is_alive {
                         return events;
                     }
 
                     for hit in probe {
                         if let Some(occupant) = hit.cell.occ_by {
-                            if occupant.obj_id != self.id {
+                            if occupant.obj_id == self.id {
+                                // self.is_alive = false;
+                                // let event = DeathEvent {
+                                //     actor: self.id,
+                                //     pos: hit.pos,
+                                // };
+                                // events.push(Box::new(event));
+                                // return events;
+                            } else {
                                 let event = CollisionEvent {
                                     actor: self.id,
                                     target: occupant.obj_id,
@@ -454,6 +473,7 @@ define_object! {
                                 pos: hit.pos,
                             };
                             events.push(Box::new(event));
+                            return events;
                         }
                     }
 
