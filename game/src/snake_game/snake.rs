@@ -133,28 +133,22 @@ impl Snake {
             new_size
         };
 
-        // Calculates the boundaries of the head.
-        let (min_x, max_x, min_y, max_y) = {
-            let mut min_x = u16::MAX;
-            let mut max_x = u16::MIN;
-            let mut min_y = u16::MAX;
-            let mut max_y = u16::MIN;
-
-            for t_cell in self.head.iter() {
-                min_x = min_x.min(t_cell.pos.x);
-                max_x = max_x.max(t_cell.pos.x);
-                min_y = min_y.min(t_cell.pos.y);
-                max_y = max_y.max(t_cell.pos.y);
-
-                // Deletes the old head.
-                let delete = StateChange::Delete {
-                    occupant: t_cell.occ,
-                    init_pos: t_cell.pos,
-                };
-                self.state.upsert_change(delete);
-            }
-            (min_x, max_x, min_y, max_y)
-        };
+        let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
+        (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+        |(min_x, max_x, min_y, max_y), t_cell| {
+            // Delete old head state
+            let delete = StateChange::Delete {
+                occupant: t_cell.occ,
+                init_pos: t_cell.pos,
+            };
+            self.state.upsert_change(delete);
+            (
+                min_x.min(t_cell.pos.x),
+                max_x.max(t_cell.pos.x),
+                min_y.min(t_cell.pos.y),
+                max_y.max(t_cell.pos.y),
+            )
+        });
 
         self.head.clear();
 
@@ -204,188 +198,136 @@ impl Snake {
         }
     }
 
-    // TODO! - SIMPLIFY
     fn slither(&mut self) {
-        let (min_x, max_x, min_y, max_y) = {
-            let mut min_x = u16::MAX;
-            let mut max_x = u16::MIN;
-            let mut min_y = u16::MAX;
-            let mut max_y = u16::MIN;
-
-            for t_cell in self.head.iter() {
-                min_x = min_x.min(t_cell.pos.x);
-                max_x = max_x.max(t_cell.pos.x);
-                min_y = min_y.min(t_cell.pos.y);
-                max_y = max_y.max(t_cell.pos.y);
-            }
-            (min_x, max_x, min_y, max_y)
-        };
-
+        let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
+        (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+        |(min_x, max_x, min_y, max_y), t_cell| {
+            (
+                min_x.min(t_cell.pos.x),
+                max_x.max(t_cell.pos.x),
+                min_y.min(t_cell.pos.y),
+                max_y.max(t_cell.pos.y),
+            )
+        });
+        
         let (dx, dy) = self.direction.get_move();
 
-        let orientation: Orientation;
-        let mut new_body: Vec<TCell> = Vec::new();
-
-        // TODO - use drain_filter when stable
-        // shed_slice = self.head.drain_filter(|e| e.pos.x == max_x).collect();
-        match self.direction {
+        let mut new_body_cells: Vec<TCell> = Vec::new();
+        
+        let (new_head_positions, orientation) = match self.direction {
             Direction::Up => {
-                self.head.retain(|e| {
-                    if e.pos.y == max_y {
-                        new_body.push(*e);
-                        false
-                    } else {
-                        true
+                self.head.retain(|cell| {
+                    if cell.pos.y == max_y {
+                        new_body_cells.push(*cell);
+                        return false;
                     }
+                    true
                 });
 
-                let new_pos_y = min_y.saturating_add_signed(dy);
                 let head_width = (max_x - min_x) + 1;
-
-                for i in 0..head_width {
-                    let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_t_cell = TCell::new(
-                        Occupant::new(self.id, self.id_counter.next()),
-                        self.head_style,
-                        Some(new_pos),
-                    );
-
-                    let create = StateChange::Create { new_t_cell };
-                    self.state.upsert_change(create);
-                    self.head.push(new_t_cell);
-                }
-
-                orientation = Orientation::Horizontal;
+                let new_y = min_y.saturating_add_signed(dy);
+                let positions = (0..head_width)
+                    .map(|i| Position::new(min_x + i, new_y))
+                    .collect::<Vec<_>>();
+                
+                (positions, Orientation::Horizontal)
             }
             Direction::Down => {
-                self.head.retain(|e| {
-                    if e.pos.y == min_y {
-                        new_body.push(*e);
-                        false
-                    } else {
-                        true
+                self.head.retain(|cell| {
+                    if cell.pos.y == min_y {
+                        new_body_cells.push(*cell);
+                        return false;
                     }
+                    true
                 });
 
-                let new_pos_y = max_y.saturating_add_signed(dy);
                 let head_width = (max_x - min_x) + 1;
+                let new_y = max_y.saturating_add_signed(dy);
+                let positions = (0..head_width)
+                    .map(|i| Position::new(min_x + i, new_y))
+                    .collect::<Vec<_>>();
 
-                for i in 0..head_width {
-                    let new_pos = Position::new(min_x + i, new_pos_y);
-                    let new_t_cell = TCell::new(
-                        Occupant::new(self.id, self.id_counter.next()),
-                        self.head_style,
-                        Some(new_pos),
-                    );
-
-                    let create = StateChange::Create { new_t_cell };
-                    self.state.upsert_change(create);
-
-                    self.head.push(new_t_cell);
-                }
-
-                orientation = Orientation::Horizontal;
+                (positions, Orientation::Horizontal)
             }
             Direction::Left => {
-                self.head.retain(|e| {
-                    if e.pos.x == max_x {
-                        new_body.push(*e);
-                        false
-                    } else {
-                        true
+                self.head.retain(|cell| {
+                    if cell.pos.x == max_x {
+                        new_body_cells.push(*cell);
+                        return false;
                     }
+                    true
                 });
-
-                let new_pos_x = min_x.saturating_add_signed(dx);
+                
                 let head_height = (max_y - min_y) + 1;
+                let new_x = min_x.saturating_add_signed(dx);
+                let positions = (0..head_height)
+                    .map(|i| Position::new(new_x, min_y + i))
+                    .collect::<Vec<_>>();
 
-                for i in 0..head_height {
-                    let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_t_cell = TCell::new(
-                        Occupant::new(self.id, self.id_counter.next()),
-                        self.head_style,
-                        Some(new_pos),
-                    );
-
-                    let create = StateChange::Create { new_t_cell };
-                    self.state.upsert_change(create);
-
-                    self.head.push(new_t_cell);
-                }
-
-                orientation = Orientation::Vertical;
+                (positions, Orientation::Vertical)
             }
             Direction::Right => {
-                self.head.retain(|e| {
-                    if e.pos.x == min_x {
-                        new_body.push(*e);
-                        false
-                    } else {
-                        true
+                self.head.retain(|cell| {
+                    if cell.pos.x == min_x {
+                        new_body_cells.push(*cell);
+                        return false;
                     }
+                    true
                 });
 
-                let new_pos_x = max_x.saturating_add_signed(dx);
                 let head_height = (max_y - min_y) + 1;
+                let new_x = max_x.saturating_add_signed(dx);
+                let positions = (0..head_height)
+                    .map(|i| Position::new(new_x, min_y + i))
+                    .collect::<Vec<_>>();
 
-                for i in 0..head_height {
-                    let new_pos = Position::new(new_pos_x, min_y + i);
-                    let new_t_cell = TCell::new(
-                        Occupant::new(self.id, self.id_counter.next()),
-                        self.head_style,
-                        Some(new_pos),
-                    );
-
-                    let create = StateChange::Create { new_t_cell };
-                    self.state.upsert_change(create);
-
-                    self.head.push(new_t_cell);
-                }
-
-                orientation = Orientation::Vertical;
+                (positions, Orientation::Vertical)
             }
-        }
+        };
 
-        for t_cell in new_body.iter_mut() {
+        let new_head_cells: Vec<TCell> = new_head_positions
+            .into_iter()
+            .map(|pos| {
+                let t_cell = TCell::new(
+                    Occupant::new(self.id, self.id_counter.next()),
+                    self.head_style,
+                    Some(pos),
+                );
+
+                // Add new head state
+                self.state.upsert_change(StateChange::Create { new_t_cell: t_cell });
+                
+                t_cell
+            })
+            .collect();
+
+        self.head.extend(new_head_cells);
+
+        for t_cell in new_body_cells.iter_mut() {
             t_cell.style = self.body_style;
-
-            let update = StateChange::Update {
+            self.state.upsert_change(StateChange::Update {
                 t_cell: *t_cell,
                 init_pos: t_cell.pos,
-            };
-            self.state.upsert_change(update);
+            });
         }
 
-        self.body
-            .push_front(BodySegment::new(orientation, new_body));
+        self.body.push_front(BodySegment::new(orientation, new_body_cells));
 
         if self.meals > 0 {
             self.meals -= 1;
-        } else if self.meals < 0 {
-            let segments_to_remove = self.meals.abs() as u16;
+        } else {
+            let segments_to_remove = if self.meals == 0 { 1 } else { self.meals.abs() as usize };
             for _ in 0..segments_to_remove {
-                if self.body.len() == 0 {
-                    self.is_alive = false;
-                    break;
-                }
                 if let Some(segment) = self.body.pop_back() {
                     for t_cell in segment.t_cells {
-                        let delete = StateChange::Delete {
+                        self.state.upsert_change(StateChange::Delete {
                             occupant: t_cell.occ,
                             init_pos: t_cell.pos,
-                        };
-                        self.state.upsert_change(delete);
+                        });
                     }
-                }
-            }
-        } else {
-            if let Some(segment) = self.body.pop_back() {
-                for t_cell in segment.t_cells {
-                    let delete = StateChange::Delete {
-                        occupant: t_cell.occ,
-                        init_pos: t_cell.pos,
-                    };
-                    self.state.upsert_change(delete);
+                } else {
+                    self.is_alive = false;
+                    break;
                 }
             }
         }
@@ -441,20 +383,16 @@ define_object! {
 
                     let (dx, dy) = self.direction.get_move();
 
-                    let (min_x, max_x, min_y, max_y) = {
-                        let mut min_x = u16::MAX;
-                        let mut max_x = u16::MIN;
-                        let mut min_y = u16::MAX;
-                        let mut max_y = u16::MIN;
-
-                        for t_cell in self.head.iter() {
-                            min_x = min_x.min(t_cell.pos.x);
-                            max_x = max_x.max(t_cell.pos.x);
-                            min_y = min_y.min(t_cell.pos.y);
-                            max_y = max_y.max(t_cell.pos.y);
-                        }
-                        (min_x, max_x, min_y, max_y)
-                    };
+                    let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
+                    (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+                    |(min_x, max_x, min_y, max_y), t_cell| {
+                        (
+                            min_x.min(t_cell.pos.x),
+                            max_x.max(t_cell.pos.x),
+                            min_y.min(t_cell.pos.y),
+                            max_y.max(t_cell.pos.y),
+                        )
+                    });
 
                     // Filter for only the "leading edge" cells based on direction
                     let leading_edge = self.head.iter().filter(move |t_cell| match self.direction {
