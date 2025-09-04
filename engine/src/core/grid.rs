@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 pub mod cell;
 
+use crate::core::object::t_cell;
+
 use super::global::{Id, Position, SlotMap};
 use super::object::{Object, Occupant};
 use cell::{Cell, CellRef, Kind};
@@ -106,8 +108,33 @@ impl SpatialGrid {
             })
     }
 
-    // TODO - Add position overwrite check
-    // !Fix - Single cell overlapping
+    // pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
+    //     for t_cell in object.t_cells() {
+    //         if let None = self.get_cell(&t_cell.pos) {
+    //             return false
+    //         }
+    //     }
+    //     true
+    // }
+
+    pub fn check_object_placement(&mut self, object: &Box<dyn Object>, objects: &HashMap<Id, Box<dyn Object>>) -> bool {
+        let new_z = object.z_index();
+
+        for t_cell in object.t_cells() {
+            if let Some(cell) = self.get_cell(&t_cell.pos) {
+                if let Some(existing_occupant) = cell.occ_by {
+                    if let Some(existing_object) = objects.get(&existing_occupant.obj_id) {
+                        if new_z < existing_object.z_index() {
+                            return false;
+                        }
+                    }
+                }
+            } else {
+                return false;
+            }
+        }
+        true
+    }
 
     pub fn add_object(&mut self, object: &Box<dyn Object>) {
         for t_cell in object.t_cells() {

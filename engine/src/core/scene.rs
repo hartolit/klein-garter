@@ -58,10 +58,7 @@ impl Scene {
         self.add_indexes(&new_object);
         self.spatial_grid.add_object(&new_object);
 
-        // First draw
-        for tcell in new_object.t_cells() {
-            self.global_state.state.changes.insert(tcell.occ, StateChange::Create { new_t_cell: *tcell });
-        }
+        self.global_state.state.changes.extend(new_object.create());
 
         self.objects.insert(new_id, new_object);
 
@@ -71,13 +68,12 @@ impl Scene {
     pub fn remove_object(&mut self, id: &Id) {
         if let Some(mut object) = self.objects.remove(id) {
             if let Some(destructable) = object.as_destructible_mut() {
-                destructable.kill();
                 self.global_state
                     .state
                     .changes
-                    .extend(destructable.state_mut().drain_changes());
-                self.remove_indexes(&object);
+                    .extend(destructable.kill());
             }
+            self.remove_indexes(&object);
         }
     }
 

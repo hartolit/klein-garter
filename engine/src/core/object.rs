@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 pub mod state;
@@ -23,13 +24,29 @@ impl Occupant {
     }
 }
 
+/// The `Object` trait provides core functionality for objects inside the engine.
+/// An object which only implements this trait only briefly announces its state 
+/// upon creation. After the breif state the object will remain static/silent 
+/// unless other object traits are added.
 pub trait Object: Debug {
     fn id(&self) -> Id;
     fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_>;
 
-    // fn z_index(&self) -> i16 {
-    //     0
-    // } // TODO - Add z-index for object overlapping.
+    fn z_index(&self) -> u8 {
+        0
+    }
+
+    /// Creates a brief creation state (used for a first render)
+    fn create(&self) -> HashMap<Occupant, StateChange> {
+        self.t_cells()
+            .map(|t_cell| {
+                let change = StateChange::Create {
+                    new_t_cell: *t_cell,
+                };
+                (t_cell.occ, change)
+            })
+            .collect()
+    }
 
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -54,6 +71,12 @@ pub trait Object: Debug {
     }
 }
 
+/// The `Stateful` trait is reactive.
+/// The engine collects and renders states from a stateful object.
+/// A stateful object would typically be triggered by an event through
+/// an initiator (e.g. `Movable` or `Active` trait) or logic that changes 
+/// the state of the object. If there isn't an initiator of some kind, 
+/// a stateful object will remain non-reactive.
 pub trait Stateful {
     fn state_mut(&mut self) -> &mut State;
     fn state(&self) -> &State;
@@ -62,26 +85,43 @@ pub trait Stateful {
     }
 }
 
-pub trait Movable: Object + Stateful {
+/// The `Destructible` trait creates a brief state to destroy an object.
+/// The brief state enables static objects and objects which aren't 
+/// stateful, to be removed safely.
+pub trait Destructible: Object {
+    /// Creates a brief state for destruction of an object
+    fn kill(&mut self) -> HashMap<Occupant, StateChange> {
+        self.t_cells()
+            .map(|t_cell| {
+                let change = StateChange::Delete {
+                    occupant: t_cell.occ,
+                    init_pos: t_cell.pos,
+                };
+                (t_cell.occ, change)
+            })
+            .collect()
+    }
+}
+
+/// The `Active` trait is an initiator.
+/// Objects with this trait can trigger events at each tick.
+pub trait Active: Object + Stateful {
+    fn update(&mut self);
+}
+
+/// Ties an object to a SpatialGrid
+pub trait Spatial: Object {}
+
+/// The `Movable` trait is a collision-based initiator.
+/// The engine probes the object for future moves (`predict_pos`) and sends 
+/// collisions back to the object (`make_move`). The object then initiates
+/// a move and sends back a reaction from its collisions through events.
+pub trait Movable: Object + Stateful + Spatial {
     /// Detect collisions by probing an objects future positions.
-    /// If the predicted move is "non-pure" and includes itself,
+    /// Note: If the predicted move is "non-pure" and includes itself,
     /// the collision system will treat this overlap as a collision.
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
     fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>>;
-}
-
-pub trait Destructible: Object + Stateful {
-    fn kill(&mut self) {
-        let t_cell_data: Vec<_> = self.t_cells().map(|e| (e.occ, e.pos)).collect();
-        let state_manager = self.state_mut();
-
-        for (t_cell_occ, pos) in t_cell_data {
-            state_manager.upsert_change(StateChange::Delete {
-                occupant: t_cell_occ,
-                init_pos: pos,
-            });
-        }
-    }
 }
 
 pub trait ObjectExt {
