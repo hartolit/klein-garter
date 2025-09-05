@@ -12,18 +12,16 @@ pub mod event;
 use renderer::Renderer;
 use scene::{ObjectIndex, Scene};
 
-use crate::core::grid::SpatialGrid;
-
 pub struct Stage<K: Eq + Hash + Clone> {
     logic: Box<dyn Logic<K>>,
     scene: Box<Scene>,
 }
 
 impl<K: Eq + Hash + Clone> Stage<K> {
-    pub fn new(logic: Box<dyn Logic<K>>, grid: SpatialGrid) -> Self {
+    pub fn new(logic: Box<dyn Logic<K>>) -> Self {
         Self {
             logic,
-            scene: Box::new(Scene::new(grid)),
+            scene: Box::new(Scene::new()),
         }
     }
 
@@ -161,7 +159,7 @@ impl Runtime {
                 stage.scene.sync();
                 self.renderer.partial_render(
                     &stage.scene.spatial_grid,
-                    &stage.scene.global_state.finalized,
+                    &stage.scene.global_state.filtered,
                 );
             }
             std::thread::sleep(Duration::from_millis(1));
@@ -175,31 +173,53 @@ impl Runtime {
     }
 
     fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
-        let future_moves = stage
+        // Gets events from movables (collisions)
+        if let Some(grid) = &mut stage.scene.spatial_grid {
+            let future_moves = stage
+                .scene
+                .indexes
+                .get(&ObjectIndex::Movable)
+                .into_iter()
+                .flat_map(|hash_set| hash_set.iter())
+                .filter_map(|id| {
+                    stage
+                        .scene
+                        .objects
+                        .get(id)
+                        .and_then(|obj| obj.as_movable())
+                        .map(|movable| (*id, movable))
+                })
+                .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
+
+            let mut probe_map = grid.probe_moves(future_moves);
+
+            for (id, probe) in probe_map.drain() {
+                if let Some(object) = stage.scene.objects.get_mut(&id) {
+                    if let Some(movable) = object.as_movable_mut() {
+                        stage.scene.event_bus.extend(movable.make_move(probe));
+                    }
+                }
+            }
+        }
+
+        // Gets events from active objects
+        let active_events = stage
             .scene
             .indexes
-            .get(&ObjectIndex::Movable)
+            .get(&ObjectIndex::Active)
             .into_iter()
-            .flat_map(|set| set.iter())
+            .flat_map(|hash_set| hash_set.iter())
             .filter_map(|id| {
                 stage
                     .scene
                     .objects
-                    .get(id)
-                    .and_then(|obj| obj.as_movable())
-                    .map(|movable| (*id, movable))
+                    .get_mut(id)
+                    .and_then(|obj| obj.as_active_mut())
+                    .map(|active| active.update())
             })
-            .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
+            .flatten();
 
-        let mut probe_map = stage.scene.spatial_grid.probe_moves(future_moves);
-
-        for (id, probe) in probe_map.drain() {
-            if let Some(object) = stage.scene.objects.get_mut(&id) {
-                if let Some(movable) = object.as_movable_mut() {
-                    stage.scene.event_bus.extend(movable.make_move(probe));
-                }
-            }
-        }
+        stage.scene.event_bus.extend(active_events);
 
         stage.logic.process_events(&mut stage.scene);
     }
@@ -222,7 +242,6 @@ impl Runtime {
             RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
             // TODO - FIX
             RuntimeCommand::Reset => {
-                stage.scene.clear();
                 return Some(ManagerDirective::Reset)
             }
             RuntimeCommand::Kill => return Some(ManagerDirective::Kill),

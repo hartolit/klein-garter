@@ -3,25 +3,23 @@ use crate::core::object::state::{State, StateChange};
 #[derive(Debug)]
 pub struct GlobalState {
     pub state: State,
-    pub finalized: CategorizedStates,
+    pub filtered: CategorizedStates,
 }
 
 impl GlobalState {
     pub fn new() -> Self {
         Self {
             state: State::new(),
-            finalized: CategorizedStates::new(),
+            filtered: CategorizedStates::new(),
         }
     }
 
-    pub fn finalize(&mut self) {
-        self.finalized.clear();
-
+    pub fn process(&mut self) {
         for (_, change) in self.state.changes.drain() {
             match change {
-                StateChange::Create { .. } => self.finalized.creates.push(change),
-                StateChange::Delete { .. } => self.finalized.deletes.push(change),
-                StateChange::Update { .. } => self.finalized.updates.push(change),
+                StateChange::Create { .. } => self.filtered.creates.push(change),
+                StateChange::Delete { .. } => self.filtered.deletes.push(change),
+                StateChange::Update { .. } => self.filtered.updates.push(change),
             }
         }
     }

@@ -32,7 +32,7 @@ impl Renderer {
 
     pub fn full_render(
         &mut self,
-        spatial_grid: &mut SpatialGrid,
+        grid: &Option<SpatialGrid>,
         objects: &HashMap<Id, Box<dyn Object>>,
     ) {
         let mut glyph_map: HashMap<Position, &Glyph> = HashMap::new();
@@ -42,15 +42,17 @@ impl Renderer {
             }
         }
 
-        for y in 0..spatial_grid.full_height {
-            for x in 0..spatial_grid.full_width {
+        
+
+        for y in 0..grid.full_height {
+            for x in 0..grid.full_width {
                 let pos = Position::new(x, y);
 
                 let glyph = if let Some(glyph) = glyph_map.get(&pos) {
                     *glyph
                 } else {
-                    let index = (y * spatial_grid.full_width + x) as usize;
-                    &spatial_grid.cells[index].kind.appearance()
+                    let index = (y * grid.full_width + x) as usize;
+                    &grid.cells[index].kind.appearance()
                 };
 
                 self.draw_glyph(glyph, &pos);
@@ -62,12 +64,12 @@ impl Renderer {
 
     pub fn partial_render(
         &mut self,
-        spatial_grid: &SpatialGrid,
-        finalized_state: &CategorizedStates,
+        grid: &Option<SpatialGrid>,
+        filtered_states: &CategorizedStates,
     ) {
-        for state in finalized_state.deletes.iter() {
+        for state in filtered_states.deletes.iter() {
             if let StateChange::Delete { init_pos, .. } = state {
-                if let Some(cell) = spatial_grid.get_cell(init_pos) {
+                if let Some(cell) = grid.get_cell(init_pos) {
                     let cell_glyph = cell.kind.appearance();
                     self.draw_glyph(&cell_glyph, init_pos);
                 } else {
@@ -76,13 +78,13 @@ impl Renderer {
             }
         }
 
-        for state in finalized_state.updates.iter() {
+        for state in filtered_states.updates.iter() {
             if let StateChange::Update {
                 t_cell, init_pos, ..
             } = state
             {
                 if &t_cell.pos != init_pos {
-                    if let Some(cell) = spatial_grid.get_cell(init_pos) {
+                    if let Some(cell) = grid.get_cell(init_pos) {
                         let cell_glyph = cell.kind.appearance();
                         self.draw_glyph(&cell_glyph, init_pos);
                     } else {
@@ -93,7 +95,7 @@ impl Renderer {
             }
         }
 
-        for state in finalized_state.creates.iter() {
+        for state in filtered_states.creates.iter() {
             if let StateChange::Create { new_t_cell, .. } = state {
                 self.draw_glyph(&new_t_cell.style, &new_t_cell.pos);
             }

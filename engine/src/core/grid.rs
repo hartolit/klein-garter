@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 pub mod cell;
 
-use crate::core::object::t_cell;
-
 use super::global::{Id, Position, SlotMap};
 use super::object::{Object, Occupant};
 use cell::{Cell, CellRef, Kind};

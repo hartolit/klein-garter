@@ -12,40 +12,37 @@ use super::object::{Object, state::StateChange};
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ObjectIndex {
-    Movable,
-    Destructible,
     Stateful,
+    Destructible,
+    Active,
+    Spatial,
+    Movable,
+    StatefulSpatial,
 }
 
 pub struct Scene {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
-    pub spatial_grid: SpatialGrid,
+    pub spatial_grid: Option<SpatialGrid>,
     pub global_state: GlobalState,
     pub event_bus: Vec<Box<dyn Event>>,
 }
 
 impl Scene {
-    pub fn new(spatial_grid: SpatialGrid) -> Self {
+    pub fn new() -> Self {
         Self {
             id_counter: IdCounter::new(),
             objects: HashMap::new(),
             indexes: HashMap::new(),
-            spatial_grid,
+            spatial_grid: None,
             global_state: GlobalState::new(),
             event_bus: Vec::new(),
         }
     }
 
-    // TODO - FIX
-    pub fn clear(&mut self) {
-        self.id_counter = IdCounter::new();
-        self.objects.clear();
-        self.indexes.clear();
-        self.global_state = GlobalState::new();
-        self.spatial_grid = SpatialGrid::new(self.spatial_grid.game_width, self.spatial_grid.game_width, self.spatial_grid.border, crate::prelude::Kind::Ground);
-        self.event_bus.clear();
+    pub fn attach_grid(&mut self, grid: SpatialGrid) {
+        self.spatial_grid = Some(grid);
     }
 
     pub fn attach_object<F>(&mut self, create_fn: F) -> Id
@@ -56,7 +53,12 @@ impl Scene {
         let new_object = create_fn(new_id);
 
         self.add_indexes(&new_object);
-        self.spatial_grid.add_object(&new_object);
+
+        if let Some(grid) = &mut self.spatial_grid {
+            grid.add_object(&new_object);
+        }
+
+        // TODO - Add Spatial here
 
         self.global_state.state.changes.extend(new_object.create());
 
@@ -82,54 +84,88 @@ impl Scene {
     }
 
     pub fn sync(&mut self) {
-        let stateful_ids: Vec<Id> = self
-            .indexes
-            .get(&ObjectIndex::Stateful)
-            .map(|set| set.iter().copied().collect())
-            .unwrap_or_default();
+        self.global_state.filtered.clear();
 
-        for id in stateful_ids {
-            if let Some(object) = self.objects.get_mut(&id) {
-                if let Some(stateful) = object.as_stateful_mut() {
-                    self.global_state
-                        .state
-                        .changes
-                        .extend(stateful.state_mut().drain_changes());
+        let stateful_ids = self.indexes.get(&ObjectIndex::Stateful);
+        let spatial_ids = self.indexes.get(&ObjectIndex::StatefulSpatial);
+
+        // Spatial states are processed first to protect
+        // the grid from non-spatial updates
+        if let Some(ids) = spatial_ids {
+            for id in ids {
+                if let Some(object) = self.objects.get_mut(id) {
+                    if let Some(stateful) = object.as_stateful_mut() {
+                        self.global_state
+                            .state
+                            .changes
+                            .extend(stateful.state_mut().drain_changes());
+                    }
+                }
+            }
+
+            self.global_state.process();
+            
+            if let Some(grid) = &mut self.spatial_grid {
+                for state in self.global_state.filtered.deletes.iter() {
+                    if let StateChange::Delete { occupant, init_pos } = state {
+                        grid.remove_cell_occ(*occupant, *init_pos);
+                    }
+                }
+                for state in self.global_state.filtered.updates.iter() {
+                    if let StateChange::Update { t_cell, init_pos } = state {
+                        if &t_cell.pos != init_pos {
+                            grid.remove_cell_occ(t_cell.occ, *init_pos);
+                            grid.add_cell_occ(t_cell.occ, t_cell.pos);
+                        }
+                    }
+                }
+                for state in self.global_state.filtered.creates.iter() {
+                    if let StateChange::Create { new_t_cell } = state {
+                        grid.add_cell_occ(new_t_cell.occ, new_t_cell.pos);
+                    }
                 }
             }
         }
 
-        self.global_state.finalize();
 
-        for state in self.global_state.finalized.deletes.iter() {
-            if let StateChange::Delete { occupant, init_pos } = state {
-                self.spatial_grid.remove_cell_occ(*occupant, *init_pos);
-            }
-        }
-
-        for state in self.global_state.finalized.updates.iter() {
-            if let StateChange::Update { t_cell, init_pos } = state {
-                if &t_cell.pos != init_pos {
-                    self.spatial_grid.remove_cell_occ(t_cell.occ, *init_pos);
-                    self.spatial_grid.add_cell_occ(t_cell.occ, t_cell.pos);
+        // Processes the non-spatial states
+        match (stateful_ids, spatial_ids) {
+            (Some(stateful), Some(spatial)) => {
+                for id in stateful.difference(spatial) {
+                    if let Some(object) = self.objects.get_mut(id) {
+                        if let Some(stateful) = object.as_stateful_mut() {
+                            self.global_state
+                                .state
+                                .changes
+                                .extend(stateful.state_mut().drain_changes());
+                        }
+                    }
                 }
-            }
+            },
+            (Some(stateful), None) => {
+                for id in stateful {
+                    if let Some(object) = self.objects.get_mut(id) {
+                        if let Some(stateful) = object.as_stateful_mut() {
+                            self.global_state
+                                .state
+                                .changes
+                                .extend(stateful.state_mut().drain_changes());
+                        }
+                    }
+                }
+            },
+            _ => (),
         }
 
-        for state in self.global_state.finalized.creates.iter() {
-            if let StateChange::Create { new_t_cell } = state {
-                self.spatial_grid
-                    .add_cell_occ(new_t_cell.occ, new_t_cell.pos);
-            }
-        }
+        self.global_state.process();
     }
 
     fn add_indexes(&mut self, object: &Box<dyn Object>) {
         let id = object.id();
 
-        if object.as_movable().is_some() {
+        if object.as_stateful().is_some() {
             self.indexes
-                .entry(ObjectIndex::Movable)
+                .entry(ObjectIndex::Stateful)
                 .or_default()
                 .insert(id);
         }
@@ -141,9 +177,30 @@ impl Scene {
                 .insert(id);
         }
 
-        if object.as_stateful().is_some() {
+        if object.as_active().is_some() {
             self.indexes
-                .entry(ObjectIndex::Stateful)
+                .entry(ObjectIndex::Active)
+                .or_default()
+                .insert(id);
+        }
+
+        if object.as_spatial().is_some() {
+            self.indexes
+                .entry(ObjectIndex::Spatial)
+                .or_default()
+                .insert(id);
+        }
+
+        if object.as_movable().is_some() {
+            self.indexes
+                .entry(ObjectIndex::Movable)
+                .or_default()
+                .insert(id);
+        }
+
+        if object.as_spatial().is_some() && object.as_spatial().is_some() {
+            self.indexes
+                .entry(ObjectIndex::StatefulSpatial)
                 .or_default()
                 .insert(id);
         }
@@ -152,8 +209,8 @@ impl Scene {
     fn remove_indexes(&mut self, object: &Box<dyn Object>) {
         let id = object.id();
 
-        if object.as_movable().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Movable) {
+        if object.as_stateful().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Stateful) {
                 set.remove(&id);
             }
         }
@@ -164,8 +221,26 @@ impl Scene {
             }
         }
 
-        if object.as_stateful().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Stateful) {
+        if object.as_active().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Active) {
+                set.remove(&id);
+            }
+        }
+
+        if object.as_spatial().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Spatial) {
+                set.remove(&id);
+            }
+        }
+
+        if object.as_movable().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Movable) {
+                set.remove(&id);
+            }
+        }
+
+        if object.as_stateful().is_some() && object.as_spatial().is_some() {
+            if let Some(set) = self.indexes.get_mut(&ObjectIndex::StatefulSpatial) {
                 set.remove(&id);
             }
         }

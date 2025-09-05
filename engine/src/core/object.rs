@@ -57,16 +57,28 @@ pub trait Object: Debug {
     fn as_stateful_mut(&mut self) -> Option<&mut dyn Stateful> {
         None
     }
-    fn as_movable(&self) -> Option<&dyn Movable> {
-        None
-    }
-    fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> {
-        None
-    }
     fn as_destructible(&self) -> Option<&dyn Destructible> {
         None
     }
     fn as_destructible_mut(&mut self) -> Option<&mut dyn Destructible> {
+        None
+    }
+    fn as_active(&self) -> Option<&dyn Active> {
+        None
+    }
+    fn as_active_mut(&mut self) -> Option<&mut dyn Active> {
+        None
+    }
+    fn as_spatial(&self) -> Option<&dyn Spatial> {
+        None
+    }
+    fn as_spatial_mut(&mut self) -> Option<&dyn Spatial> {
+        None
+    }
+    fn as_movable(&self) -> Option<&dyn Movable> {
+        None
+    }
+    fn as_movable_mut(&mut self) -> Option<&mut dyn Movable> {
         None
     }
 }
@@ -77,7 +89,7 @@ pub trait Object: Debug {
 /// an initiator (e.g. `Movable` or `Active` trait) or logic that changes 
 /// the state of the object. If there isn't an initiator of some kind, 
 /// a stateful object will remain non-reactive.
-pub trait Stateful {
+pub trait Stateful: Object {
     fn state_mut(&mut self) -> &mut State;
     fn state(&self) -> &State;
     fn state_changes(&self) -> Box<dyn Iterator<Item = &StateChange> + '_> {
@@ -106,7 +118,7 @@ pub trait Destructible: Object {
 /// The `Active` trait is an initiator.
 /// Objects with this trait can trigger events at each tick.
 pub trait Active: Object + Stateful {
-    fn update(&mut self);
+    fn update(&mut self) -> Vec<Box<dyn Event>>;
 }
 
 /// Ties an object to a SpatialGrid
@@ -117,10 +129,14 @@ pub trait Spatial: Object {}
 /// collisions back to the object (`make_move`). The object then initiates
 /// a move and sends back a reaction from its collisions through events.
 pub trait Movable: Object + Stateful + Spatial {
-    /// Detect collisions by probing an objects future positions.
+    /// Used to probe an objects future positions to detect collisions.
     /// Note: If the predicted move is "non-pure" and includes itself,
     /// the collision system will treat this overlap as a collision.
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+
+    // TODO - Manage object specific collisions before a move?
+    // Example a snake hits an object wall, but moves inside it 
+    // before it dies from the event... StateChange::Delete?
     fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>>;
 }
 
