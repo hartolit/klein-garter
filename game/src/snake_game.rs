@@ -144,8 +144,8 @@ impl Logic<StageKey> for GameLogic {
                                 KeyCode::Char('e') => snake.resize_head(snake.head_size.native_size().saturating_add(2)),
                                 KeyCode::Char('t') => println!("                                                                        Objects: {}", scene.objects.len()),
                                 KeyCode::Char('r') => self.skip = false,
-                                KeyCode::Char('+') => self.speed = self.speed.saturating_add(2),
-                                KeyCode::Char('-') => self.speed = self.speed.saturating_sub(2),
+                                KeyCode::Char('+') => snake.base_index = snake.base_index.saturating_add(2),
+                                KeyCode::Char('-') => snake.base_index = snake.base_index.saturating_sub(2),
                                 KeyCode::Char('f') => {
                                     for _ in 0..100 {
                                         let random_pos: Option<Position> = match &scene.spatial_grid {
@@ -164,7 +164,7 @@ impl Logic<StageKey> for GameLogic {
                                 },
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..2000 {
+                                    for i in 0..200 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;

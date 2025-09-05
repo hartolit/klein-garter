@@ -45,6 +45,7 @@ pub struct Snake {
     state: State,
     pub direction: Direction,
     pub ignore_death: bool,
+    pub base_index: u8,
 }
 
 impl Snake {
@@ -62,6 +63,8 @@ impl Snake {
         let mut id_counter = IdCounter::new();
         let first_id = id_counter.next();
 
+        let base_index = 10;
+
         let mut snake = Snake {
             id: obj_id,
             id_counter: id_counter,
@@ -73,7 +76,7 @@ impl Snake {
                 Occupant::new(obj_id, first_id),
                 head_style,
                 Some(pos),
-                15
+                base_index
             )]),
             body: VecDeque::new(),
             head_style,
@@ -81,6 +84,7 @@ impl Snake {
             state: State::new(),
             direction: Direction::Down,
             ignore_death: false,
+            base_index,
         };
 
         snake.resize_head(size);
@@ -190,7 +194,7 @@ impl Snake {
                     Occupant::new(self.id, self.id_counter.next()),
                     self.head_style,
                     Some(curr_pos),
-                    15
+                    self.base_index
                 );
                 let create = StateChange::Create { new_t_cell: t_cell };
                 self.state.upsert_change(create);
@@ -294,7 +298,7 @@ impl Snake {
                     Occupant::new(self.id, self.id_counter.next()),
                     self.head_style,
                     Some(pos),
-                    15
+                    self.base_index
                 );
 
                 // Add new head state
@@ -308,6 +312,7 @@ impl Snake {
 
         for t_cell in new_body_cells.iter_mut() {
             t_cell.style = self.body_style;
+            t_cell.z_index = self.base_index.saturating_sub(1);
             self.state.upsert_change(StateChange::Update {
                 t_cell: *t_cell,
                 init_pos: t_cell.pos,
