@@ -157,10 +157,7 @@ impl Runtime {
 
                 self.tick(stage);
                 stage.scene.sync();
-                self.renderer.partial_render(
-                    &stage.scene.spatial_grid,
-                    &stage.scene.global_state.filtered,
-                );
+                self.renderer.partial_render(&mut stage.scene);
             }
             std::thread::sleep(Duration::from_millis(1));
         }
@@ -169,7 +166,7 @@ impl Runtime {
     fn initialize<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
         stage.logic.setup(&mut stage.scene);
         self.renderer
-            .full_render(&mut stage.scene.spatial_grid, &stage.scene.objects);
+            .full_render(&mut stage.scene);
     }
 
     fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {

@@ -56,6 +56,9 @@ impl GameLogic {
 
 impl Logic<StageKey> for GameLogic {
     fn setup(&mut self, scene: &mut Scene) {
+        let grid = SpatialGrid::new(100, 40, 1, Kind::Ground);
+        scene.attach_grid(grid);
+
         let snake_id = scene.attach_object(|id| {
             Box::new({
                 let mut snake = Snake::new(Position::new(50, 10), id, 3);
@@ -145,7 +148,13 @@ impl Logic<StageKey> for GameLogic {
                                 KeyCode::Char('-') => self.speed = self.speed.saturating_sub(2),
                                 KeyCode::Char('f') => {
                                     for _ in 0..100 {
-                                        let random_pos = scene.spatial_grid.random_empty_pos();
+                                        let random_pos: Option<Position> = match &scene.spatial_grid {
+                                            Some(grid) => {
+                                                grid.random_empty_pos()
+                                            },
+                                            None => None,
+                                        };
+
                                         if let Some(pos) = random_pos {
                                             scene.attach_object(|id| {
                                                 Box::new(Food::rng_food(id, pos))
@@ -156,11 +165,21 @@ impl Logic<StageKey> for GameLogic {
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
                                     for i in 0..20 {
-                                        let x = (self.counter + i) % scene.spatial_grid.game_width as u64;
-                                        let y = (self.counter + i) % scene.spatial_grid.game_height as u64;
-                                        let _ = scene.attach_object(|id| {
-                                            Box::new(Snake::new(Position::new(x as u16, y as u16), id, (1) as usize))
-                                        });
+                                        let pos: Option<Position> = match &scene.spatial_grid {
+                                            Some(grid) => {
+                                                let x = (self.counter + i) % grid.game_width as u64;
+                                                let y = (self.counter + i) % grid.game_height as u64;
+
+                                                Some(Position::new(x as u16, y as u16))
+                                            },
+                                            None => None,
+                                        };
+
+                                        if let Some(pos) = pos {
+                                            let _ = scene.attach_object(|id| {
+                                                Box::new(Snake::new(pos, id, (1) as usize))
+                                            });
+                                        }
                                     }
                                 },
                                 _ => {}

@@ -1,5 +1,5 @@
 pub use crate::core::global::{Id, IdCounter, Position};
-pub use crate::core::grid::cell::{CellRef, Kind};
+pub use crate::core::grid::{SpatialGrid, cell::{CellRef, Kind}};
 pub use crate::core::object::{
     Destructible, Movable, Object, ObjectExt, Occupant, Stateful,
     state::{State, StateChange},

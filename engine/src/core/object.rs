@@ -32,12 +32,8 @@ pub trait Object: Debug {
     fn id(&self) -> Id;
     fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_>;
 
-    fn z_index(&self) -> u8 {
-        0
-    }
-
     /// Creates a brief creation state (used for a first render)
-    fn create(&self) -> HashMap<Occupant, StateChange> {
+    fn init(&self) -> HashMap<Occupant, StateChange> {
         self.t_cells()
             .map(|t_cell| {
                 let change = StateChange::Create {

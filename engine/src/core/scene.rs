@@ -54,13 +54,14 @@ impl Scene {
 
         self.add_indexes(&new_object);
 
-        if let Some(grid) = &mut self.spatial_grid {
-            grid.add_object(&new_object);
+        // Adds spatial objects to the grid
+        if new_object.as_spatial().is_some() {
+            if let Some(grid) = &mut self.spatial_grid {
+                grid.add_object(&new_object);
+            }
         }
 
-        // TODO - Add Spatial here
-
-        self.global_state.state.changes.extend(new_object.create());
+        self.global_state.state.changes.extend(new_object.init());
 
         self.objects.insert(new_id, new_object);
 
@@ -115,13 +116,13 @@ impl Scene {
                     if let StateChange::Update { t_cell, init_pos } = state {
                         if &t_cell.pos != init_pos {
                             grid.remove_cell_occ(t_cell.occ, *init_pos);
-                            grid.add_cell_occ(t_cell.occ, t_cell.pos);
+                            grid.add_cell_occ(t_cell);
                         }
                     }
                 }
                 for state in self.global_state.filtered.creates.iter() {
                     if let StateChange::Create { new_t_cell } = state {
-                        grid.add_cell_occ(new_t_cell.occ, new_t_cell.pos);
+                        grid.add_cell_occ(new_t_cell);
                     }
                 }
             }

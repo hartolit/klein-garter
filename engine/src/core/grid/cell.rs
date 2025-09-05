@@ -44,11 +44,12 @@ impl Kind {
 pub struct Cell {
     pub occ_by: Option<Occupant>,
     pub kind: Kind,
+    pub z_index: u8
 }
 
 impl Cell {
     pub fn new(kind: Kind) -> Self {
-        Cell { occ_by: None, kind }
+        Cell { occ_by: None, kind, z_index: 0 }
     }
 }
 

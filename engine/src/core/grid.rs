@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 pub mod cell;
 
+use crate::prelude::TCell;
+
 use super::global::{Id, Position, SlotMap};
 use super::object::{Object, Occupant};
 use cell::{Cell, CellRef, Kind};
@@ -115,17 +117,11 @@ impl SpatialGrid {
     //     true
     // }
 
-    pub fn check_object_placement(&mut self, object: &Box<dyn Object>, objects: &HashMap<Id, Box<dyn Object>>) -> bool {
-        let new_z = object.z_index();
-
+    pub fn check_object_placement(&mut self, object: &Box<dyn Object>) -> bool {
         for t_cell in object.t_cells() {
             if let Some(cell) = self.get_cell(&t_cell.pos) {
-                if let Some(existing_occupant) = cell.occ_by {
-                    if let Some(existing_object) = objects.get(&existing_occupant.obj_id) {
-                        if new_z < existing_object.z_index() {
-                            return false;
-                        }
-                    }
+                if t_cell.z_index < cell.z_index {
+                    return  false;
                 }
             } else {
                 return false;
@@ -136,7 +132,7 @@ impl SpatialGrid {
 
     pub fn add_object(&mut self, object: &Box<dyn Object>) {
         for t_cell in object.t_cells() {
-            self.add_cell_occ(t_cell.occ, t_cell.pos);
+            self.add_cell_occ(t_cell);
         }
     }
 
@@ -154,20 +150,22 @@ impl SpatialGrid {
             if let Some(cell_occ) = self.cells[global_index].occ_by {
                 if occ == cell_occ {
                     self.cells[global_index].occ_by = None;
+                    self.cells[global_index].z_index = 0;
                     self.empty_cells.insert(global_index);
                 }
             }
         }
     }
 
-    pub fn add_cell_occ(&mut self, occ: Occupant, pos: Position) {
-        if !self.is_within_game_area(&pos) {
+    pub fn add_cell_occ(&mut self, t_cell: &TCell) {
+        if !self.is_within_game_area(&t_cell.pos) {
             return;
         }
-        if let Some(global_index) = self.get_index(&pos) {
+        if let Some(global_index) = self.get_index(&t_cell.pos) {
             if self.cells[global_index].occ_by.is_none() {
                 self.empty_cells.remove(&global_index);
-                self.cells[global_index].occ_by = Some(occ);
+                self.cells[global_index].occ_by = Some(t_cell.occ);
+                self.cells[global_index].z_index = t_cell.z_index;
             }
         }
     }

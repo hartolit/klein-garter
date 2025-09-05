@@ -73,6 +73,7 @@ impl Snake {
                 Occupant::new(obj_id, first_id),
                 head_style,
                 Some(pos),
+                15
             )]),
             body: VecDeque::new(),
             head_style,
@@ -189,6 +190,7 @@ impl Snake {
                     Occupant::new(self.id, self.id_counter.next()),
                     self.head_style,
                     Some(curr_pos),
+                    15
                 );
                 let create = StateChange::Create { new_t_cell: t_cell };
                 self.state.upsert_change(create);
@@ -292,6 +294,7 @@ impl Snake {
                     Occupant::new(self.id, self.id_counter.next()),
                     self.head_style,
                     Some(pos),
+                    15
                 );
 
                 // Add new head state
