@@ -164,7 +164,7 @@ impl Logic<StageKey> for GameLogic {
                                 },
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..20 {
+                                    for i in 0..2000 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;

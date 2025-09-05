@@ -377,6 +377,7 @@ define_object! {
     capabilities: {
         Stateful { state_field: state }
         Destructible {}
+        Spatial {}
         Movable {
             impl {
                 fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
@@ -426,7 +427,7 @@ define_object! {
                                     continue;
                                 }
 
-                                self.is_alive = false;
+                                //self.is_alive = false;
                                 let event = DeathEvent {
                                     actor: self.id,
                                     pos: hit.pos,
@@ -448,7 +449,7 @@ define_object! {
                                     continue;
                             }
 
-                            self.is_alive = false;
+                            //self.is_alive = false;
                             let event = DeathEvent {
                                 actor: self.id,
                                 pos: hit.pos,

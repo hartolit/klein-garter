@@ -14,6 +14,6 @@ impl Event for DeathEvent {
 pub struct DeathHandler;
 impl EventHandler<DeathEvent> for DeathHandler {
     fn handle_event(&mut self, event: &DeathEvent, scene: &mut Scene) {
-        scene.remove_object(&event.actor);
+        //scene.remove_object(&event.actor);
     }
 }

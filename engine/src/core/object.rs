@@ -68,7 +68,7 @@ pub trait Object: Debug {
     fn as_spatial(&self) -> Option<&dyn Spatial> {
         None
     }
-    fn as_spatial_mut(&mut self) -> Option<&dyn Spatial> {
+    fn as_spatial_mut(&mut self) -> Option<&mut dyn Spatial> {
         None
     }
     fn as_movable(&self) -> Option<&dyn Movable> {
@@ -168,6 +168,18 @@ macro_rules! define_object {
         fn as_destructible_mut(&mut self) -> Option<&mut dyn $crate::core::object::Destructible> { Some(self) }
         $crate::define_object!(@as_trait_impls $($tail)*);
     };
+    
+    (@as_trait_impls Spatial { $($body:tt)* } $($tail:tt)*) => {
+        fn as_spatial(&self) -> Option<&dyn $crate::core::object::Spatial> { Some(self) }
+        fn as_spatial_mut(&mut self) -> Option<&mut dyn $crate::core::object::Spatial> { Some(self) }
+        $crate::define_object!(@as_trait_impls $($tail)*);
+    };
+
+    (@as_trait_impls Active { $($body:tt)* } $($tail:tt)*) => {
+        fn as_active(&self) -> Option<&dyn $crate::core::object::Active> { Some(self) }
+        fn as_active_mut(&mut self) -> Option<&mut dyn $crate::core::object::Active> { Some(self) }
+        $crate::define_object!(@as_trait_impls $($tail)*);
+    };
 
     (@as_trait_impls Movable { $($body:tt)* } $($tail:tt)*) => {
         fn as_movable(&self) -> Option<&dyn $crate::core::object::Movable> { Some(self) }
@@ -187,6 +199,18 @@ macro_rules! define_object {
 
     (@trait_impls $struct:ty, Destructible { } $($tail:tt)*) => {
         impl $crate::core::object::Destructible for $struct {}
+        $crate::define_object!(@trait_impls $struct, $($tail)*);
+    };
+
+    (@trait_impls $struct:ty, Spatial { } $($tail:tt)*) => {
+        impl $crate::core::object::Spatial for $struct {}
+        $crate::define_object!(@trait_impls $struct, $($tail)*);
+    };
+
+    (@trait_impls $struct:ty, Active { impl { $($body:tt)* } } $($tail:tt)*) => {
+        impl $crate::core::object::Active for $struct {
+            $($body)*
+        }
         $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
