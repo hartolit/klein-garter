@@ -45,13 +45,26 @@ impl Renderer {
     }
 
     pub fn partial_render(&mut self, scene: &Scene) {
-        // TODO - Fix filtered states
         for state in scene.global_state.filtered.deletes.iter() {
             if let StateChange::Delete { init_pos, .. } = *state {
                 if let Some(grid) = &scene.spatial_grid {
                     if let Some(cell) = grid.get_cell(&init_pos) {
-                        let glyph = cell.kind.appearance();
-                        self.buffer.upsert(init_pos, Operation::Draw { glyph, z_index: cell.z_index });
+                        if let Some(occupant) = cell.occ_by {
+                            if let Some(obj) = scene.objects.get(&occupant.obj_id) {
+                                if let Some(t_cell_to_draw) = obj.t_cells().find(|tc| tc.occ == occupant) {
+                                     self.buffer.upsert(
+                                        t_cell_to_draw.pos,
+                                        Operation::Draw {
+                                            glyph: t_cell_to_draw.style,
+                                            z_index: t_cell_to_draw.z_index,
+                                        },
+                                    );
+                                }
+                            }
+                        } else {
+                            let glyph = cell.kind.appearance();
+                            self.buffer.upsert(init_pos, Operation::Draw { glyph, z_index: cell.z_index });
+                        }
                     } else {
                         self.buffer.upsert(init_pos, Operation::Clear);
                     }
@@ -63,29 +76,48 @@ impl Renderer {
 
         for state in scene.global_state.filtered.updates.iter() {
             if let StateChange::Update { t_cell, init_pos } = *state {
-                if t_cell.pos != init_pos {
+                 if t_cell.pos != init_pos {
                     if let Some(grid) = &scene.spatial_grid {
                         if let Some(cell) = grid.get_cell(&init_pos) {
-                            let glyph = cell.kind.appearance();
-                            self.buffer.upsert(init_pos, Operation::Draw { glyph, z_index: cell.z_index });
-                            self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });
-                        } else {
-                            self.buffer.upsert(init_pos, Operation::Clear);
+                             if let Some(occupant) = cell.occ_by {
+                                if let Some(obj) = scene.objects.get(&occupant.obj_id) {
+                                    if let Some(t_cell_to_draw) = obj.t_cells().find(|tc| tc.occ == occupant) {
+                                        self.buffer.upsert(
+                                            t_cell_to_draw.pos,
+                                            Operation::Draw {
+                                                glyph: t_cell_to_draw.style,
+                                                z_index: t_cell_to_draw.z_index,
+                                            },
+                                        );
+                                    }
+                                }
+                            } else {
+                                let glyph = cell.kind.appearance();
+                                self.buffer.upsert(init_pos, Operation::Draw { glyph, z_index: cell.z_index });
+                            }
+                        }
+                    }
+                }
+                
+                if let Some(grid) = &scene.spatial_grid {
+                    if let Some(cell) = grid.get_cell(&t_cell.pos) {
+                        if cell.z_index <= t_cell.z_index {
                             self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });
                         }
-                    } else {
-                        self.buffer.upsert(init_pos, Operation::Clear);
-                        self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });
                     }
-                } else {
-                    self.buffer.upsert(init_pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });
                 }
             }
         }
 
         for state in scene.global_state.filtered.creates.iter() {
             if let StateChange::Create { new_t_cell } = *state {
-                self.buffer.upsert(new_t_cell.pos, Operation::Draw { glyph: new_t_cell.style, z_index: new_t_cell.z_index });
+                if let Some(grid) = &scene.spatial_grid {
+                    if let Some(cell) = grid.get_cell(&new_t_cell.pos) {
+                        if cell.z_index <= new_t_cell.z_index {
+                           self.buffer.upsert(new_t_cell.pos, Operation::Draw { glyph: new_t_cell.style, z_index: new_t_cell.z_index });
+                        }
+                    }
+                }
             }
         }
 

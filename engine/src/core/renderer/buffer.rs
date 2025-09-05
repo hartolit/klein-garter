@@ -28,20 +28,28 @@ impl Buffer {
     }
 
     pub fn upsert(&mut self, pos: Position, new_op: Operation) {
-        let new_z = match new_op {
-            Operation::Clear => 0, // Clears are the bottom layer.
-            Operation::Draw { z_index, .. } => z_index,
-        };
+        use std::collections::hash_map::Entry;
 
-        let entry = self.frame_buffer.entry(pos).or_insert(Operation::Clear);
-        
-        let existing_z = match entry {
+        let new_z = match &new_op {
             Operation::Clear => 0,
             Operation::Draw { z_index, .. } => *z_index,
         };
 
-        if new_z >= existing_z {
-            *entry = new_op;
+        match self.frame_buffer.entry(pos) {
+            Entry::Vacant(entry) => {
+                entry.insert(new_op);
+            }
+            Entry::Occupied(mut entry) => {
+                let existing_op = entry.get_mut();
+                let existing_z = match existing_op {
+                    Operation::Clear => 0,
+                    Operation::Draw { z_index, .. } => *z_index,
+                };
+
+                if new_z > existing_z {
+                    *existing_op = new_op;
+                }
+            }
         }
     }
 
@@ -70,10 +78,14 @@ impl Buffer {
     pub fn draw_glyph(stdout: &mut Stdout, glyph: Glyph, pos: Position) {
         if let Some(fg_color) = glyph.fg_clr {
             stdout.queue(style::SetForegroundColor(fg_color)).unwrap();
+        } else {
+            stdout.queue(style::SetForegroundColor(style::Color::Reset)).unwrap();
         }
 
         if let Some(bg_color) = glyph.bg_clr {
             stdout.queue(style::SetBackgroundColor(bg_color)).unwrap();
+        } else {
+            stdout.queue(style::SetBackgroundColor(style::Color::Reset)).unwrap();
         }
 
         stdout

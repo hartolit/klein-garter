@@ -162,7 +162,7 @@ impl SpatialGrid {
             return;
         }
         if let Some(global_index) = self.get_index(&t_cell.pos) {
-            if self.cells[global_index].z_index < t_cell.z_index {
+            if self.cells[global_index].z_index <= t_cell.z_index {
                 self.empty_cells.remove(&global_index);
                 self.cells[global_index].occ_by = Some(t_cell.occ);
                 self.cells[global_index].z_index = t_cell.z_index;

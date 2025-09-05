@@ -40,8 +40,8 @@ pub struct Snake {
     pub meals: i16,
     head: Vec<TCell>,               // Unsorted 2d vec
     body: VecDeque<BodySegment>,
-    head_style: Glyph,
-    body_style: Glyph,
+    pub head_style: Glyph,
+    pub body_style: Glyph,
     state: State,
     pub direction: Direction,
     pub ignore_death: bool,
@@ -312,7 +312,6 @@ impl Snake {
 
         for t_cell in new_body_cells.iter_mut() {
             t_cell.style = self.body_style;
-            t_cell.z_index = self.base_index.saturating_sub(1);
             self.state.upsert_change(StateChange::Update {
                 t_cell: *t_cell,
                 init_pos: t_cell.pos,

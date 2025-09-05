@@ -1,4 +1,5 @@
 use crossterm::event::{self, Event, KeyCode};
+use crossterm::style::Color;
 use engine::core::object::ObjectExt;
 use engine::core::scene::Scene;
 use engine::core::{Logic, RuntimeCommand};
@@ -63,6 +64,7 @@ impl Logic<StageKey> for GameLogic {
             Box::new({
                 let mut snake = Snake::new(Position::new(50, 10), id, 3);
                 snake.ignore_death = true;
+                snake.body_style = Glyph::new(Some(Color::DarkMagenta), Some(Color::Red), 'W');
                 snake
             })
         });
@@ -164,7 +166,7 @@ impl Logic<StageKey> for GameLogic {
                                 },
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..200 {
+                                    for i in 0..2 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;

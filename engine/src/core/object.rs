@@ -113,7 +113,7 @@ pub trait Destructible: Object {
 
 /// The `Active` trait is an initiator.
 /// Objects with this trait can trigger events at each tick.
-pub trait Active: Object + Stateful {
+pub trait Active: Object {
     fn update(&mut self) -> Vec<Box<dyn Event>>;
 }
 
