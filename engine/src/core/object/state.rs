@@ -5,8 +5,6 @@ use super::Occupant;
 use super::t_cell::TCell;
 use crate::core::global::Position;
 
-/// StateChange enum is used for determining
-/// a cells state. 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateChange {
     Update {
@@ -20,6 +18,16 @@ pub enum StateChange {
     Create {
         new_t_cell: TCell,
     },
+}
+
+impl StateChange {
+    pub fn order(&self) -> u8 {
+        match self{
+            StateChange::Delete { .. } => 0,
+            StateChange::Update { .. } => 1,
+            StateChange::Create { .. } => 2,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

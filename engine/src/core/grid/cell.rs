@@ -1,55 +1,23 @@
-use crossterm::style::Color;
-
-use crate::core::global::Position;
-use crate::core::object::Occupant;
-use crate::core::object::t_cell::Glyph;
-
-// TODO - Make this configurable
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Kind {
-    Ground,
-    Water,
-    Lava,
-    Border,
-}
-
-impl Kind {
-    pub fn appearance(&self) -> Glyph {
-        match self {
-            Kind::Ground => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::Black),
-                symbol: ' ',
-            },
-            Kind::Water => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::DarkBlue),
-                symbol: '≈',
-            },
-            Kind::Lava => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::DarkRed),
-                symbol: '#',
-            },
-            Kind::Border => Glyph {
-                bg_clr: Option::Some(Color::Black),
-                fg_clr: Option::Some(Color::DarkGrey),
-                symbol: '█',
-            },
-        }
-    }
-}
+use crate::prelude::{Glyph, Position, TCell, Terrain};
 
 #[derive(Debug, Clone)]
 pub struct Cell {
-    pub occ_by: Option<Occupant>,
-    pub kind: Kind,
-    pub z_index: u8
+    pub occ_by: Option<TCell>,
+    pub terrain: Terrain,
 }
 
 impl Cell {
-    pub fn new(kind: Kind) -> Self {
-        Cell { occ_by: None, kind, z_index: 0 }
+    pub fn new(terrain: Terrain) -> Self {
+        Cell { occ_by: None, terrain }
+    }
+
+    pub fn top_glyph_and_z(&self) -> (&Glyph, u8) {
+        if let Some(occ) = &self.occ_by{
+            if occ.z_index >= self.terrain.z_index {
+                return (&occ.style, occ.z_index);
+            }
+        }
+        (&self.terrain.style, self.terrain.z_index)
     }
 }
 

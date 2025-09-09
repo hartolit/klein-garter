@@ -57,10 +57,12 @@ impl Scene {
         // Adds spatial objects to the grid
         if new_object.as_spatial().is_some() {
             if let Some(grid) = &mut self.spatial_grid {
+                // TODO - Add checks
                 grid.add_object(&new_object);
             }
         }
 
+        // Adds a brief creation state
         self.global_state.state.changes.extend(new_object.init());
 
         self.objects.insert(new_id, new_object);
@@ -91,7 +93,7 @@ impl Scene {
         let spatial_ids = self.indexes.get(&ObjectIndex::StatefulSpatial);
 
         // Spatial states are processed first to protect
-        // the grid from non-spatial updates
+        // and filter the grid from non-spatial updates
         if let Some(ids) = spatial_ids {
             for id in ids {
                 if let Some(object) = self.objects.get_mut(id) {
@@ -104,30 +106,31 @@ impl Scene {
                 }
             }
 
-            self.global_state.process();
+            // Process spatial states
+            self.global_state.process(true);
             
             if let Some(grid) = &mut self.spatial_grid {
-                for state in self.global_state.filtered.deletes.iter() {
-                    if let StateChange::Delete { occupant, init_pos } = state {
-                        grid.remove_cell_occ(*occupant, *init_pos);
+                // Keeps only valid grid changes
+                self.global_state.filtered.spatial.retain(|state| match state {
+                    StateChange::Delete { occupant, init_pos } => {
+                        grid.remove_cell_occ(*occupant, *init_pos)
                     }
-                }
-                for state in self.global_state.filtered.updates.iter() {
-                    if let StateChange::Update { t_cell, init_pos } = state {
+                    StateChange::Create { new_t_cell } => {
+                        grid.add_cell_occ(new_t_cell)
+                    }
+                    StateChange::Update { t_cell, init_pos } => {
                         if &t_cell.pos != init_pos {
+                            // Ignores false removal as it would have no impact.
                             grid.remove_cell_occ(t_cell.occ, *init_pos);
-                            grid.add_cell_occ(t_cell);
+                            grid.add_cell_occ(t_cell)
+                        } else {
+                            // In-place update.
+                            grid.add_cell_occ(t_cell)
                         }
                     }
-                }
-                for state in self.global_state.filtered.creates.iter() {
-                    if let StateChange::Create { new_t_cell } = state {
-                        grid.add_cell_occ(new_t_cell);
-                    }
-                }
+                });
             }
         }
-
 
         // Processes the non-spatial states
         match (stateful_ids, spatial_ids) {
@@ -158,7 +161,8 @@ impl Scene {
             _ => (),
         }
 
-        self.global_state.process();
+        // Process non-spatial states (used for renderer)
+        self.global_state.process(false);
     }
 
     fn add_indexes(&mut self, object: &Box<dyn Object>) {

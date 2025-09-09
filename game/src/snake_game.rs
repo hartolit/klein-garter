@@ -57,14 +57,23 @@ impl GameLogic {
 
 impl Logic<StageKey> for GameLogic {
     fn setup(&mut self, scene: &mut Scene) {
-        let grid = SpatialGrid::new(100, 40, 1, Kind::Ground);
+        let grid = SpatialGrid::new(100, 40, 1, |_, is_border| {
+            if is_border {
+                let style = Glyph::new(Some(Color::DarkGrey), Some(Color::Black), '█');
+                Terrain::new(style, 255)
+            } else {
+                let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
+                Terrain::new(style, 0)
+            }
+        });
         scene.attach_grid(grid);
 
         let snake_id = scene.attach_object(|id| {
             Box::new({
                 let mut snake = Snake::new(Position::new(50, 10), id, 3);
                 snake.ignore_death = true;
-                snake.body_style = Glyph::new(Some(Color::DarkMagenta), Some(Color::Red), 'W');
+                snake.head_style = Glyph::new(Some(Color::DarkYellow), Some(Color::Black), '█');
+                snake.body_style = Glyph::new(Some(Color::DarkGrey), Some(Color::DarkMagenta), ' ');
                 snake
             })
         });
@@ -166,7 +175,7 @@ impl Logic<StageKey> for GameLogic {
                                 },
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..2 {
+                                    for i in 0..100000 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;

@@ -78,7 +78,7 @@ impl<T: Eq + Hash + Copy> SlotMap<T> {
         true
     }
 
-    pub fn remove(&mut self, item: &T) -> bool {
+    pub fn remove(&mut self, item: &T) {
         if let Some(&vec_index) = self.map.get(item) {
             self.items.swap_remove(vec_index);
 
@@ -87,9 +87,7 @@ impl<T: Eq + Hash + Copy> SlotMap<T> {
             }
 
             self.map.remove(item);
-            return true;
         }
-        false
     }
 
     pub fn get_random(&self) -> Option<T> {

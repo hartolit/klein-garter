@@ -51,14 +51,14 @@ pub struct Snake {
 impl Snake {
     pub fn new(pos: Position, obj_id: Id, size: usize) -> Self {
         let head_style = Glyph {
-            fg_clr: Some(Color::DarkMagenta),
-            bg_clr: None,
+            fg_clr: Some(Color::Cyan),
+            bg_clr: Some(Color::Black),
             symbol: '█',
         };
         let body_style = Glyph {
-            fg_clr: Some(Color::DarkYellow),
-            bg_clr: None,
-            symbol: 'S',
+            fg_clr: Some(Color::DarkBlue),
+            bg_clr: Some(Color::Black),
+            symbol: 'O',
         };
         let mut id_counter = IdCounter::new();
         let first_id = id_counter.next();
@@ -425,8 +425,8 @@ define_object! {
                     }
 
                     for hit in probe {
-                        if let Some(occupant) = hit.cell.occ_by {
-                            if occupant.obj_id == self.id {
+                        if let Some(t_cell) = hit.cell.occ_by {
+                            if t_cell.occ.obj_id == self.id {
                                 if self.ignore_death {
                                     continue;
                                 }
@@ -441,26 +441,27 @@ define_object! {
                             } else {
                                 let event = CollisionEvent {
                                     actor: self.id,
-                                    target: occupant.obj_id,
+                                    target: t_cell.occ.obj_id,
                                     pos: hit.pos,
                                 };
                                 events.push(Box::new(event));
                             }
                         }
 
-                        if let Kind::Border = hit.cell.kind {
-                            if self.ignore_death {
-                                    continue;
-                            }
+                        // TODO - FIX
+                        // if let Kind::Border = hit.cell.terrain {
+                        //     if self.ignore_death {
+                        //             continue;
+                        //     }
 
-                            //self.is_alive = false;
-                            let event = DeathEvent {
-                                actor: self.id,
-                                pos: hit.pos,
-                            };
-                            events.push(Box::new(event));
-                            return events;
-                        }
+                        //     //self.is_alive = false;
+                        //     let event = DeathEvent {
+                        //         actor: self.id,
+                        //         pos: hit.pos,
+                        //     };
+                        //     events.push(Box::new(event));
+                        //     return events;
+                        // }
                     }
 
                     self.slither();

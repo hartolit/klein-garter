@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 pub mod cell;
+pub mod terrain;
 
 use crate::prelude::TCell;
 
 use super::global::{Id, Position, SlotMap};
 use super::object::{Object, Occupant};
-use cell::{Cell, CellRef, Kind};
+use cell::{Cell, CellRef};
+use terrain::Terrain;
 
 #[derive(Debug)]
 pub struct SpatialGrid {
@@ -20,7 +22,10 @@ pub struct SpatialGrid {
 }
 
 impl SpatialGrid {
-    pub fn new(game_width: u16, game_height: u16, mut border: u16, kind: Kind) -> Self {
+    pub fn new<F>(game_width: u16, game_height: u16, mut border: u16, mut terrain_generator: F) -> Self 
+        where
+            F: FnMut(Position, bool) -> Terrain, 
+        {
         if border < 1 {
             border = 1
         }
@@ -29,26 +34,21 @@ impl SpatialGrid {
         let full_height = game_height + border * 2;
         let full_size = full_height * full_width;
 
-        let mut cells = vec![Cell::new(kind); full_size as usize];
-
-        for (index, cell) in cells.iter_mut().enumerate() {
-            let x = index % full_width as usize;
-            let y = index / full_width as usize;
-
-            if x < (border as usize)
-                || x >= (game_width + border) as usize
-                || y < (border as usize)
-                || y >= (game_height + border) as usize
-            {
-                cell.kind = Kind::Border;
-            }
-        }
-
+        let mut cells = Vec::with_capacity(full_size as usize);
         let mut empty_cells = SlotMap::new();
-        for y in border..(game_height + border) {
-            for x in border..(game_width + border) {
-                let index = (y * full_width + x) as usize;
-                empty_cells.insert(index);
+
+        for y in 0..full_height {
+            for x in 0..full_width {
+                let pos = Position::new(x, y);
+                let is_border = x < border || x >= game_width + border || y < border || y >= game_height + border;
+
+                let terrain = terrain_generator(pos, is_border);
+                cells.push(Cell::new(terrain));
+
+                if !is_border {
+                    let index = (y * full_width + x) as usize;
+                    empty_cells.insert(index);
+                }
             }
         }
 
@@ -117,18 +117,18 @@ impl SpatialGrid {
     //     true
     // }
 
-    pub fn check_object_placement(&mut self, object: &Box<dyn Object>) -> bool {
-        for t_cell in object.t_cells() {
-            if let Some(cell) = self.get_cell(&t_cell.pos) {
-                if t_cell.z_index < cell.z_index {
-                    return  false;
-                }
-            } else {
-                return false;
-            }
-        }
-        true
-    }
+    // pub fn check_object_placement(&mut self, object: &Box<dyn Object>) -> bool {
+    //     for t_cell in object.t_cells() {
+    //         if let Some(cell) = self.get_cell(&t_cell.pos) {
+    //             if t_cell.z_index < cell.z_index {
+    //                 return  false;
+    //             }
+    //         } else {
+    //             return false;
+    //         }
+    //     }
+    //     true
+    // }
 
     pub fn add_object(&mut self, object: &Box<dyn Object>) {
         for t_cell in object.t_cells() {
@@ -142,32 +142,39 @@ impl SpatialGrid {
         }
     }
 
-    pub fn remove_cell_occ(&mut self, occ: Occupant, pos: Position) {
+    pub fn remove_cell_occ(&mut self, occ: Occupant, pos: Position) -> bool {
         if !self.is_within_game_area(&pos) {
-            return;
+            return false;
         }
+
         if let Some(global_index) = self.get_index(&pos) {
-            if let Some(cell_occ) = self.cells[global_index].occ_by {
-                if occ == cell_occ {
+            if let Some(t_cell) = self.cells[global_index].occ_by {
+                if occ == t_cell.occ {
                     self.cells[global_index].occ_by = None;
-                    self.cells[global_index].z_index = 0;
                     self.empty_cells.insert(global_index);
+                    return true;
                 }
             }
         }
+
+        return false;
     }
 
-    pub fn add_cell_occ(&mut self, t_cell: &TCell) {
+    pub fn add_cell_occ(&mut self, t_cell: &TCell) -> bool {
         if !self.is_within_game_area(&t_cell.pos) {
-            return;
+            return false;
         }
+
         if let Some(global_index) = self.get_index(&t_cell.pos) {
-            if self.cells[global_index].z_index <= t_cell.z_index {
+            let (_, curr_z_index) = self.cells[global_index].top_glyph_and_z();
+            if curr_z_index <= t_cell.z_index {
                 self.empty_cells.remove(&global_index);
-                self.cells[global_index].occ_by = Some(t_cell.occ);
-                self.cells[global_index].z_index = t_cell.z_index;
+                self.cells[global_index].occ_by = Some(*t_cell);
+                return true;
             }
         }
+
+        return false;
     }
 
     pub fn random_empty_pos(&self) -> Option<Position> {

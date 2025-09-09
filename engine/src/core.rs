@@ -165,6 +165,7 @@ impl Runtime {
 
     fn initialize<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
         stage.logic.setup(&mut stage.scene);
+        stage.scene.sync();
         self.renderer
             .full_render(&mut stage.scene);
     }
