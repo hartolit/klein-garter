@@ -1,14 +1,14 @@
 pub mod animation;
 
 use crossterm::style::Color;
+use std::collections::VecDeque;
 use std::hash::Hash;
-use std::{collections::VecDeque};
 
 use engine::prelude::*;
 
-use super::game_object::{BodySegment, Orientation, ResizeState};
 use super::events::{CollisionEvent, DeathEvent};
-use animation::{Effect};
+use super::game_object::{BodySegment, Orientation, ResizeState};
+use animation::Effect;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Direction {
@@ -33,19 +33,20 @@ impl Direction {
 #[derive(Debug)]
 pub struct Snake {
     id: Id,
-    id_counter: IdCounter,          // For t_cell ids (internal)
+    id_counter: IdCounter, // For t_cell ids (internal)
     pub head_size: ResizeState,
     effect: Option<Effect>,
     pub is_alive: bool,
     pub meals: i16,
-    head: Vec<TCell>,               // Unsorted 2d vec
+    head: Vec<TCell>, // Unsorted 2d vec
     body: VecDeque<BodySegment>,
     pub head_style: Glyph,
     pub body_style: Glyph,
     state: State,
     pub direction: Direction,
-    pub ignore_death: bool,
     pub base_index: u8,
+    pub ignore_all: bool,
+    pub ignore_body: bool,
 }
 
 impl Snake {
@@ -53,12 +54,12 @@ impl Snake {
         let head_style = Glyph {
             fg_clr: Some(Color::Cyan),
             bg_clr: Some(Color::Black),
-            symbol: '█',
+            symbol: '1',
         };
         let body_style = Glyph {
             fg_clr: Some(Color::DarkBlue),
             bg_clr: Some(Color::Black),
-            symbol: 'O',
+            symbol: '0',
         };
         let mut id_counter = IdCounter::new();
         let first_id = id_counter.next();
@@ -76,15 +77,16 @@ impl Snake {
                 Occupant::new(obj_id, first_id),
                 head_style,
                 Some(pos),
-                base_index
+                base_index,
             )]),
             body: VecDeque::new(),
             head_style,
             body_style,
             state: State::new(),
             direction: Direction::Down,
-            ignore_death: false,
             base_index,
+            ignore_all: false,
+            ignore_body: false,
         };
 
         snake.resize_head(size);
@@ -139,21 +141,22 @@ impl Snake {
         };
 
         let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
-        (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
-        |(min_x, max_x, min_y, max_y), t_cell| {
-            // Delete old head state
-            let delete = StateChange::Delete {
-                occupant: t_cell.occ,
-                init_pos: t_cell.pos,
-            };
-            self.state.upsert_change(delete);
-            (
-                min_x.min(t_cell.pos.x),
-                max_x.max(t_cell.pos.x),
-                min_y.min(t_cell.pos.y),
-                max_y.max(t_cell.pos.y),
-            )
-        });
+            (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+            |(min_x, max_x, min_y, max_y), t_cell| {
+                // Delete old head state
+                let delete = StateChange::Delete {
+                    occupant: t_cell.occ,
+                    init_pos: t_cell.pos,
+                };
+                self.state.upsert_change(delete);
+                (
+                    min_x.min(t_cell.pos.x),
+                    max_x.max(t_cell.pos.x),
+                    min_y.min(t_cell.pos.y),
+                    max_y.max(t_cell.pos.y),
+                )
+            },
+        );
 
         self.head.clear();
 
@@ -194,7 +197,7 @@ impl Snake {
                     Occupant::new(self.id, self.id_counter.next()),
                     self.head_style,
                     Some(curr_pos),
-                    self.base_index
+                    self.base_index,
                 );
                 let create = StateChange::Create { new_t_cell: t_cell };
                 self.state.upsert_change(create);
@@ -206,20 +209,21 @@ impl Snake {
 
     fn slither(&mut self) {
         let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
-        (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
-        |(min_x, max_x, min_y, max_y), t_cell| {
-            (
-                min_x.min(t_cell.pos.x),
-                max_x.max(t_cell.pos.x),
-                min_y.min(t_cell.pos.y),
-                max_y.max(t_cell.pos.y),
-            )
-        });
-        
+            (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+            |(min_x, max_x, min_y, max_y), t_cell| {
+                (
+                    min_x.min(t_cell.pos.x),
+                    max_x.max(t_cell.pos.x),
+                    min_y.min(t_cell.pos.y),
+                    max_y.max(t_cell.pos.y),
+                )
+            },
+        );
+
         let (dx, dy) = self.direction.get_move();
 
         let mut new_body_cells: Vec<TCell> = Vec::new();
-        
+
         let (new_head_positions, orientation) = match self.direction {
             Direction::Up => {
                 self.head.retain(|cell| {
@@ -235,7 +239,7 @@ impl Snake {
                 let positions = (0..head_width)
                     .map(|i| Position::new(min_x + i, new_y))
                     .collect::<Vec<_>>();
-                
+
                 (positions, Orientation::Horizontal)
             }
             Direction::Down => {
@@ -263,7 +267,7 @@ impl Snake {
                     }
                     true
                 });
-                
+
                 let head_height = (max_y - min_y) + 1;
                 let new_x = min_x.saturating_add_signed(dx);
                 let positions = (0..head_height)
@@ -298,12 +302,13 @@ impl Snake {
                     Occupant::new(self.id, self.id_counter.next()),
                     self.head_style,
                     Some(pos),
-                    self.base_index
+                    self.base_index,
                 );
 
                 // Add new head state
-                self.state.upsert_change(StateChange::Create { new_t_cell: t_cell });
-                
+                self.state
+                    .upsert_change(StateChange::Create { new_t_cell: t_cell });
+
                 t_cell
             })
             .collect();
@@ -318,12 +323,17 @@ impl Snake {
             });
         }
 
-        self.body.push_front(BodySegment::new(orientation, new_body_cells));
+        self.body
+            .push_front(BodySegment::new(orientation, new_body_cells));
 
         if self.meals > 0 {
             self.meals -= 1;
         } else {
-            let segments_to_remove = if self.meals == 0 { 1 } else { self.meals.abs() as usize };
+            let segments_to_remove = if self.meals == 0 {
+                1
+            } else {
+                self.meals.abs() as usize
+            };
             for _ in 0..segments_to_remove {
                 if let Some(segment) = self.body.pop_back() {
                     for t_cell in segment.t_cells {
@@ -420,48 +430,30 @@ define_object! {
                 fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>> {
                     let mut events: Vec<Box<dyn Event>> = Vec::new();
 
-                    if !self.is_alive {
-                        return events;
-                    }
-
-                    for hit in probe {
-                        if let Some(t_cell) = hit.cell.occ_by {
-                            if t_cell.occ.obj_id == self.id {
-                                if self.ignore_death {
-                                    continue;
+                    if !self.ignore_all {
+                        for hit in probe {
+                            if let Some(t_cell) = hit.cell.occ_by {
+                                if t_cell.occ.obj_id == self.id {
+                                    if self.ignore_body {
+                                        continue;
+                                    }
+                                    
+                                    let event = DeathEvent {
+                                        actor: self.id,
+                                        pos: hit.pos,
+                                    };
+                                    events.push(Box::new(event));
+                                    return events;
                                 }
 
-                                //self.is_alive = false;
-                                let event = DeathEvent {
-                                    actor: self.id,
-                                    pos: hit.pos,
-                                };
-                                events.push(Box::new(event));
-                                return events;
-                            } else {
                                 let event = CollisionEvent {
-                                    actor: self.id,
-                                    target: t_cell.occ.obj_id,
-                                    pos: hit.pos,
-                                };
+                                        actor: self.id,
+                                        target: t_cell.occ.obj_id,
+                                        pos: hit.pos,
+                                    };
                                 events.push(Box::new(event));
                             }
                         }
-
-                        // TODO - FIX
-                        // if let Kind::Border = hit.cell.terrain {
-                        //     if self.ignore_death {
-                        //             continue;
-                        //     }
-
-                        //     //self.is_alive = false;
-                        //     let event = DeathEvent {
-                        //         actor: self.id,
-                        //         pos: hit.pos,
-                        //     };
-                        //     events.push(Box::new(event));
-                        //     return events;
-                        // }
                     }
 
                     self.slither();

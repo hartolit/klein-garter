@@ -8,11 +8,14 @@ pub struct Cell {
 
 impl Cell {
     pub fn new(terrain: Terrain) -> Self {
-        Cell { occ_by: None, terrain }
+        Cell {
+            occ_by: None,
+            terrain,
+        }
     }
 
     pub fn top_glyph_and_z(&self) -> (&Glyph, u8) {
-        if let Some(occ) = &self.occ_by{
+        if let Some(occ) = &self.occ_by {
             if occ.z_index >= self.terrain.z_index {
                 return (&occ.style, occ.z_index);
             }

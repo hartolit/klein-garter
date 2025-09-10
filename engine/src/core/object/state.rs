@@ -22,7 +22,7 @@ pub enum StateChange {
 
 impl StateChange {
     pub fn order(&self) -> u8 {
-        match self{
+        match self {
             StateChange::Delete { .. } => 0,
             StateChange::Update { .. } => 1,
             StateChange::Create { .. } => 2,

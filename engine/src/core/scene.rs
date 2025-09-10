@@ -73,10 +73,7 @@ impl Scene {
     pub fn remove_object(&mut self, id: &Id) {
         if let Some(mut object) = self.objects.remove(id) {
             if let Some(destructable) = object.as_destructible_mut() {
-                self.global_state
-                    .state
-                    .changes
-                    .extend(destructable.kill());
+                self.global_state.state.changes.extend(destructable.kill());
             }
             self.remove_indexes(&object);
         }
@@ -108,27 +105,28 @@ impl Scene {
 
             // Process spatial states
             self.global_state.process(true);
-            
+
             if let Some(grid) = &mut self.spatial_grid {
                 // Keeps only valid grid changes
-                self.global_state.filtered.spatial.retain(|state| match state {
-                    StateChange::Delete { occupant, init_pos } => {
-                        grid.remove_cell_occ(*occupant, *init_pos)
-                    }
-                    StateChange::Create { new_t_cell } => {
-                        grid.add_cell_occ(new_t_cell)
-                    }
-                    StateChange::Update { t_cell, init_pos } => {
-                        if &t_cell.pos != init_pos {
-                            // Ignores false removal as it would have no impact.
-                            grid.remove_cell_occ(t_cell.occ, *init_pos);
-                            grid.add_cell_occ(t_cell)
-                        } else {
-                            // In-place update.
-                            grid.add_cell_occ(t_cell)
+                self.global_state
+                    .filtered
+                    .spatial
+                    .retain(|state| match state {
+                        StateChange::Delete { occupant, init_pos } => {
+                            grid.remove_cell_occ(*occupant, *init_pos)
                         }
-                    }
-                });
+                        StateChange::Create { new_t_cell } => grid.add_cell_occ(new_t_cell),
+                        StateChange::Update { t_cell, init_pos } => {
+                            if &t_cell.pos != init_pos {
+                                // Ignores false removal as it would have no impact.
+                                grid.remove_cell_occ(t_cell.occ, *init_pos);
+                                grid.add_cell_occ(t_cell)
+                            } else {
+                                // In-place update.
+                                grid.add_cell_occ(t_cell)
+                            }
+                        }
+                    });
             }
         }
 
@@ -145,7 +143,7 @@ impl Scene {
                         }
                     }
                 }
-            },
+            }
             (Some(stateful), None) => {
                 for id in stateful {
                     if let Some(object) = self.objects.get_mut(id) {
@@ -157,7 +155,7 @@ impl Scene {
                         }
                     }
                 }
-            },
+            }
             _ => (),
         }
 
@@ -165,6 +163,7 @@ impl Scene {
         self.global_state.process(false);
     }
 
+    // TODO - Simplify indexes
     fn add_indexes(&mut self, object: &Box<dyn Object>) {
         let id = object.id();
 

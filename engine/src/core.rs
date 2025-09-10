@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
+pub mod event;
 pub mod global;
 pub mod grid;
 pub mod object;
 pub mod renderer;
 pub mod scene;
-pub mod event;
 
 use renderer::Renderer;
 use scene::{ObjectIndex, Scene};
@@ -166,8 +166,7 @@ impl Runtime {
     fn initialize<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
         stage.logic.setup(&mut stage.scene);
         stage.scene.sync();
-        self.renderer
-            .full_render(&mut stage.scene);
+        self.renderer.full_render(&mut stage.scene);
     }
 
     fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
@@ -239,9 +238,7 @@ impl Runtime {
             RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
             RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
             // TODO - FIX
-            RuntimeCommand::Reset => {
-                return Some(ManagerDirective::Reset)
-            }
+            RuntimeCommand::Reset => return Some(ManagerDirective::Reset),
             RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
             RuntimeCommand::None => {}
         }

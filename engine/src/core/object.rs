@@ -25,8 +25,8 @@ impl Occupant {
 }
 
 /// The `Object` trait provides core functionality for objects inside the engine.
-/// An object which only implements this trait only briefly announces its state 
-/// upon creation. After the breif state the object will remain static/silent 
+/// An object which only implements this trait only briefly announces its state
+/// upon creation. After the breif state the object will remain static/silent
 /// unless other object traits are added.
 pub trait Object: Debug {
     fn id(&self) -> Id;
@@ -82,8 +82,8 @@ pub trait Object: Debug {
 /// The `Stateful` trait is reactive.
 /// The engine collects and renders states from a stateful object.
 /// A stateful object would typically be triggered by an event through
-/// an initiator (e.g. `Movable` or `Active` trait) or logic that changes 
-/// the state of the object. If there isn't an initiator of some kind, 
+/// an initiator (e.g. `Movable` or `Active` trait) or logic that changes
+/// the state of the object. If there isn't an initiator of some kind,
 /// a stateful object will remain non-reactive.
 pub trait Stateful: Object {
     fn state_mut(&mut self) -> &mut State;
@@ -94,20 +94,28 @@ pub trait Stateful: Object {
 }
 
 /// The `Destructible` trait creates a brief state to destroy an object.
-/// The brief state enables static objects and objects which aren't 
+/// The brief state enables static objects and objects which aren't
 /// stateful, to be removed safely.
 pub trait Destructible: Object {
     /// Creates a brief state for destruction of an object
     fn kill(&mut self) -> HashMap<Occupant, StateChange> {
-        self.t_cells()
+        let mut kill_changes = HashMap::new();
+
+        if let Some(stateful) = self.as_stateful_mut() {
+            kill_changes.extend(stateful.state_mut().drain_changes());    
+        }
+
+        let t_cells_kill = self.t_cells()
             .map(|t_cell| {
                 let change = StateChange::Delete {
                     occupant: t_cell.occ,
                     init_pos: t_cell.pos,
                 };
                 (t_cell.occ, change)
-            })
-            .collect()
+            });
+        
+        kill_changes.extend(t_cells_kill);
+        kill_changes
     }
 }
 
@@ -121,7 +129,7 @@ pub trait Active: Object {
 pub trait Spatial: Object {}
 
 /// The `Movable` trait is a collision-based initiator.
-/// The engine probes the object for future moves (`predict_pos`) and sends 
+/// The engine probes the object for future moves (`predict_pos`) and sends
 /// collisions back to the object (`make_move`). The object then initiates
 /// a move and sends back a reaction from its collisions through events.
 pub trait Movable: Object + Stateful + Spatial {
@@ -131,7 +139,7 @@ pub trait Movable: Object + Stateful + Spatial {
     fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
 
     // TODO - Manage object specific collisions before a move?
-    // Example a snake hits an object wall, but moves inside it 
+    // Example a snake hits an object wall, but moves inside it
     // before it dies from the event... StateChange::Delete?
     fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>>;
 }
@@ -168,7 +176,7 @@ macro_rules! define_object {
         fn as_destructible_mut(&mut self) -> Option<&mut dyn $crate::core::object::Destructible> { Some(self) }
         $crate::define_object!(@as_trait_impls $($tail)*);
     };
-    
+
     (@as_trait_impls Spatial { $($body:tt)* } $($tail:tt)*) => {
         fn as_spatial(&self) -> Option<&dyn $crate::core::object::Spatial> { Some(self) }
         fn as_spatial_mut(&mut self) -> Option<&mut dyn $crate::core::object::Spatial> { Some(self) }

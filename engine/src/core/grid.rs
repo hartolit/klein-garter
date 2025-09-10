@@ -22,10 +22,15 @@ pub struct SpatialGrid {
 }
 
 impl SpatialGrid {
-    pub fn new<F>(game_width: u16, game_height: u16, mut border: u16, mut terrain_generator: F) -> Self 
-        where
-            F: FnMut(Position, bool) -> Terrain, 
-        {
+    pub fn new<F>(
+        game_width: u16,
+        game_height: u16,
+        mut border: u16,
+        mut terrain_generator: F,
+    ) -> Self
+    where
+        F: FnMut(Position, bool) -> Terrain,
+    {
         if border < 1 {
             border = 1
         }
@@ -40,7 +45,10 @@ impl SpatialGrid {
         for y in 0..full_height {
             for x in 0..full_width {
                 let pos = Position::new(x, y);
-                let is_border = x < border || x >= game_width + border || y < border || y >= game_height + border;
+                let is_border = x < border
+                    || x >= game_width + border
+                    || y < border
+                    || y >= game_height + border;
 
                 let terrain = terrain_generator(pos, is_border);
                 cells.push(Cell::new(terrain));

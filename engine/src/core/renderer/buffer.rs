@@ -1,14 +1,21 @@
-use std::{collections::HashMap, io::{stdout, Stdout, Write}};
+use std::{
+    collections::HashMap,
+    io::{Stdout, Write, stdout},
+};
 
-use crossterm::{cursor, execute, style, terminal, QueueableCommand};
+use crossterm::{QueueableCommand, cursor, execute, style, terminal};
 
 use crate::prelude::{Glyph, Position};
 
 pub enum Operation {
     Clear,
-    Draw { glyph: Glyph, z_index: u8 }
+    Draw { glyph: Glyph, z_index: u8 },
 }
 
+// TODO - Take a snapshot from the buffer to sync to an infinite grid to reflect changes based on previous changes
+// Right now the Operations outside of a grid is only reflected in its current StateChanges for the tick.
+// That is to say previous states with a higher index than the current StateChanges might get overriden
+// due to previous StateChanges not being reflected into current StateChanges.
 pub struct Buffer {
     stdout: Stdout,
     frame_buffer: HashMap<Position, Operation>,
@@ -79,13 +86,17 @@ impl Buffer {
         if let Some(fg_color) = glyph.fg_clr {
             stdout.queue(style::SetForegroundColor(fg_color)).unwrap();
         } else {
-            stdout.queue(style::SetForegroundColor(style::Color::Reset)).unwrap();
+            stdout
+                .queue(style::SetForegroundColor(style::Color::Reset))
+                .unwrap();
         }
 
         if let Some(bg_color) = glyph.bg_clr {
             stdout.queue(style::SetBackgroundColor(bg_color)).unwrap();
         } else {
-            stdout.queue(style::SetBackgroundColor(style::Color::Reset)).unwrap();
+            stdout
+                .queue(style::SetBackgroundColor(style::Color::Reset))
+                .unwrap();
         }
 
         stdout

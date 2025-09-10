@@ -5,7 +5,7 @@ use ::engine::core::{
         t_cell::{Glyph, TCell},
     },
 };
-use engine::{define_object};
+use engine::define_object;
 
 use crossterm::style::Color;
 use rand::Rng;

@@ -1,8 +1,7 @@
-
 mod buffer;
 
 use super::scene::Scene;
-use crate::core::object::{state::StateChange};
+use crate::core::object::state::StateChange;
 
 use buffer::{Buffer, Operation};
 
@@ -12,7 +11,9 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new() -> Self {
-        Self { buffer: Buffer::new() }
+        Self {
+            buffer: Buffer::new(),
+        }
     }
 
     pub fn kill(&mut self) {
@@ -30,7 +31,13 @@ impl Renderer {
                     let pos = crate::core::global::Position::new(x, y);
                     let index = (y * grid.full_width + x) as usize;
                     let (glyph, z_index) = grid.cells[index].top_glyph_and_z();
-                    self.buffer.upsert(pos, Operation::Draw { glyph: *glyph, z_index });
+                    self.buffer.upsert(
+                        pos,
+                        Operation::Draw {
+                            glyph: *glyph,
+                            z_index,
+                        },
+                    );
                 }
             }
         }
@@ -38,8 +45,21 @@ impl Renderer {
         // Draws non-spatial objects (like UI) on top
         for state in scene.global_state.filtered.non_spatial.iter() {
             if let StateChange::Create { new_t_cell } = *state {
-                if scene.spatial_grid.is_none() || scene.spatial_grid.as_ref().unwrap().get_cell(&new_t_cell.pos).is_none() {
-                    self.buffer.upsert(new_t_cell.pos, Operation::Draw { glyph: new_t_cell.style, z_index: new_t_cell.z_index });
+                if scene.spatial_grid.is_none()
+                    || scene
+                        .spatial_grid
+                        .as_ref()
+                        .unwrap()
+                        .get_cell(&new_t_cell.pos)
+                        .is_none()
+                {
+                    self.buffer.upsert(
+                        new_t_cell.pos,
+                        Operation::Draw {
+                            glyph: new_t_cell.style,
+                            z_index: new_t_cell.z_index,
+                        },
+                    );
                 }
             }
         }
@@ -60,28 +80,52 @@ impl Renderer {
                     StateChange::Delete { init_pos, .. } => {
                         if let Some(cell) = grid.get_cell(init_pos) {
                             let (glyph, z_index) = cell.top_glyph_and_z();
-                            self.buffer.upsert(*init_pos, Operation::Draw { glyph: *glyph, z_index });
+                            self.buffer.upsert(
+                                *init_pos,
+                                Operation::Draw {
+                                    glyph: *glyph,
+                                    z_index,
+                                },
+                            );
                         }
-                    },
+                    }
                     StateChange::Update { t_cell, init_pos } => {
                         if t_cell.pos != *init_pos {
                             if let Some(cell) = grid.get_cell(init_pos) {
                                 let (glyph, z_index) = cell.top_glyph_and_z();
-                                self.buffer.upsert(*init_pos, Operation::Draw { glyph: *glyph, z_index });
+                                self.buffer.upsert(
+                                    *init_pos,
+                                    Operation::Draw {
+                                        glyph: *glyph,
+                                        z_index,
+                                    },
+                                );
                             }
                         }
 
                         if let Some(cell) = grid.get_cell(&t_cell.pos) {
                             let (glyph, z_index) = cell.top_glyph_and_z();
-                            self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: *glyph, z_index });
+                            self.buffer.upsert(
+                                t_cell.pos,
+                                Operation::Draw {
+                                    glyph: *glyph,
+                                    z_index,
+                                },
+                            );
                         }
-                    },
+                    }
                     StateChange::Create { new_t_cell } => {
                         if let Some(cell) = grid.get_cell(&new_t_cell.pos) {
                             let (glyph, z_index) = cell.top_glyph_and_z();
-                            self.buffer.upsert(new_t_cell.pos, Operation::Draw { glyph: *glyph, z_index });
+                            self.buffer.upsert(
+                                new_t_cell.pos,
+                                Operation::Draw {
+                                    glyph: *glyph,
+                                    z_index,
+                                },
+                            );
                         }
-                    },
+                    }
                 }
             }
         }
@@ -90,16 +134,28 @@ impl Renderer {
             match state {
                 StateChange::Delete { init_pos, .. } => {
                     self.buffer.upsert(*init_pos, Operation::Clear);
-                },
+                }
                 StateChange::Update { t_cell, init_pos } => {
                     if t_cell.pos != *init_pos {
                         self.buffer.upsert(*init_pos, Operation::Clear);
                     }
-                    self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });                    
-                },
+                    self.buffer.upsert(
+                        t_cell.pos,
+                        Operation::Draw {
+                            glyph: t_cell.style,
+                            z_index: t_cell.z_index,
+                        },
+                    );
+                }
                 StateChange::Create { new_t_cell } => {
-                    self.buffer.upsert(new_t_cell.pos, Operation::Draw { glyph: new_t_cell.style, z_index: new_t_cell.z_index });
-                },
+                    self.buffer.upsert(
+                        new_t_cell.pos,
+                        Operation::Draw {
+                            glyph: new_t_cell.style,
+                            z_index: new_t_cell.z_index,
+                        },
+                    );
+                }
             }
         }
 

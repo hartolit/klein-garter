@@ -1,10 +1,10 @@
-use engine::prelude::{Event, EventHandler, Scene, ObjectExt, Id, Position};
+use engine::prelude::{Event, EventHandler, Id, ObjectExt, Position, Scene};
 
 use super::FoodEatenEvent;
 
 use crate::snake_game::events::DeathEvent;
-use crate::snake_game::snake::Snake;
 use crate::snake_game::food::Food;
+use crate::snake_game::snake::Snake;
 
 pub struct CollisionEvent {
     pub actor: Id,
@@ -15,6 +15,15 @@ pub struct CollisionEvent {
 impl Event for CollisionEvent {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+    fn log_message(&self) -> String {
+        format!(
+            "[COLLISION]: A:{}, T:{} @({},{})",
+            self.actor.value,
+            self.target.value,
+            self.pos.x,
+            self.pos.y
+        )
     }
 }
 

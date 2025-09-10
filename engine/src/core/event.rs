@@ -1,9 +1,12 @@
+use crate::core::scene::Scene;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use crate::core::scene::Scene;
 
 pub trait Event: 'static + Any {
     fn as_any(&self) -> &dyn Any;
+    fn log_message(&self) -> String {
+        format!("Event triggered!")
+    }
 }
 
 pub trait EventHandler<E: Event> {
@@ -16,7 +19,9 @@ pub struct EventManager {
 
 impl EventManager {
     pub fn new() -> Self {
-        Self { handlers: HashMap::new() }
+        Self {
+            handlers: HashMap::new(),
+        }
     }
 
     pub fn register<E: Event, H: EventHandler<E> + 'static>(&mut self, mut handler: H) {
