@@ -73,10 +73,10 @@ impl EventHandler<CollisionEvent> for CollisionHandler {
 
             // Snake & Snake
             (ObjectType::Snake, ObjectType::Snake) => {
-                scene.event_bus.push(Box::new(DeathEvent {
-                    actor: event.actor,
-                    pos: event.pos,
-                }));
+                // scene.event_bus.push(Box::new(DeathEvent {
+                //     actor: event.actor,
+                //     pos: event.pos,
+                // }));
             }
             _ => {}
         }

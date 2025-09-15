@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub mod cell;
 pub mod terrain;
@@ -116,27 +116,31 @@ impl SpatialGrid {
             })
     }
 
-    // pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
-    //     for t_cell in object.t_cells() {
-    //         if let None = self.get_cell(&t_cell.pos) {
-    //             return false
-    //         }
-    //     }
-    //     true
-    // }
+    /// Checks an objects bounds within the grid
+    pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
+        for t_cell in object.t_cells() {
+            if !self.is_within_game_area(&t_cell.pos) {
+                return false
+            }
+        }
+        true
+    }
 
-    // pub fn check_object_placement(&mut self, object: &Box<dyn Object>) -> bool {
-    //     for t_cell in object.t_cells() {
-    //         if let Some(cell) = self.get_cell(&t_cell.pos) {
-    //             if t_cell.z_index < cell.z_index {
-    //                 return  false;
-    //             }
-    //         } else {
-    //             return false;
-    //         }
-    //     }
-    //     true
-    // }
+    /// Probes an object and gets a vec of collided object Ids
+    pub fn probe_object(&self, object: &Box<dyn Object>) -> HashSet<Id> {
+        let mut collision_ids: HashSet<Id> = HashSet::new();
+        for t_cell in object.t_cells() {
+            if let Some(cell) = self.get_cell(&t_cell.pos) {
+                if let Some(occupant_t_cell) = &cell.occ_by {
+                    if occupant_t_cell.occ.obj_id != object.id() {
+                        collision_ids.insert(occupant_t_cell.occ.obj_id);
+                    }
+                }
+            }
+        }
+
+        collision_ids
+    }
 
     pub fn add_object(&mut self, object: &Box<dyn Object>) {
         for t_cell in object.t_cells() {
@@ -175,7 +179,7 @@ impl SpatialGrid {
 
         if let Some(global_index) = self.get_index(&t_cell.pos) {
             let (_, curr_z_index) = self.cells[global_index].top_glyph_and_z();
-            if curr_z_index <= t_cell.z_index {
+            if t_cell.z_index >= curr_z_index {
                 self.empty_cells.remove(&global_index);
                 self.cells[global_index].occ_by = Some(*t_cell);
                 return true;

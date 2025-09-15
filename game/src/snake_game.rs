@@ -13,10 +13,9 @@ mod snake;
 mod ui;
 
 use food::Food;
-use player::{Player, PlayerKind};
+use player::{Player};
 use rand::Rng;
 use snake::{Direction, Snake};
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use crate::StageKey;
@@ -52,15 +51,9 @@ impl SnakeLogic {
         event_manager.register(FoodEatenHandler);
         event_manager.register(DeathHandler);
 
-        let mut keys = HashMap::new();
-        keys.insert(Direction::Up, 'w');
-        keys.insert(Direction::Down, 's');
-        keys.insert(Direction::Left, 'a');
-        keys.insert(Direction::Right, 'd');
-
         Self {
             event_manager,
-            player: Player::new(PlayerKind::Local, keys),
+            player: Player::new(),
             speed: 40,
             counter: 0,
             skip: true,
@@ -76,6 +69,7 @@ impl SnakeLogic {
 
 impl Logic<StageKey> for SnakeLogic {
     fn setup(&mut self, scene: &mut Scene) {
+        // Attaching spatial grid
         let grid = SpatialGrid::new(200, 80, 1, |_, is_border| {
             if is_border {
                 let style = Glyph::new(Some(Color::Grey), Some(Color::Black), '█');
@@ -87,41 +81,34 @@ impl Logic<StageKey> for SnakeLogic {
         });
         scene.attach_grid(grid);
 
+        // UI Stats
         let stats_ui_id = scene.attach_object(|id| {
             Box::new(Statistics::new(id, Position::new(203, 1)))
-        });
-        self.stats_id = Some(stats_ui_id);
+        }, Conflict::Ignore);
+        self.stats_id = stats_ui_id;
 
+        // UI Event logger
         let logger_ui_id = scene.attach_object(|id| {
             Box::new(Logger::new(id, Position::new(203, 5), self.max_logs))
-        });
-        self.logger_id = Some(logger_ui_id);
+        }, Conflict::Ignore);
+        self.logger_id = logger_ui_id;
 
+        // Player snake
         let snake_id = scene.attach_object(|id| {
             Box::new({
                 let mut snake = Snake::new(Position::new(50, 10), id, 3);
                 snake.head_style = Glyph::new(Some(Color::DarkYellow), Some(Color::Black), '█');
                 snake.body_style = Glyph::new(None, Some(Color::DarkMagenta), ' ');
                 snake.base_index = snake.base_index + 2;
-                snake.ignore_all = true;
+                snake.ignore_all = false;
+                snake.ignore_body = true;
                 snake
             })
-        });
+        }, Conflict::Overwrite);
 
-        self.player.set_snake(snake_id);
-
-        for i in 0..0 {
-            let _ = scene.attach_object(|id| {
-                Box::new(Snake::new(Position::new(i * 20 + 5, 5), id, (1) as usize))
-            });
-
-            let _ = scene.attach_object(|id| {
-                Box::new(Snake::new(Position::new(i * 20 + 5, 15), id, (1) as usize))
-            });
-
-            let _ = scene.attach_object(|id| {
-                Box::new(Snake::new(Position::new(i * 20 + 5, 25), id, (1) as usize))
-            });
+        if let Some(id) = snake_id {
+            self.player.set_snake(id);
+            scene.exempt_from_overwrite.insert(id);
         }
     }
 
@@ -219,13 +206,13 @@ impl Logic<StageKey> for SnakeLogic {
                                         if let Some(pos) = random_pos {
                                             scene.attach_object(|id| {
                                                 Box::new(Food::rng_food(id, pos))
-                                            });
+                                            }, Conflict::Cancel);
                                         }
                                     }
                                 }
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..10 {
+                                    for i in 0..100000 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;
@@ -245,7 +232,7 @@ impl Logic<StageKey> for SnakeLogic {
                                                     snake.ignore_body = true;
                                                     snake
                                                 })
-                                            });
+                                            }, Conflict::Cancel);
                                         }
                                     }
                                 }

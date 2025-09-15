@@ -1,33 +1,19 @@
-use std::collections::HashMap;
-
 use ::engine::core::global::Id;
-
-use super::snake::Direction;
 use uuid::Uuid;
-
-#[derive(PartialEq, Eq)]
-pub enum PlayerKind {
-    Local,
-    Online,
-}
 
 #[derive(PartialEq, Eq)]
 pub struct Player {
     pub id: Uuid,
     pub score: u16,
     pub snake: Option<Id>,
-    pub kind: PlayerKind,
-    pub keys: HashMap<Direction, char>,
 }
 
 impl Player {
-    pub fn new(kind: PlayerKind, keys: HashMap<Direction, char>) -> Self {
+    pub fn new() -> Self {
         Player {
             id: Uuid::new_v4(),
             score: 0,
             snake: None,
-            kind,
-            keys,
         }
     }
 

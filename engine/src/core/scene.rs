@@ -20,10 +20,17 @@ pub enum ObjectIndex {
     StatefulSpatial,
 }
 
+pub enum Conflict {
+    Overwrite,
+    Ignore,
+    Cancel,
+}
+
 pub struct Scene {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
+    pub exempt_from_overwrite: HashSet<Id>,
     pub spatial_grid: Option<SpatialGrid>,
     pub global_state: GlobalState,
     pub event_bus: Vec<Box<dyn Event>>,
@@ -35,6 +42,7 @@ impl Scene {
             id_counter: IdCounter::new(),
             objects: HashMap::new(),
             indexes: HashMap::new(),
+            exempt_from_overwrite: HashSet::new(),
             spatial_grid: None,
             global_state: GlobalState::new(),
             event_bus: Vec::new(),
@@ -45,33 +53,64 @@ impl Scene {
         self.spatial_grid = Some(grid);
     }
 
-    pub fn attach_object<F>(&mut self, create_fn: F) -> Id
+    pub fn attach_object<F>(&mut self, create_fn: F, on_conflict: Conflict) -> Option<Id>
     where
         F: FnOnce(Id) -> Box<dyn Object>,
     {
         let new_id = self.id_counter.next();
         let new_object = create_fn(new_id);
 
-        self.add_indexes(&new_object);
-
-        // Adds spatial objects to the grid
+        // Checks for grid conflicts
         if new_object.as_spatial().is_some() {
+            let mut collisions: HashSet<Id> = HashSet::new();
+            if let Some(grid) = &self.spatial_grid {
+                if !grid.check_bounds(&new_object) {
+                    return None;
+                }
+                collisions = grid.probe_object(&new_object);
+            }
+
+            if !collisions.is_empty() {
+                // Checks for exempted collisions (cancels object creation)
+                let is_any_collision_exempt = collisions
+                    .iter()
+                    .any(|id| self.exempt_from_overwrite.contains(id));
+
+                if is_any_collision_exempt {
+                    return None;
+                }
+
+                match on_conflict {
+                    Conflict::Cancel => return None,
+                    Conflict::Overwrite => {
+                        for id in collisions {
+                            self.remove_object(&id);
+                        }
+                    }
+                    Conflict::Ignore => {}
+                }
+            }
+
             if let Some(grid) = &mut self.spatial_grid {
-                // TODO - Add checks
                 grid.add_object(&new_object);
             }
         }
 
-        // Adds a brief creation state
+        self.add_indexes(&new_object);
         self.global_state.state.changes.extend(new_object.init());
-
         self.objects.insert(new_id, new_object);
-
-        new_id
+        Some(new_id)
     }
 
     pub fn remove_object(&mut self, id: &Id) {
+        self.exempt_from_overwrite.remove(&id);
         if let Some(mut object) = self.objects.remove(id) {
+            if object.as_spatial().is_some() {
+                if let Some(grid) = &mut self.spatial_grid {
+                    grid.remove_object(&object);
+                }
+            }
+
             if let Some(destructable) = object.as_destructible_mut() {
                 self.global_state.state.changes.extend(destructable.kill());
             }
@@ -130,7 +169,7 @@ impl Scene {
             }
         }
 
-        // Processes the non-spatial states
+        // Non-spatial states
         match (stateful_ids, spatial_ids) {
             (Some(stateful), Some(spatial)) => {
                 for id in stateful.difference(spatial) {
@@ -159,8 +198,15 @@ impl Scene {
             _ => (),
         }
 
-        // Process non-spatial states (used for renderer)
         self.global_state.process(false);
+    }
+
+    pub fn set_overwrite_exemption(&mut self, id: Id, is_exempt: bool) {
+        if is_exempt {
+            self.exempt_from_overwrite.insert(id);
+        } else {
+            self.exempt_from_overwrite.remove(&id);
+        }
     }
 
     // TODO - Simplify indexes
