@@ -101,6 +101,16 @@ impl SpatialGrid {
         self.get_index(pos).map(move |index| &mut self.cells[index])
     }
 
+    /// Checks an objects bounds within the grid
+    pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
+        for t_cell in object.t_cells() {
+            if !self.is_within_game_area(&t_cell.pos) {
+                return false
+            }
+        }
+        true
+    }
+
     pub fn probe_moves<'a>(
         &'a self,
         moves: impl Iterator<Item = (Id, Position)>,
@@ -114,16 +124,6 @@ impl SpatialGrid {
                 map.entry(id).or_default().push(cell_ref);
                 map
             })
-    }
-
-    /// Checks an objects bounds within the grid
-    pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
-        for t_cell in object.t_cells() {
-            if !self.is_within_game_area(&t_cell.pos) {
-                return false
-            }
-        }
-        true
     }
 
     /// Probes an object and gets a vec of collided object Ids

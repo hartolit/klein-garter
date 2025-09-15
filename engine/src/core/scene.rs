@@ -96,7 +96,7 @@ impl Scene {
             }
         }
 
-        self.add_indexes(&new_object);
+        self.index_object(&new_object, true);
         self.global_state.state.changes.extend(new_object.init());
         self.objects.insert(new_id, new_object);
         Some(new_id)
@@ -114,7 +114,7 @@ impl Scene {
             if let Some(destructable) = object.as_destructible_mut() {
                 self.global_state.state.changes.extend(destructable.kill());
             }
-            self.remove_indexes(&object);
+            self.index_object(&object, false);
         }
     }
 
@@ -209,89 +209,27 @@ impl Scene {
         }
     }
 
-    // TODO - Simplify indexes
-    fn add_indexes(&mut self, object: &Box<dyn Object>) {
+    fn index_object(&mut self, object: &Box<dyn Object>, is_insert: bool) {
         let id = object.id();
 
-        if object.as_stateful().is_some() {
-            self.indexes
-                .entry(ObjectIndex::Stateful)
-                .or_default()
-                .insert(id);
-        }
+        let checks = [
+            (object.as_stateful().is_some(), ObjectIndex::Stateful),
+            (object.as_destructible().is_some(), ObjectIndex::Destructible),
+            (object.as_active().is_some(), ObjectIndex::Active),
+            (object.as_spatial().is_some(), ObjectIndex::Spatial),
+            (object.as_movable().is_some(), ObjectIndex::Movable),
+            (object.as_stateful().is_some() && object.as_spatial().is_some(), ObjectIndex::StatefulSpatial)
+        ];
 
-        if object.as_destructible().is_some() {
-            self.indexes
-                .entry(ObjectIndex::Destructible)
-                .or_default()
-                .insert(id);
-        }
-
-        if object.as_active().is_some() {
-            self.indexes
-                .entry(ObjectIndex::Active)
-                .or_default()
-                .insert(id);
-        }
-
-        if object.as_spatial().is_some() {
-            self.indexes
-                .entry(ObjectIndex::Spatial)
-                .or_default()
-                .insert(id);
-        }
-
-        if object.as_movable().is_some() {
-            self.indexes
-                .entry(ObjectIndex::Movable)
-                .or_default()
-                .insert(id);
-        }
-
-        if object.as_spatial().is_some() && object.as_spatial().is_some() {
-            self.indexes
-                .entry(ObjectIndex::StatefulSpatial)
-                .or_default()
-                .insert(id);
-        }
-    }
-
-    fn remove_indexes(&mut self, object: &Box<dyn Object>) {
-        let id = object.id();
-
-        if object.as_stateful().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Stateful) {
-                set.remove(&id);
-            }
-        }
-
-        if object.as_destructible().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Destructible) {
-                set.remove(&id);
-            }
-        }
-
-        if object.as_active().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Active) {
-                set.remove(&id);
-            }
-        }
-
-        if object.as_spatial().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Spatial) {
-                set.remove(&id);
-            }
-        }
-
-        if object.as_movable().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::Movable) {
-                set.remove(&id);
-            }
-        }
-
-        if object.as_stateful().is_some() && object.as_spatial().is_some() {
-            if let Some(set) = self.indexes.get_mut(&ObjectIndex::StatefulSpatial) {
-                set.remove(&id);
+        for (has_trait, index) in checks {
+            if has_trait {
+                if is_insert{
+                    self.indexes.entry(index).or_default().insert(id);
+                } else {
+                    if let Some(hash_set) = self.indexes.get_mut(&index) {
+                        hash_set.remove(&id);
+                    }
+                }
             }
         }
     }

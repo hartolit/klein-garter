@@ -70,7 +70,7 @@ impl SnakeLogic {
 impl Logic<StageKey> for SnakeLogic {
     fn setup(&mut self, scene: &mut Scene) {
         // Attaching spatial grid
-        let grid = SpatialGrid::new(200, 80, 1, |_, is_border| {
+        let grid = SpatialGrid::new(200, 80, 5, |_, is_border| {
             if is_border {
                 let style = Glyph::new(Some(Color::Grey), Some(Color::Black), '█');
                 Terrain::new(style, 255)
@@ -212,7 +212,7 @@ impl Logic<StageKey> for SnakeLogic {
                                 }
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..100000 {
+                                    for i in 0..10 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;

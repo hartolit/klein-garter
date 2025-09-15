@@ -73,10 +73,12 @@ impl EventHandler<CollisionEvent> for CollisionHandler {
 
             // Snake & Snake
             (ObjectType::Snake, ObjectType::Snake) => {
-                // scene.event_bus.push(Box::new(DeathEvent {
-                //     actor: event.actor,
-                //     pos: event.pos,
-                // }));
+                if !scene.exempt_from_overwrite.contains(&event.actor){
+                    scene.event_bus.push(Box::new(DeathEvent {
+                        actor: event.actor,
+                        pos: event.pos,
+                    }));
+                }
             }
             _ => {}
         }
