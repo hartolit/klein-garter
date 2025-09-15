@@ -102,18 +102,17 @@ pub trait Destructible: Object {
         let mut kill_changes = HashMap::new();
 
         if let Some(stateful) = self.as_stateful_mut() {
-            kill_changes.extend(stateful.state_mut().drain_changes());    
+            kill_changes.extend(stateful.state_mut().drain_changes());
         }
 
-        let t_cells_kill = self.t_cells()
-            .map(|t_cell| {
-                let change = StateChange::Delete {
-                    occupant: t_cell.occ,
-                    init_pos: t_cell.pos,
-                };
-                (t_cell.occ, change)
-            });
-        
+        let t_cells_kill = self.t_cells().map(|t_cell| {
+            let change = StateChange::Delete {
+                occupant: t_cell.occ,
+                init_pos: t_cell.pos,
+            };
+            (t_cell.occ, change)
+        });
+
         kill_changes.extend(t_cells_kill);
         kill_changes
     }

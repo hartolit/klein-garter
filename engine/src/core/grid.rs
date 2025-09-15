@@ -105,7 +105,7 @@ impl SpatialGrid {
     pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
         for t_cell in object.t_cells() {
             if !self.is_within_game_area(&t_cell.pos) {
-                return false
+                return false;
             }
         }
         true

@@ -30,7 +30,7 @@ pub struct Scene {
     pub id_counter: IdCounter,
     pub objects: HashMap<Id, Box<dyn Object>>,
     pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
-    pub exempt_from_overwrite: HashSet<Id>,
+    pub protected_ids: HashSet<Id>,
     pub spatial_grid: Option<SpatialGrid>,
     pub global_state: GlobalState,
     pub event_bus: Vec<Box<dyn Event>>,
@@ -42,7 +42,7 @@ impl Scene {
             id_counter: IdCounter::new(),
             objects: HashMap::new(),
             indexes: HashMap::new(),
-            exempt_from_overwrite: HashSet::new(),
+            protected_ids: HashSet::new(),
             spatial_grid: None,
             global_state: GlobalState::new(),
             event_bus: Vec::new(),
@@ -60,8 +60,9 @@ impl Scene {
         let new_id = self.id_counter.next();
         let new_object = create_fn(new_id);
 
-        // Checks for grid conflicts
+        // Special logic for grid objects <3
         if new_object.as_spatial().is_some() {
+            // Probes grid for conflicts
             let mut collisions: HashSet<Id> = HashSet::new();
             if let Some(grid) = &self.spatial_grid {
                 if !grid.check_bounds(&new_object) {
@@ -71,15 +72,16 @@ impl Scene {
             }
 
             if !collisions.is_empty() {
-                // Checks for exempted collisions (cancels object creation)
-                let is_any_collision_exempt = collisions
-                    .iter()
-                    .any(|id| self.exempt_from_overwrite.contains(id));
+                // Checks if collisions are protected
+                let is_protected_collision =
+                    collisions.iter().any(|id| self.protected_ids.contains(id));
 
-                if is_any_collision_exempt {
+                // Cancels Object creation
+                if is_protected_collision {
                     return None;
                 }
 
+                // Handles different conflict solutions
                 match on_conflict {
                     Conflict::Cancel => return None,
                     Conflict::Overwrite => {
@@ -104,7 +106,7 @@ impl Scene {
 
     pub fn remove_object(&mut self, id: &Id) {
         if let Some(mut object) = self.objects.remove(id) {
-            self.exempt_from_overwrite.remove(&id);
+            self.protected_ids.remove(&id);
             if let Some(destructable) = object.as_destructible_mut() {
                 self.global_state.state.changes.extend(destructable.kill());
             }
@@ -197,9 +199,9 @@ impl Scene {
 
     pub fn set_overwrite_exemption(&mut self, id: Id, is_exempt: bool) {
         if is_exempt {
-            self.exempt_from_overwrite.insert(id);
+            self.protected_ids.insert(id);
         } else {
-            self.exempt_from_overwrite.remove(&id);
+            self.protected_ids.remove(&id);
         }
     }
 
@@ -208,16 +210,22 @@ impl Scene {
 
         let checks = [
             (object.as_stateful().is_some(), ObjectIndex::Stateful),
-            (object.as_destructible().is_some(), ObjectIndex::Destructible),
+            (
+                object.as_destructible().is_some(),
+                ObjectIndex::Destructible,
+            ),
             (object.as_active().is_some(), ObjectIndex::Active),
             (object.as_spatial().is_some(), ObjectIndex::Spatial),
             (object.as_movable().is_some(), ObjectIndex::Movable),
-            (object.as_stateful().is_some() && object.as_spatial().is_some(), ObjectIndex::StatefulSpatial)
+            (
+                object.as_stateful().is_some() && object.as_spatial().is_some(),
+                ObjectIndex::StatefulSpatial,
+            ),
         ];
 
         for (has_trait, index) in checks {
             if has_trait {
-                if is_insert{
+                if is_insert {
                     self.indexes.entry(index).or_default().insert(id);
                 } else {
                     if let Some(hash_set) = self.indexes.get_mut(&index) {

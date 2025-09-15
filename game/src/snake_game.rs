@@ -13,21 +13,14 @@ mod snake;
 mod ui;
 
 use food::Food;
-use player::{Player};
+use player::Player;
 use rand::Rng;
 use snake::{Direction, Snake};
 use std::time::{Duration, Instant};
 
 use crate::StageKey;
-use events::{
-    CollisionHandler, 
-    DeathHandler, 
-    FoodEatenHandler, 
-};
-use ui::{
-    logger::Logger,
-    statistics::Statistics,
-};
+use events::{CollisionHandler, DeathHandler, FoodEatenHandler};
+use ui::{logger::Logger, statistics::Statistics};
 
 pub struct SnakeLogic {
     event_manager: EventManager,
@@ -54,7 +47,7 @@ impl SnakeLogic {
         Self {
             event_manager,
             player: Player::new(),
-            speed: 40,
+            speed: 20,
             counter: 0,
             skip: true,
             quit: false,
@@ -70,7 +63,7 @@ impl SnakeLogic {
 impl Logic<StageKey> for SnakeLogic {
     fn setup(&mut self, scene: &mut Scene) {
         // Attaching spatial grid
-        let grid = SpatialGrid::new(200, 80, 5, |_, is_border| {
+        let grid = SpatialGrid::new(200, 80, 1, |_, is_border| {
             if is_border {
                 let style = Glyph::new(Some(Color::Grey), Some(Color::Black), '█');
                 Terrain::new(style, 255)
@@ -82,33 +75,39 @@ impl Logic<StageKey> for SnakeLogic {
         scene.attach_grid(grid);
 
         // UI Stats
-        let stats_ui_id = scene.attach_object(|id| {
-            Box::new(Statistics::new(id, Position::new(203, 1)))
-        }, Conflict::Ignore);
+        let stats_ui_id = scene.attach_object(
+            |id| Box::new(Statistics::new(id, Position::new(203, 1))),
+            Conflict::Ignore,
+        );
         self.stats_id = stats_ui_id;
 
         // UI Event logger
-        let logger_ui_id = scene.attach_object(|id| {
-            Box::new(Logger::new(id, Position::new(203, 5), self.max_logs))
-        }, Conflict::Ignore);
+        let logger_ui_id = scene.attach_object(
+            |id| Box::new(Logger::new(id, Position::new(203, 6), self.max_logs)),
+            Conflict::Ignore,
+        );
         self.logger_id = logger_ui_id;
 
         // Player snake
-        let snake_id = scene.attach_object(|id| {
-            Box::new({
-                let mut snake = Snake::new(Position::new(50, 10), id, 3);
-                snake.head_style = Glyph::new(Some(Color::DarkYellow), Some(Color::Black), '█');
-                snake.body_style = Glyph::new(None, Some(Color::DarkMagenta), ' ');
-                snake.base_index = snake.base_index + 2;
-                snake.ignore_all = false;
-                snake.ignore_body = true;
-                snake
-            })
-        }, Conflict::Overwrite);
+        let snake_id = scene.attach_object(
+            |id| {
+                Box::new({
+                    let mut snake = Snake::new(Position::new(50, 10), id, 3);
+                    snake.head_style = Glyph::new(Some(Color::DarkYellow), Some(Color::Black), '█');
+                    snake.body_style = Glyph::new(None, Some(Color::DarkMagenta), ' ');
+                    snake.base_index = snake.base_index + 2;
+                    snake.ignore_death = false;
+                    snake.ignore_body = true;
+                    snake
+                })
+            },
+            Conflict::Overwrite,
+        );
 
+        // Ties snake to player
         if let Some(id) = snake_id {
             self.player.set_snake(id);
-            scene.exempt_from_overwrite.insert(id);
+            scene.protected_ids.insert(id);
         }
     }
 
@@ -122,10 +121,17 @@ impl Logic<StageKey> for SnakeLogic {
             let tick_duration = now.duration_since(self.last_tick);
             self.last_tick = now;
             let objects_count = scene.objects.len();
+            let stateful_count = match scene.indexes.get(&ObjectIndex::Stateful) {
+                Some(hash_set) => {
+                    hash_set.len()
+                },
+                None => 0
+            };
             if let Some(ui_object) = scene.objects.get_mut(&ui_id) {
                 if let Some(stats_ui) = ui_object.get_mut::<Statistics>() {
                     let lines = vec![
                         format!("Object Count: {}", objects_count),
+                        format!("Stateful Objects: {}", stateful_count),
                         format!("Tick Duration: {:.2?}", tick_duration),
                     ];
                     stats_ui.set_text(lines);
@@ -204,9 +210,10 @@ impl Logic<StageKey> for SnakeLogic {
                                         };
 
                                         if let Some(pos) = random_pos {
-                                            scene.attach_object(|id| {
-                                                Box::new(Food::rng_food(id, pos))
-                                            }, Conflict::Cancel);
+                                            scene.attach_object(
+                                                |id| Box::new(Food::rng_food(id, pos)),
+                                                Conflict::Cancel,
+                                            );
                                         }
                                     }
                                 }
@@ -216,8 +223,8 @@ impl Logic<StageKey> for SnakeLogic {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;
-                                                let y =
-                                                    (self.counter + i).saturating_mul(i) % grid.game_height as u64;
+                                                let y = (self.counter + i).saturating_mul(i)
+                                                    % grid.game_height as u64;
 
                                                 Some(Position::new(x as u16, y as u16))
                                             }
@@ -225,14 +232,18 @@ impl Logic<StageKey> for SnakeLogic {
                                         };
 
                                         if let Some(pos) = pos {
-                                            let _ = scene.attach_object(|id| {
-                                                Box::new({
-                                                    let mut snake = Snake::new(pos, id, (1) as usize);
-                                                    snake.ignore_all = false;
-                                                    snake.ignore_body = true;
-                                                    snake
-                                                })
-                                            }, Conflict::Cancel);
+                                            let _ = scene.attach_object(
+                                                |id| {
+                                                    Box::new({
+                                                        let mut snake =
+                                                            Snake::new(pos, id, (1) as usize);
+                                                        snake.ignore_death = true;
+                                                        snake.ignore_body = true;
+                                                        snake
+                                                    })
+                                                },
+                                                Conflict::Cancel,
+                                            );
                                         }
                                     }
                                 }

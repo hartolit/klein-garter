@@ -45,7 +45,7 @@ pub struct Snake {
     state: State,
     pub direction: Direction,
     pub base_index: u8,
-    pub ignore_all: bool,
+    pub ignore_death: bool,
     pub ignore_body: bool,
 }
 
@@ -85,7 +85,7 @@ impl Snake {
             state: State::new(),
             direction: Direction::Down,
             base_index,
-            ignore_all: false,
+            ignore_death: false,
             ignore_body: false,
         };
 
@@ -430,29 +430,28 @@ define_object! {
                 fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>> {
                     let mut events: Vec<Box<dyn Event>> = Vec::new();
 
-                    if !self.ignore_all {
-                        for hit in probe {
-                            if let Some(t_cell) = hit.cell.occ_by {
-                                if t_cell.occ.obj_id == self.id {
-                                    if self.ignore_body {
-                                        continue;
-                                    }
-                                    
-                                    let event = DeathEvent {
-                                        actor: self.id,
-                                        pos: hit.pos,
-                                    };
-                                    events.push(Box::new(event));
-                                    return events;
+                    for hit in probe {
+                        if let Some(t_cell) = hit.cell.occ_by {
+                            if t_cell.occ.obj_id == self.id {
+                                if self.ignore_body {
+                                    continue;
                                 }
 
-                                let event = CollisionEvent {
-                                        actor: self.id,
-                                        target: t_cell.occ.obj_id,
-                                        pos: hit.pos,
-                                    };
+                                let event = DeathEvent {
+                                    actor: self.id,
+                                    pos: hit.pos,
+                                };
                                 events.push(Box::new(event));
+                                return events;
                             }
+
+                            let event = CollisionEvent {
+                                    actor: self.id,
+                                    target: t_cell.occ.obj_id,
+                                    pos: hit.pos,
+                                    ignore: self.ignore_death,
+                                };
+                            events.push(Box::new(event));
                         }
                     }
 

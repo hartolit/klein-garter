@@ -10,6 +10,7 @@ pub struct CollisionEvent {
     pub actor: Id,
     pub target: Id,
     pub pos: Position,
+    pub ignore: bool, // Flag used to ignore certain operations like death
 }
 
 impl Event for CollisionEvent {
@@ -19,10 +20,7 @@ impl Event for CollisionEvent {
     fn log_message(&self) -> String {
         format!(
             "[COLLISION]: A:{}, T:{} @({},{})",
-            self.actor.value,
-            self.target.value,
-            self.pos.x,
-            self.pos.y
+            self.actor.value, self.target.value, self.pos.x, self.pos.y
         )
     }
 }
@@ -73,7 +71,8 @@ impl EventHandler<CollisionEvent> for CollisionHandler {
 
             // Snake & Snake
             (ObjectType::Snake, ObjectType::Snake) => {
-                if !scene.exempt_from_overwrite.contains(&event.actor){
+                // Prevents death of important or ignored objects
+                if !scene.protected_ids.contains(&event.actor) && !event.ignore {
                     scene.event_bus.push(Box::new(DeathEvent {
                         actor: event.actor,
                         pos: event.pos,

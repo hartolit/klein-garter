@@ -8,6 +8,6 @@ pub use crate::core::object::{
 
 pub use crate::core::Stage;
 pub use crate::core::event::{Event, EventHandler, EventManager};
-pub use crate::core::scene::{Scene, Conflict};
+pub use crate::core::scene::{Conflict, Scene, ObjectIndex};
 
 pub use crate::define_object;

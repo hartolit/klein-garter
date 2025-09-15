@@ -18,8 +18,7 @@ impl Event for FoodEatenEvent {
     fn log_message(&self) -> String {
         format!(
             "[FOOD EATEN]: A:{}, T:{}",
-            self.snake_id.value,
-            self.food_id.value,
+            self.snake_id.value, self.food_id.value,
         )
     }
 }

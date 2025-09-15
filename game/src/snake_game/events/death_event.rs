@@ -1,6 +1,5 @@
 use engine::prelude::{Event, EventHandler, Id, Position, Scene};
 
-
 pub struct DeathEvent {
     pub actor: Id,
     pub pos: Position,
@@ -14,9 +13,7 @@ impl Event for DeathEvent {
     fn log_message(&self) -> String {
         format!(
             "[DEATH]: A:{} @({},{})",
-            self.actor.value,
-            self.pos.x,
-            self.pos.y
+            self.actor.value, self.pos.x, self.pos.y
         )
     }
 }
