@@ -72,7 +72,7 @@ impl Food {
                     symbol,
                 },
                 pos,
-                z_index: 0,
+                z_index: 15,
             },
         }
     }
@@ -93,6 +93,8 @@ define_object! {
     id_field: id,
     t_cells: single(body),
     capabilities: {
+        Spatial{}
+        Destructible{}
     }
 }
 
