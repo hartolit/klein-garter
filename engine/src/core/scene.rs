@@ -103,14 +103,8 @@ impl Scene {
     }
 
     pub fn remove_object(&mut self, id: &Id) {
-        self.exempt_from_overwrite.remove(&id);
         if let Some(mut object) = self.objects.remove(id) {
-            if object.as_spatial().is_some() {
-                if let Some(grid) = &mut self.spatial_grid {
-                    grid.remove_object(&object);
-                }
-            }
-
+            self.exempt_from_overwrite.remove(&id);
             if let Some(destructable) = object.as_destructible_mut() {
                 self.global_state.state.changes.extend(destructable.kill());
             }

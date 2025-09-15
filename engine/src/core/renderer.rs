@@ -130,6 +130,7 @@ impl Renderer {
             }
         }
 
+        // Non-spatial draws
         for state in scene.global_state.filtered.non_spatial.iter() {
             match state {
                 StateChange::Delete { init_pos, .. } => {
