@@ -35,6 +35,7 @@ pub struct Snake {
     id: Id,
     id_counter: IdCounter, // For t_cell ids (internal)
     pub head_size: ResizeState,
+    pending_resize: Option<ResizeState>,
     effect: Option<Effect>,
     pub is_alive: bool,
     pub meals: i16,
@@ -70,6 +71,7 @@ impl Snake {
             id: obj_id,
             id_counter: id_counter,
             head_size: ResizeState::Normal { size: 1 },
+            pending_resize: None,
             effect: None,
             is_alive: true,
             meals: 30,
@@ -89,13 +91,12 @@ impl Snake {
             ignore_body: false,
         };
 
-        snake.resize_head(size);
+        snake.resize_head_native(size);
 
         snake
     }
 
-    // TODO! - SIMPLIFY
-    pub fn resize_head(&mut self, new_size: usize) {
+    pub fn resize_head_native(&mut self, new_size: usize) {
         if let ResizeState::Normal { size } = self.head_size
             && size == new_size
         {
@@ -106,8 +107,8 @@ impl Snake {
             self.head_size = ResizeState::Normal { size };
             return;
         }
-        self.set_head_size(new_size);
-        self.head_size = ResizeState::Normal { size: new_size };
+
+        self.pending_resize = Some(ResizeState::Normal { size: new_size });
     }
 
     pub fn resize_head_brief(&mut self, new_size: usize) {
@@ -115,17 +116,12 @@ impl Snake {
             return;
         }
 
-        self.set_head_size(new_size);
-        self.head_size = ResizeState::Brief {
-            size: new_size,
-            native_size: self.head_size.native_size(),
-        };
+        self.pending_resize = Some(ResizeState::Brief { size: new_size, native_size: self.head_size.native_size() });
     }
 
-    pub fn resize_head_native(&mut self) {
+    pub fn reset_head_size(&mut self) {
         if let ResizeState::Brief { native_size, .. } = self.head_size {
-            self.set_head_size(native_size);
-            self.head_size = ResizeState::Normal { size: native_size };
+            self.pending_resize = Some(ResizeState::Normal { size: native_size });
         }
     }
 
@@ -359,7 +355,7 @@ impl Snake {
         effect.next_tick();
 
         if effect.is_expired() {
-            self.resize_head_native();
+            self.reset_head_size();
             self.effect = None;
         } else {
             self.effect = Some(effect)
@@ -370,7 +366,7 @@ impl Snake {
         if let Some(size) = new_effect.action_size {
             self.resize_head_brief(size);
         } else {
-            self.resize_head_native();
+            self.reset_head_size();
         }
         self.effect = Some(new_effect);
     }
@@ -381,6 +377,53 @@ impl Snake {
                 .iter()
                 .chain(self.body.iter().flat_map(|segment| segment.t_cells.iter())),
         )
+    }
+
+    // TODO - Fix
+    fn predict_head_resize_pos(&self, new_size: usize) -> Vec<Position> {
+        if self.head.is_empty() {
+            return Vec::new();
+        }
+
+        let odd_size = if new_size % 2 == 0 {
+            new_size.saturating_sub(1).max(1)
+        } else {
+            new_size
+        };
+
+        let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
+            (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+            |(min_x, max_x, min_y, max_y), t_cell| {
+                (
+                    min_x.min(t_cell.pos.x),
+                    max_x.max(t_cell.pos.x),
+                    min_y.min(t_cell.pos.y),
+                    max_y.max(t_cell.pos.y),
+                )
+            },
+        );
+
+        let half_size = odd_size as u16 / 2;
+        let center_x = min_x + (max_x - min_x) / 2;
+        let center_y = min_y + (max_y - min_y) / 2;
+
+        let top_left = match self.direction {
+            Direction::Up => Position { x: center_x.saturating_sub(half_size), y: max_y.saturating_sub(odd_size as u16 - 1) },
+            Direction::Down => Position { x: center_x.saturating_sub(half_size), y: min_y },
+            Direction::Left => Position { x: max_x.saturating_sub(odd_size as u16 - 1), y: center_y.saturating_sub(half_size) },
+            Direction::Right => Position { x: min_x, y: center_y.saturating_sub(half_size) },
+        };
+
+        let mut positions = Vec::with_capacity(odd_size * odd_size);
+        for row in 0..odd_size {
+            for col in 0..odd_size {
+                positions.push(Position {
+                    x: top_left.x + col as u16,
+                    y: top_left.y + row as u16,
+                });
+            }
+        }
+        positions
     }
 }
 
@@ -394,37 +437,45 @@ define_object! {
         Spatial {}
         Movable {
             impl {
-                fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_> {
+                fn probe_move(&self) -> Box<dyn Iterator<Item = Position> + '_> {
                     if self.head.is_empty() {
                         return Box::new(std::iter::empty());
                     }
 
                     let (dx, dy) = self.direction.get_move();
 
-                    let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
-                    (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
-                    |(min_x, max_x, min_y, max_y), t_cell| {
-                        (
-                            min_x.min(t_cell.pos.x),
-                            max_x.max(t_cell.pos.x),
-                            min_y.min(t_cell.pos.y),
-                            max_y.max(t_cell.pos.y),
-                        )
-                    });
 
-                    // Filter for only the "leading edge" cells based on direction
-                    let leading_edge = self.head.iter().filter(move |t_cell| match self.direction {
-                        Direction::Up => t_cell.pos.y == min_y,
-                        Direction::Down => t_cell.pos.y == max_y,
-                        Direction::Left => t_cell.pos.x == min_x,
-                        Direction::Right => t_cell.pos.x == max_x,
-                    });
+                    if let Some(resize) = self.pending_resize {
+                        let new_size = resize.current_size();
+                        let future_head_positions = self.predict_head_resize_pos(new_size);
 
-                    // Predict the next position for only those leading cells
-                    Box::new(leading_edge.map(move |t_cell| Position {
-                        x: t_cell.pos.x.saturating_add_signed(dx),
-                        y: t_cell.pos.y.saturating_add_signed(dy),
-                    }))
+                        Box::new(future_head_positions.into_iter().map(move |pos| Position {
+                            x: pos.x.saturating_add_signed(dx),
+                            y: pos.y.saturating_add_signed(dy),
+                        }))
+                    } else {
+                        // Predicts the next position for only the leading edge 
+                        let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
+                            (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+                            |(min_x, max_x, min_y, max_y), t_cell| {
+                                (
+                                    min_x.min(t_cell.pos.x), max_x.max(t_cell.pos.x),
+                                    min_y.min(t_cell.pos.y), max_y.max(t_cell.pos.y),
+                                )
+                            });
+
+                        let leading_edge = self.head.iter().filter(move |t_cell| match self.direction {
+                            Direction::Up => t_cell.pos.y == min_y,
+                            Direction::Down => t_cell.pos.y == max_y,
+                            Direction::Left => t_cell.pos.x == min_x,
+                            Direction::Right => t_cell.pos.x == max_x,
+                        });
+
+                        Box::new(leading_edge.map(move |t_cell| Position {
+                            x: t_cell.pos.x.saturating_add_signed(dx),
+                            y: t_cell.pos.y.saturating_add_signed(dy),
+                        }))
+                    }
                 }
 
                 fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>> {
@@ -433,7 +484,7 @@ define_object! {
                     for hit in probe {
                         if let Some(t_cell) = hit.cell.occ_by {
                             if t_cell.occ.obj_id == self.id {
-                                if self.ignore_body {
+                                if self.ignore_body || self.pending_resize.is_some() || self.ignore_death {
                                     continue;
                                 }
 
@@ -453,6 +504,20 @@ define_object! {
                                 };
                             events.push(Box::new(event));
                         }
+                    }
+
+                    if let Some(resize) = self.pending_resize {
+                        match resize {
+                            ResizeState::Brief { size, .. } => {
+                                self.set_head_size(size);
+                                self.head_size = resize;
+                            },
+                            ResizeState::Normal { size } => {
+                                self.set_head_size(size);
+                                self.head_size = resize;
+                            },
+                        }
+                        self.pending_resize = None;
                     }
 
                     self.slither();

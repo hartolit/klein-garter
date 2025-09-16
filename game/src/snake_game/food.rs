@@ -72,7 +72,7 @@ impl Food {
                     symbol,
                 },
                 pos,
-                z_index: 15,
+                z_index: 0,
             },
         }
     }

@@ -186,7 +186,7 @@ impl Runtime {
                         .and_then(|obj| obj.as_movable())
                         .map(|movable| (*id, movable))
                 })
-                .flat_map(|(id, movable)| movable.predict_pos().map(move |pos| (id, pos)));
+                .flat_map(|(id, movable)| movable.probe_move().map(move |pos| (id, pos)));
 
             let mut probe_map = grid.probe_moves(future_moves);
 

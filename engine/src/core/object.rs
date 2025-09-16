@@ -132,14 +132,11 @@ pub trait Spatial: Object {}
 /// collisions back to the object (`make_move`). The object then initiates
 /// a move and sends back a reaction from its collisions through events.
 pub trait Movable: Object + Stateful + Spatial {
-    /// Used to probe an objects future positions to detect collisions.
+    /// Probes an objects future positions to detect collisions.
     /// Note: If the predicted move is "non-pure" and includes itself,
     /// the collision system will treat this overlap as a collision.
-    fn predict_pos(&self) -> Box<dyn Iterator<Item = Position> + '_>;
+    fn probe_move(&self) -> Box<dyn Iterator<Item = Position> + '_>;
 
-    // TODO - Manage object specific collisions before a move?
-    // Example a snake hits an object wall, but moves inside it
-    // before it dies from the event... StateChange::Delete?
     fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>>;
 }
 
