@@ -41,7 +41,7 @@ impl EventHandler<FoodEatenEvent> for FoodEatenHandler {
             {
                 snake.meals += meals;
                 snake.apply_effect(Effect::new(
-                    3,
+                    5,
                     EffectStyle::Grow,
                     Some(snake.head_size.native_size() + 2),
                     EffectZone::All,

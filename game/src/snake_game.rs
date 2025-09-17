@@ -97,7 +97,7 @@ impl Logic<StageKey> for SnakeLogic {
                     snake.body_style = Glyph::new(None, Some(Color::DarkMagenta), ' ');
                     snake.base_index = snake.base_index + 2;
                     snake.ignore_death = true;
-                    snake.ignore_body = true;
+                    snake.ignore_body = false;
                     snake
                 })
             },
@@ -122,10 +122,8 @@ impl Logic<StageKey> for SnakeLogic {
             self.last_tick = now;
             let objects_count = scene.objects.len();
             let stateful_count = match scene.indexes.get(&ObjectIndex::Stateful) {
-                Some(hash_set) => {
-                    hash_set.len()
-                },
-                None => 0
+                Some(hash_set) => hash_set.len(),
+                None => 0,
             };
             if let Some(ui_object) = scene.objects.get_mut(&ui_id) {
                 if let Some(stats_ui) = ui_object.get_mut::<Statistics>() {
@@ -190,10 +188,12 @@ impl Logic<StageKey> for SnakeLogic {
                                 KeyCode::Char('s') => snake.direction = Direction::Down,
                                 KeyCode::Char('a') => snake.direction = Direction::Left,
                                 KeyCode::Char('d') => snake.direction = Direction::Right,
-                                KeyCode::Char('q') => snake
-                                    .resize_head_native(snake.head_size.native_size().saturating_sub(2)),
-                                KeyCode::Char('e') => snake
-                                    .resize_head_native(snake.head_size.native_size().saturating_add(2)),
+                                KeyCode::Char('q') => snake.resize_head_native(
+                                    snake.head_size.native_size().saturating_sub(2),
+                                ),
+                                KeyCode::Char('e') => snake.resize_head_native(
+                                    snake.head_size.native_size().saturating_add(2),
+                                ),
                                 KeyCode::Char('r') => self.skip = false,
                                 KeyCode::Char('+') => {
                                     snake.base_index = snake.base_index.saturating_add(2)
@@ -202,7 +202,7 @@ impl Logic<StageKey> for SnakeLogic {
                                     snake.base_index = snake.base_index.saturating_sub(2)
                                 }
                                 KeyCode::Char('f') => {
-                                    for _ in 0..100 {
+                                    for _ in 0..1000 {
                                         let random_pos: Option<Position> = match &scene.spatial_grid
                                         {
                                             Some(grid) => grid.random_empty_pos(),
@@ -219,7 +219,7 @@ impl Logic<StageKey> for SnakeLogic {
                                 }
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..10 {
+                                    for i in 0..10000 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;
@@ -242,7 +242,7 @@ impl Logic<StageKey> for SnakeLogic {
                                                         snake
                                                     })
                                                 },
-                                                Conflict::Cancel,
+                                                Conflict::Ignore,
                                             );
                                         }
                                     }

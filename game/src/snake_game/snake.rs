@@ -442,33 +442,77 @@ define_object! {
                         return Box::new(std::iter::empty());
                     }
 
-                    let (dx, dy) = self.direction.get_move();
+                    let (curr_min_x, curr_max_x, curr_min_y, curr_max_y) = self.head.iter().fold(
+                            (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+                            |(min_x, max_x, min_y, max_y), t_cell| {
+                                (min_x.min(t_cell.pos.x), max_x.max(t_cell.pos.x),
+                                min_y.min(t_cell.pos.y), max_y.max(t_cell.pos.y))
+                            });
 
+
+                    let (dx, dy) = self.direction.get_move();
 
                     if let Some(resize) = self.pending_resize {
                         let new_size = resize.current_size();
-                        let future_head_positions = self.predict_head_resize_pos(new_size);
+                        let is_growing = new_size > self.head_size.current_size();
+                        let future_head_pos = self.predict_head_resize_pos(new_size);
 
-                        Box::new(future_head_positions.into_iter().map(move |pos| Position {
-                            x: pos.x.saturating_add_signed(dx),
-                            y: pos.y.saturating_add_signed(dy),
-                        }))
+                        if is_growing {
+                            // Bounding box of the new head size
+                            let (new_min_x, new_max_x, new_min_y, new_max_y) = future_head_pos.iter().fold(
+                                (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
+                                |(min_x, max_x, min_y, max_y), pos| {
+                                    (min_x.min(pos.x), max_x.max(pos.x), 
+                                    min_y.min(pos.y), max_y.max(pos.y))
+                                });
+                                
+                                let future_move = future_head_pos.into_iter().flat_map(move |pos| {
+                                    // A tiny array to hold None or pos + a generated pos
+                                    let mut positions_to_yield = [None; 2];
+                                    let mut index = 0;
+                                    
+                                    let is_leading_edge = match self.direction {
+                                        Direction::Up => pos.y == new_min_y,
+                                        Direction::Down => pos.y == new_max_y,
+                                        Direction::Left => pos.x == new_min_x,
+                                        Direction::Right => pos.x == new_max_x,
+                                    };
+                                    
+                                    if is_leading_edge {
+                                        positions_to_yield[index] = Some(Position {
+                                            x: pos.x.saturating_add_signed(dx),
+                                            y: pos.y.saturating_add_signed(dy),
+                                        });
+                                        index += 1;
+                                    }
+                                    
+                                    // Expansion check from the current bounding box
+                                    let is_expansion = pos.x < curr_min_x
+                                    || pos.x > curr_max_x
+                                    || pos.y < curr_min_y
+                                    || pos.y > curr_max_y;
+                                    if is_expansion {
+                                        positions_to_yield[index] = Some(pos);
+                                    }
+                                    
+                                    // Returns an iterator over the yielded positions.
+                                    positions_to_yield.into_iter().flatten()
+                                });
+                                
+                                Box::new(future_move)
+                            } else {
+                                // Returns a single probe targeting our own head cell.
+                                // This is to ensure the engine calls `make_move`.
+                                // The resize "grace period" ignores this collision.
+                                Box::new(std::iter::once(self.head[0].pos))
+                            }
                     } else {
                         // Predicts the next position for only the leading edge 
-                        let (min_x, max_x, min_y, max_y) = self.head.iter().fold(
-                            (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
-                            |(min_x, max_x, min_y, max_y), t_cell| {
-                                (
-                                    min_x.min(t_cell.pos.x), max_x.max(t_cell.pos.x),
-                                    min_y.min(t_cell.pos.y), max_y.max(t_cell.pos.y),
-                                )
-                            });
-
                         let leading_edge = self.head.iter().filter(move |t_cell| match self.direction {
-                            Direction::Up => t_cell.pos.y == min_y,
-                            Direction::Down => t_cell.pos.y == max_y,
-                            Direction::Left => t_cell.pos.x == min_x,
-                            Direction::Right => t_cell.pos.x == max_x,
+                            Direction::Up => t_cell.pos.y == curr_min_y,
+                            Direction::Down => t_cell.pos.y == curr_max_y,
+                            Direction::Left => t_cell.pos.x == curr_min_x,
+                            Direction::Right => t_cell.pos.x == curr_max_x,
                         });
 
                         Box::new(leading_edge.map(move |t_cell| Position {
@@ -484,7 +528,10 @@ define_object! {
                     for hit in probe {
                         if let Some(t_cell) = hit.cell.occ_by {
                             if t_cell.occ.obj_id == self.id {
-                                if self.ignore_body || self.pending_resize.is_some() || self.ignore_death {
+                                
+                                if self.ignore_body 
+                                    || self.pending_resize.is_some() // Resize grace period
+                                    || self.ignore_death {
                                     continue;
                                 }
 
@@ -492,6 +539,7 @@ define_object! {
                                     actor: self.id,
                                     pos: hit.pos,
                                 };
+                                events.clear();
                                 events.push(Box::new(event));
                                 return events;
                             }
@@ -506,10 +554,6 @@ define_object! {
                         }
                     }
 
-                    
-                    self.slither();
-                    self.tick_effect();
-                    
                     if let Some(resize) = self.pending_resize {
                         match resize {
                             ResizeState::Brief { size, .. } => {
@@ -523,6 +567,9 @@ define_object! {
                         }
                         self.pending_resize = None;
                     }
+                    
+                    self.slither();
+                    self.tick_effect();
 
                     events
                 }
