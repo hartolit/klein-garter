@@ -5,12 +5,12 @@ use engine::core::scene::Scene;
 use engine::core::{Logic, RuntimeCommand};
 use engine::prelude::*;
 
-mod events;
-mod food;
-mod game_object;
-mod player;
-mod snake;
-mod ui;
+pub mod events;
+pub mod food;
+pub mod game_object;
+pub mod player;
+pub mod snake;
+pub mod ui;
 
 use food::Food;
 use player::Player;
@@ -34,6 +34,8 @@ pub struct SnakeLogic {
     max_logs: usize,
     last_tick: Instant,
     is_debugging: bool,
+    switch_stage: bool,
+    stage_switch: u8,
 }
 
 impl SnakeLogic {
@@ -56,6 +58,8 @@ impl SnakeLogic {
             max_logs: 10,
             last_tick: Instant::now(),
             is_debugging: true,
+            switch_stage: false,
+            stage_switch: 0,
         }
     }
 }
@@ -65,7 +69,7 @@ impl Logic<StageKey> for SnakeLogic {
         // Attaching spatial grid
         let grid = SpatialGrid::new(200, 80, 1, |_, is_border| {
             if is_border {
-                let style = Glyph::new(Some(Color::Grey), Some(Color::Black), '█');
+                let style = Glyph::new(Some(Color::Rgb { r: 20, g: 20, b: 30 }), Some(Color::Black), '█');
                 Terrain::new(style, 255)
             } else {
                 let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
@@ -93,9 +97,9 @@ impl Logic<StageKey> for SnakeLogic {
             |id| {
                 Box::new({
                     let mut snake = Snake::new(Position::new(50, 10), id, 3);
-                    snake.head_style = Glyph::new(Some(Color::DarkYellow), Some(Color::Black), '█');
-                    snake.body_style = Glyph::new(None, Some(Color::DarkMagenta), ' ');
-                    snake.base_index = snake.base_index + 2;
+                    snake.head_style = Glyph::new(Some(Color::Rgb { r: 255, g: 0, b: 255 }), Some(Color::Black), '█');
+                    snake.body_style = Glyph::new(Some(Color::Rgb { r: 138, g: 43, b: 226 }), Some(Color::Black), '█');
+                    snake.base_index = 20;
                     snake.ignore_death = true;
                     snake.ignore_body = false;
                     snake
@@ -112,6 +116,14 @@ impl Logic<StageKey> for SnakeLogic {
     }
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
+        if self.switch_stage {
+            return match self.stage_switch {
+                0 => RuntimeCommand::SwitchStage(StageKey::Snake),
+                1 => RuntimeCommand::SwitchStage(StageKey::Snake1),
+                _ => RuntimeCommand::SwitchStage(StageKey::Snake2),
+            };
+        }
+
         if self.quit {
             return RuntimeCommand::Kill;
         }
@@ -184,6 +196,9 @@ impl Logic<StageKey> for SnakeLogic {
                     if let Some(snake) = scene.objects.get_mut(&snake_id) {
                         if let Some(snake) = snake.get_mut::<Snake>() {
                             match key_event.code {
+                                KeyCode::Char('0') => self.stage_switch = 0,
+                                KeyCode::Char('1') => self.stage_switch = 1,
+                                KeyCode::Char('2') => self.stage_switch = 2,
                                 KeyCode::Char('w') => snake.direction = Direction::Up,
                                 KeyCode::Char('s') => snake.direction = Direction::Down,
                                 KeyCode::Char('a') => snake.direction = Direction::Left,
@@ -194,7 +209,7 @@ impl Logic<StageKey> for SnakeLogic {
                                 KeyCode::Char('e') => snake.resize_head_native(
                                     snake.head_size.native_size().saturating_add(2),
                                 ),
-                                KeyCode::Char('r') => self.skip = false,
+                                KeyCode::Char('r') => self.switch_stage = true,
                                 KeyCode::Char('+') => {
                                     snake.base_index = snake.base_index.saturating_add(2)
                                 }
@@ -219,7 +234,7 @@ impl Logic<StageKey> for SnakeLogic {
                                 }
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..100 {
+                                    for i in 0..200 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;
@@ -235,14 +250,20 @@ impl Logic<StageKey> for SnakeLogic {
                                             let _ = scene.attach_object(
                                                 |id| {
                                                     Box::new({
-                                                        let mut snake =
-                                                            Snake::new(pos, id, (1) as usize);
+                                                        let mut snake = Snake::new(pos, id, (1) as usize);
                                                         snake.ignore_death = true;
                                                         snake.ignore_body = true;
+
+                                                        let color_picker = (self.counter % 255) as u8;
+                                                        let index = (self.counter % 15) as u8;
+                                                        
+                                                        snake.body_style = Glyph::new(Some(Color::Rgb { r: color_picker.saturating_sub(50), g: 20, b: 30 }), Some(Color::Black), '█');
+                                                        snake.head_style = Glyph::new(Some(Color::Rgb { r: color_picker, g: 20, b: 30 }), Some(Color::Black), '█');
+                                                        snake.base_index = index;
                                                         snake
                                                     })
                                                 },
-                                                Conflict::Cancel,
+                                                Conflict::Overwrite,
                                             );
                                         }
                                     }

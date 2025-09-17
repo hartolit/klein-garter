@@ -8,7 +8,9 @@ use snake_game::SnakeLogic;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum StageKey {
-    SnakeGame,
+    Snake,
+    Snake1,
+    Snake2,
 }
 
 fn main() {
@@ -16,9 +18,16 @@ fn main() {
 
     let snake_logic = Box::new(SnakeLogic::new());
     let snake_stage: Stage<StageKey> = Stage::new(snake_logic);
+    manager.add_stage(StageKey::Snake, snake_stage);
+    
+    let snake_logic = Box::new(SnakeLogic::new());
+    let snake_stage: Stage<StageKey> = Stage::new(snake_logic);
+    manager.add_stage(StageKey::Snake1, snake_stage);
 
-    manager.add_stage(StageKey::SnakeGame, snake_stage);
-    manager.set_active_stage(StageKey::SnakeGame);
+    let snake_logic = Box::new(SnakeLogic::new());
+    let snake_stage: Stage<StageKey> = Stage::new(snake_logic);
+    manager.add_stage(StageKey::Snake2, snake_stage);
+    manager.set_active_stage(StageKey::Snake);
 
     manager.run_app();
 }
