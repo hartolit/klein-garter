@@ -506,6 +506,10 @@ define_object! {
                         }
                     }
 
+                    
+                    self.slither();
+                    self.tick_effect();
+                    
                     if let Some(resize) = self.pending_resize {
                         match resize {
                             ResizeState::Brief { size, .. } => {
@@ -519,9 +523,6 @@ define_object! {
                         }
                         self.pending_resize = None;
                     }
-
-                    self.slither();
-                    self.tick_effect();
 
                     events
                 }
