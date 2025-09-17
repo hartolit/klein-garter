@@ -2,6 +2,9 @@ use crate::core::scene::Scene;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
+// TODO - Fix event duplications
+// Self notes - (EventBus, EventKey, HashMap + Vec for O(1))
+
 pub trait Event: 'static + Any {
     fn as_any(&self) -> &dyn Any;
     fn log_message(&self) -> String {

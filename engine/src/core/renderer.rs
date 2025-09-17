@@ -69,7 +69,7 @@ impl Renderer {
 
     pub fn partial_render(&mut self, scene: &Scene) {
         // Spatial changes are synced with the grid and hides behind:
-        // cell.top_glyph_and_z(), which gets the most prominent cell
+        // `cell.top_glyph_and_z()`, which gets the most prominent cell
         // e.g: 'Terrain' or 'TCell'.
         // The logic behind this sync is located at 'scene.rs'.
 

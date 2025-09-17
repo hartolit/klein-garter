@@ -12,10 +12,10 @@ pub enum Operation {
     Draw { glyph: Glyph, z_index: u8 },
 }
 
-// TODO - Take a snapshot from the buffer to sync to an infinite grid to reflect changes based on previous changes
+// TODO - Take a snapshot from the buffer to sync to an infinite grid and reflect changes based on previous changes
 // Right now the Operations outside of a grid is only reflected in its current StateChanges for the tick.
 // That is to say previous states with a higher index than the current StateChanges might get overriden
-// due to previous StateChanges not being reflected into current StateChanges.
+// due to previous states not being reflected into its current states.
 pub struct Buffer {
     stdout: Stdout,
     frame_buffer: HashMap<Position, Operation>,

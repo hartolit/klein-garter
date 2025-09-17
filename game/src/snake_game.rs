@@ -202,7 +202,7 @@ impl Logic<StageKey> for SnakeLogic {
                                     snake.base_index = snake.base_index.saturating_sub(2)
                                 }
                                 KeyCode::Char('f') => {
-                                    for _ in 0..1000 {
+                                    for _ in 0..100 {
                                         let random_pos: Option<Position> = match &scene.spatial_grid
                                         {
                                             Some(grid) => grid.random_empty_pos(),
@@ -219,7 +219,7 @@ impl Logic<StageKey> for SnakeLogic {
                                 }
                                 KeyCode::Esc => self.quit = true,
                                 KeyCode::Tab => {
-                                    for i in 0..10000 {
+                                    for i in 0..100 {
                                         let pos: Option<Position> = match &scene.spatial_grid {
                                             Some(grid) => {
                                                 let x = (self.counter + i) % grid.game_width as u64;
@@ -242,7 +242,7 @@ impl Logic<StageKey> for SnakeLogic {
                                                         snake
                                                     })
                                                 },
-                                                Conflict::Ignore,
+                                                Conflict::Cancel,
                                             );
                                         }
                                     }

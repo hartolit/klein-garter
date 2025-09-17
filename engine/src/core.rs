@@ -237,8 +237,7 @@ impl Runtime {
             }
             RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
             RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
-            // TODO - FIX
-            RuntimeCommand::Reset => return Some(ManagerDirective::Reset),
+            RuntimeCommand::Reset => return Some(ManagerDirective::Reset), // TODO - FIX
             RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
             RuntimeCommand::None => {}
         }
