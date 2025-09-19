@@ -1,13 +1,26 @@
+// Core Primitives & Foundational Types
 pub use crate::core::global::{Id, IdCounter, Position};
-pub use crate::core::grid::{SpatialGrid, cell::CellRef, terrain::Terrain};
-pub use crate::core::object::{
-    Destructible, Movable, Object, ObjectExt, Occupant, Stateful,
-    state::{State, StateChange},
-    t_cell::{Glyph, TCell},
+
+// Runtime, Stage & Object Model
+pub use crate::core::runtime::{
+    stage::{
+        scene::{
+            object::{
+                state::{State, StateChange},
+                t_cell::{Glyph, TCell},
+                Destructible, Movable, Object, ObjectExt, Occupant, Spatial, Stateful,
+            },
+            grid::{CellRef, SpatialGrid, Terrain},
+            Conflict, ObjectIndex, Scene,
+        },
+        Logic, Stage,
+    },
+    RuntimeCommand,
 };
+pub use crate::core::RuntimeManager;
 
-pub use crate::core::Stage;
+// Event System
 pub use crate::core::event::{Event, EventHandler, EventManager};
-pub use crate::core::scene::{Conflict, ObjectIndex, Scene};
 
+// Macros
 pub use crate::define_object;

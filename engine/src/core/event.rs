@@ -1,4 +1,4 @@
-use crate::core::scene::Scene;
+use crate::prelude::Scene;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 

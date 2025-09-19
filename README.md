@@ -14,7 +14,7 @@ The game specific logic happens through 3 different layers depending its complex
 * **Events**: Events handle more complex scenarios which would be outside the capabilities of an object.
 * **Logic trait**: At last the `Logic<K>` trait provided by the engine provides full control of a tick.
 
-The engine also provides a few other noteworthy capabilities that aren't fully tested or implemented yet, like:
+The engine also provides a few other noteworthy capabilities:
 
 * **Switching between Stages**: A `Stage` is made up of some `Logic` and a `Scene` which holds the objects. So if you have different stages like: `Level1`, `Level2`, etc., you can switch between them within the logic trait by returning `RuntimeCommand::SwitchStage(K)` from the update loop.
 

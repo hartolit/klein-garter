@@ -5,11 +5,8 @@ use std::fmt::Debug;
 pub mod state;
 pub mod t_cell;
 
-use super::global::{Id, Position};
-use super::grid::cell::CellRef;
-use crate::core::event::Event;
-use crate::core::object::state::State;
-use state::StateChange;
+use crate::prelude::{Id, Position, CellRef, Event};
+use state::{StateChange, State};
 use t_cell::TCell;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -162,64 +159,64 @@ macro_rules! define_object {
     (@as_trait_impls) => {};
 
     (@as_trait_impls Stateful { $($body:tt)* } $($tail:tt)*) => {
-        fn as_stateful(&self) -> Option<&dyn $crate::core::object::Stateful> { Some(self) }
-        fn as_stateful_mut(&mut self) -> Option<&mut dyn $crate::core::object::Stateful> { Some(self) }
+        fn as_stateful(&self) -> Option<&dyn $crate::prelude::Stateful> { Some(self) }
+        fn as_stateful_mut(&mut self) -> Option<&mut dyn $crate::prelude::Stateful> { Some(self) }
         $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
     (@as_trait_impls Destructible { $($body:tt)* } $($tail:tt)*) => {
-        fn as_destructible(&self) -> Option<&dyn $crate::core::object::Destructible> { Some(self) }
-        fn as_destructible_mut(&mut self) -> Option<&mut dyn $crate::core::object::Destructible> { Some(self) }
+        fn as_destructible(&self) -> Option<&dyn $crate::prelude::Destructible> { Some(self) }
+        fn as_destructible_mut(&mut self) -> Option<&mut dyn $crate::prelude::Destructible> { Some(self) }
         $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
     (@as_trait_impls Spatial { $($body:tt)* } $($tail:tt)*) => {
-        fn as_spatial(&self) -> Option<&dyn $crate::core::object::Spatial> { Some(self) }
-        fn as_spatial_mut(&mut self) -> Option<&mut dyn $crate::core::object::Spatial> { Some(self) }
+        fn as_spatial(&self) -> Option<&dyn $crate::prelude::Spatial> { Some(self) }
+        fn as_spatial_mut(&mut self) -> Option<&mut dyn $crate::prelude::Spatial> { Some(self) }
         $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
     (@as_trait_impls Active { $($body:tt)* } $($tail:tt)*) => {
-        fn as_active(&self) -> Option<&dyn $crate::core::object::Active> { Some(self) }
-        fn as_active_mut(&mut self) -> Option<&mut dyn $crate::core::object::Active> { Some(self) }
+        fn as_active(&self) -> Option<&dyn $crate::prelude::Active> { Some(self) }
+        fn as_active_mut(&mut self) -> Option<&mut dyn $crate::prelude::Active> { Some(self) }
         $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
     (@as_trait_impls Movable { $($body:tt)* } $($tail:tt)*) => {
-        fn as_movable(&self) -> Option<&dyn $crate::core::object::Movable> { Some(self) }
-        fn as_movable_mut(&mut self) -> Option<&mut dyn $crate::core::object::Movable> { Some(self) }
+        fn as_movable(&self) -> Option<&dyn $crate::prelude::Movable> { Some(self) }
+        fn as_movable_mut(&mut self) -> Option<&mut dyn $crate::prelude::Movable> { Some(self) }
         $crate::define_object!(@as_trait_impls $($tail)*);
     };
 
     (@trait_impls $struct:ty, ) => {};
 
     (@trait_impls $struct:ty, Stateful { state_field: $state_field:ident } $($tail:tt)*) => {
-        impl $crate::core::object::Stateful for $struct {
-            fn state(&self) -> &$crate::core::object::state::State { &self.$state_field }
-            fn state_mut(&mut self) -> &mut $crate::core::object::state::State { &mut self.$state_field }
+        impl $crate::prelude::Stateful for $struct {
+            fn state(&self) -> &$crate::prelude::State { &self.$state_field }
+            fn state_mut(&mut self) -> &mut $crate::prelude::State { &mut self.$state_field }
         }
         $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
     (@trait_impls $struct:ty, Destructible { } $($tail:tt)*) => {
-        impl $crate::core::object::Destructible for $struct {}
+        impl $crate::prelude::Destructible for $struct {}
         $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
     (@trait_impls $struct:ty, Spatial { } $($tail:tt)*) => {
-        impl $crate::core::object::Spatial for $struct {}
+        impl $crate::prelude::Spatial for $struct {}
         $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
     (@trait_impls $struct:ty, Active { impl { $($body:tt)* } } $($tail:tt)*) => {
-        impl $crate::core::object::Active for $struct {
+        impl $crate::prelude::Active for $struct {
             $($body)*
         }
         $crate::define_object!(@trait_impls $struct, $($tail)*);
     };
 
     (@trait_impls $struct:ty, Movable { impl { $($body:tt)* } } $($tail:tt)*) => {
-        impl $crate::core::object::Movable for $struct {
+        impl $crate::prelude::Movable for $struct {
             $($body)*
         }
         $crate::define_object!(@trait_impls $struct, $($tail)*);
@@ -243,9 +240,9 @@ macro_rules! define_object {
         t_cells: $kind:ident($($args:tt)*),
         capabilities: { $($capabilities:tt)* }
     ) => {
-        impl $crate::core::object::Object for $struct {
+        impl $crate::prelude::Object for $struct {
             fn id(&self) -> $crate::core::global::Id { self.$id_field }
-            fn t_cells(&self) -> Box<dyn Iterator<Item = &$crate::core::object::t_cell::TCell> + '_> {
+            fn t_cells(&self) -> Box<dyn Iterator<Item = &$crate::prelude::TCell> + '_> {
                 $crate::define_object!(@expand_t_cells self, $kind($($args)*))
             }
             fn as_any(&self) -> &dyn std::any::Any { self }

@@ -39,11 +39,11 @@ impl EventHandler<FoodEatenEvent> for FoodEatenHandler {
                 .get_mut(&event.snake_id)
                 .and_then(|obj| obj.get_mut::<Snake>())
             {
-                snake.meals += meals;
+                snake.meals = snake.meals.saturating_add(meals as i16);
                 snake.apply_effect(Effect::new(
-                    5,
+                    5 + meals as usize,
                     EffectStyle::Grow,
-                    Some(snake.head_size.native_size() + 2),
+                    Some(snake.head_size.native_size().saturating_add(2)),
                     EffectZone::All,
                 ));
             }

@@ -1,4 +1,4 @@
-use crate::core::{global::Position, object::Occupant};
+use crate::prelude::{Position, Occupant};
 use crossterm::style::Color;
 
 /// TCell (Terminal Cell)

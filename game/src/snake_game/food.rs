@@ -1,11 +1,4 @@
-use ::engine::core::{
-    global::{Id, Position},
-    object::{
-        Occupant,
-        t_cell::{Glyph, TCell},
-    },
-};
-use engine::define_object;
+use engine::prelude::*;
 
 use crossterm::style::Color;
 use rand::Rng;
@@ -24,7 +17,7 @@ pub enum Kind {
 pub struct Food {
     id: Id,
     kind: Kind,
-    meal: i16,
+    meal: u16,
     body: TCell,
 }
 
@@ -50,7 +43,7 @@ impl Food {
                 },
             ),
             Kind::Grower => (
-                0,
+                3,
                 '⌘',
                 Color::Rgb {
                     r: 242,
@@ -99,7 +92,7 @@ define_object! {
 }
 
 impl Consumable for Food {
-    fn get_meal(&self) -> i16 {
+    fn get_meal(&self) -> u16 {
         self.meal
     }
 }

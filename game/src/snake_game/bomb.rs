@@ -23,7 +23,7 @@ pub enum Kind {
 pub struct Bomb {
     id: Id,
     kind: Kind,
-    damage: i16,
+    damage: u16,
     body: TCell,
     state: State,
     is_dead: bool,
@@ -34,7 +34,7 @@ impl Bomb {
     pub fn new(obj_id: Id, kind: Kind, pos: Position) -> Self {
         let (damage, symbol, color) = match kind {
             Kind::LittleBoy => (
-                -2,
+                2,
                 '⏺',
                 Color::Rgb {
                     r: 169,
@@ -43,7 +43,7 @@ impl Bomb {
                 },
             ),
             Kind::FatMan => (
-                -10,
+                4,
                 '᳀',
                 Color::Rgb {
                     r: 169,
@@ -52,7 +52,7 @@ impl Bomb {
                 },
             ),
             Kind::ThinMan => (
-                -5,
+                6,
                 '۩',
                 Color::Rgb {
                     r: 169,
@@ -99,7 +99,7 @@ define_object! {
 
 
 impl Damaging for Bomb {
-    fn get_damage(&self) -> i16 {
+    fn get_damage(&self) -> u16 {
         self.damage
     }
 }

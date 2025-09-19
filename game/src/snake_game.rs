@@ -1,8 +1,6 @@
 use crossterm::event::{self, Event, KeyCode};
 use crossterm::style::Color;
-use engine::core::object::ObjectExt;
-use engine::core::scene::Scene;
-use engine::core::{Logic, RuntimeCommand};
+
 use engine::prelude::*;
 
 pub mod events;
@@ -34,6 +32,7 @@ pub struct SnakeLogic {
     max_logs: usize,
     last_tick: Instant,
     is_debugging: bool,
+    is_reset: bool,
     switch_stage: bool,
     stage_switch: u8,
 }
@@ -58,6 +57,7 @@ impl SnakeLogic {
             max_logs: 10,
             last_tick: Instant::now(),
             is_debugging: true,
+            is_reset: false,
             switch_stage: false,
             stage_switch: 0,
         }
@@ -117,11 +117,16 @@ impl Logic<StageKey> for SnakeLogic {
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
         if self.switch_stage {
+            self.switch_stage = false;
             return match self.stage_switch {
-                0 => RuntimeCommand::SwitchStage(StageKey::Snake),
-                1 => RuntimeCommand::SwitchStage(StageKey::Snake1),
-                _ => RuntimeCommand::SwitchStage(StageKey::Snake2),
+                1 => RuntimeCommand::SwitchStage(StageKey::Snake),
+                _ => RuntimeCommand::SwitchStage(StageKey::Snake1),
             };
+        }
+
+        if self.is_reset {
+            self.is_reset = false;
+            return RuntimeCommand::Reset;
         }
 
         if self.quit {
@@ -196,9 +201,9 @@ impl Logic<StageKey> for SnakeLogic {
                     if let Some(snake) = scene.objects.get_mut(&snake_id) {
                         if let Some(snake) = snake.get_mut::<Snake>() {
                             match key_event.code {
-                                KeyCode::Char('0') => self.stage_switch = 0,
                                 KeyCode::Char('1') => self.stage_switch = 1,
                                 KeyCode::Char('2') => self.stage_switch = 2,
+                                KeyCode::Char('3') => self.switch_stage = true,
                                 KeyCode::Char('w') => snake.direction = Direction::Up,
                                 KeyCode::Char('s') => snake.direction = Direction::Down,
                                 KeyCode::Char('a') => snake.direction = Direction::Left,
@@ -209,7 +214,7 @@ impl Logic<StageKey> for SnakeLogic {
                                 KeyCode::Char('e') => snake.resize_head_native(
                                     snake.head_size.native_size().saturating_add(2),
                                 ),
-                                KeyCode::Char('r') => self.switch_stage = true,
+                                KeyCode::Char('r') => self.is_reset = true,
                                 KeyCode::Char('+') => {
                                     snake.base_index = snake.base_index.saturating_add(2)
                                 }

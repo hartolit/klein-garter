@@ -1,14 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-pub mod cell;
-pub mod terrain;
+mod cell;
+mod terrain;
 
-use crate::prelude::TCell;
-
-use super::global::{Id, Position, SlotMap};
-use super::object::{Object, Occupant};
-use cell::{Cell, CellRef};
-use terrain::Terrain;
+use crate::core::global::{Id, Position, SlotMap};
+use crate::prelude::{Object, Occupant, TCell};
+pub use cell::{Cell, CellRef};
+pub use terrain::Terrain;
 
 #[derive(Debug)]
 pub struct SpatialGrid {

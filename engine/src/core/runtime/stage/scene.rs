@@ -1,14 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
 pub mod global_state;
+pub mod object;
+pub mod grid;
 
 use global_state::GlobalState;
 
-use crate::core::event::Event;
-
-use super::global::{Id, IdCounter};
-use super::grid::SpatialGrid;
-use super::object::{Object, state::StateChange};
+use crate::prelude::{
+    Id, IdCounter, SpatialGrid, Object, StateChange, Event
+};
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ObjectIndex {
@@ -47,6 +47,16 @@ impl Scene {
             global_state: GlobalState::new(),
             event_bus: Vec::new(),
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.id_counter.reset();
+        self.objects.clear();
+        self.indexes.clear();
+        self.protected_ids.clear();
+        self.spatial_grid = None;
+        self.global_state.clear();
+        self.event_bus.clear();
     }
 
     pub fn attach_grid(&mut self, grid: SpatialGrid) {

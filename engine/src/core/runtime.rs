@@ -1,0 +1,160 @@
+use std::hash::Hash;
+use std::time::{Duration, Instant};
+
+pub mod stage;
+pub mod renderer;
+
+use crate::prelude::{Scene, Logic, Stage, ObjectIndex};
+use super::ManagerDirective;
+use renderer::Renderer;
+
+pub enum RuntimeCommand<K: Eq + Hash + Clone> {
+    ReplaceScene(Box<Scene>),
+    ReplaceLogic(Box<dyn Logic<K>>),
+    SwitchStage(K),
+    SetTickRate(Duration),
+    Reset,
+    Kill,
+    None,
+}
+
+pub struct Runtime {
+    pub tick_rate: Duration,
+    last_update: Instant,
+    pub renderer: Renderer,
+}
+
+impl Runtime {
+    pub fn new(tick_rate: Duration) -> Self {
+        Self {
+            tick_rate,
+            last_update: Instant::now(),
+            renderer: Renderer::new(),
+        }
+    }
+
+    pub fn run<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) -> ManagerDirective<K> {
+        if !stage.is_init {
+            self.initialize(stage);
+        } else {
+            self.refresh(stage);
+        }
+
+        self.last_update = Instant::now();
+        loop {
+            stage.logic.process_input(&mut stage.scene);
+
+            let now = Instant::now();
+            let delta = now.duration_since(self.last_update);
+
+            if delta >= self.tick_rate {
+                self.last_update = now;
+                let command = stage.logic.update(&mut stage.scene);
+
+                self.tick(stage);
+                stage.scene.sync();
+                self.renderer.partial_render(&mut stage.scene);
+
+                // Execute command last
+                if let Some(directive) = self.execute_command(command, stage) {
+                    return directive;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
+    fn initialize<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        stage.logic.setup(&mut stage.scene);
+        stage.scene.sync();
+        self.renderer.full_render(&mut stage.scene);
+        stage.is_init = true;
+    }
+
+    fn refresh<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        self.renderer.full_render(&mut stage.scene);
+    }
+
+    fn reset<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        stage.scene.clear();
+        stage.is_init = false;
+    }
+
+    fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        // Gets events from movables (collisions)
+        if let Some(grid) = &mut stage.scene.spatial_grid {
+            let future_moves = stage
+                .scene
+                .indexes
+                .get(&ObjectIndex::Movable)
+                .into_iter()
+                .flat_map(|hash_set| hash_set.iter())
+                .filter_map(|id| {
+                    stage
+                        .scene
+                        .objects
+                        .get(id)
+                        .and_then(|obj| obj.as_movable())
+                        .map(|movable| (*id, movable))
+                })
+                .flat_map(|(id, movable)| movable.probe_move().map(move |pos| (id, pos)));
+
+            let mut probe_map = grid.probe_moves(future_moves);
+
+            for (id, probe) in probe_map.drain() {
+                if let Some(object) = stage.scene.objects.get_mut(&id) {
+                    if let Some(movable) = object.as_movable_mut() {
+                        stage.scene.event_bus.extend(movable.make_move(probe));
+                    }
+                }
+            }
+        }
+
+        // Gets events from active objects
+        let active_events = stage
+            .scene
+            .indexes
+            .get(&ObjectIndex::Active)
+            .into_iter()
+            .flat_map(|hash_set| hash_set.iter())
+            .filter_map(|id| {
+                stage
+                    .scene
+                    .objects
+                    .get_mut(id)
+                    .and_then(|obj| obj.as_active_mut())
+                    .map(|active| active.update())
+            })
+            .flatten();
+
+        stage.scene.event_bus.extend(active_events);
+
+        stage.logic.process_events(&mut stage.scene);
+    }
+
+    fn execute_command<K: Eq + Hash + Clone>(
+        &mut self,
+        command: RuntimeCommand<K>,
+        stage: &mut Stage<K>,
+    ) -> Option<ManagerDirective<K>> {
+        match command {
+            RuntimeCommand::ReplaceScene(scene) => {
+                let old_scene = stage.replace_scene(scene);
+                stage.logic.collect_old_stage(Some(old_scene), None);
+            }
+            RuntimeCommand::ReplaceLogic(logic) => {
+                let old_logic = stage.replace_logic(logic);
+                stage.logic.collect_old_stage(None, Some(old_logic));
+            }
+            RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
+            RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
+            RuntimeCommand::Reset => {
+                self.reset(stage);
+                return Some(ManagerDirective::Refresh)
+            },
+            RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
+            RuntimeCommand::None => {}
+        }
+        None
+    }
+}

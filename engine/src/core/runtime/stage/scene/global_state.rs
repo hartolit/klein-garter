@@ -1,4 +1,4 @@
-use crate::core::object::state::{State, StateChange};
+use super::object::state::{State, StateChange};
 
 #[derive(Debug)]
 pub struct GlobalState {
@@ -26,6 +26,11 @@ impl GlobalState {
             true => self.filtered.spatial.sort_by_key(|a| a.order()),
             false => self.filtered.non_spatial.sort_by_key(|a| a.order()),
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.state.clear();
+        self.filtered.clear();
     }
 }
 

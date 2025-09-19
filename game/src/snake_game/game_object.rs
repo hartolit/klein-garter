@@ -1,11 +1,11 @@
-use engine::core::object::t_cell::TCell;
+use engine::prelude::TCell;
 
 pub trait Consumable {
-    fn get_meal(&self) -> i16;
+    fn get_meal(&self) -> u16;
 }
 
 pub trait Damaging {
-    fn get_damage(&self) -> i16;
+    fn get_damage(&self) -> u16;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -1,4 +1,5 @@
-use crate::prelude::{Glyph, Position, TCell, Terrain};
+use crate::prelude::{Glyph, Position, TCell};
+use super::terrain::Terrain;
 
 #[derive(Debug, Clone)]
 pub struct Cell {

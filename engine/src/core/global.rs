@@ -31,6 +31,10 @@ impl IdCounter {
         self.counter.value += 1;
         Id::new(id)
     }
+
+    pub fn reset(&mut self) {
+        self.counter.value = 0;
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -99,26 +103,4 @@ impl<T: Eq + Hash + Copy> SlotMap<T> {
         let random_index = rng.random_range(0..self.items.len());
         Some(self.items[random_index])
     }
-
-    // pub fn get_random_where<P>(&self, mut predicate: P) -> Option<T>
-    // where
-    //     P: FnMut(&T) -> bool,
-    // {
-    //     if self.is_empty() {
-    //         return None;
-    //     }
-
-    //     let mut rng = rand::rng();
-    //     let start_index =  rng.random_range(0..self.items.len());
-
-    //     for i in 0..self.items.len() {
-    //         let index = (start_index + i) % self.items.len();
-    //         let item = self.items[index];
-    //         if predicate(&item) {
-    //             return Some(item);
-    //         }
-    //     }
-
-    //     None
-    // }
 }

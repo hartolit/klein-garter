@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use engine::core::{RuntimeManager, Stage};
+use engine::prelude::{RuntimeManager, Stage};
 
 mod snake_game;
 
@@ -10,7 +10,6 @@ use snake_game::SnakeLogic;
 pub enum StageKey {
     Snake,
     Snake1,
-    Snake2,
 }
 
 fn main() {
@@ -24,9 +23,6 @@ fn main() {
     let snake_stage: Stage<StageKey> = Stage::new(snake_logic);
     manager.add_stage(StageKey::Snake1, snake_stage);
 
-    let snake_logic = Box::new(SnakeLogic::new());
-    let snake_stage: Stage<StageKey> = Stage::new(snake_logic);
-    manager.add_stage(StageKey::Snake2, snake_stage);
     manager.set_active_stage(StageKey::Snake);
 
     manager.run_app();

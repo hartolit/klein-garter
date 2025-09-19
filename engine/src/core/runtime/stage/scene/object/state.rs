@@ -99,4 +99,8 @@ impl State {
     pub fn drain_changes(&mut self) -> HashMap<Occupant, StateChange> {
         mem::take(&mut self.changes)
     }
+
+    pub fn clear(&mut self) {
+        self.changes.clear();
+    }
 }

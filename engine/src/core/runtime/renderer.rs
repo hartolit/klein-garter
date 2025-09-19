@@ -1,7 +1,6 @@
-mod buffer;
+pub mod buffer;
 
-use super::scene::Scene;
-use crate::core::object::state::StateChange;
+use crate::prelude::{Scene, StateChange};
 
 use buffer::{Buffer, Operation};
 
