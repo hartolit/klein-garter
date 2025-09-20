@@ -41,8 +41,6 @@ Small list for future me:
 * **Better event system**
 * **Make the grid placeable**
 
----
-
 ### Current state
 
 The project is no longer actively developed on. Dread has the final say and I'm moving on for now.
