@@ -5,8 +5,8 @@ use std::fmt::Debug;
 pub mod state;
 pub mod t_cell;
 
-use crate::prelude::{Id, Position, CellRef, Event};
-use state::{StateChange, State};
+use crate::prelude::{CellRef, Event, Id, Position};
+use state::{State, StateChange};
 use t_cell::TCell;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

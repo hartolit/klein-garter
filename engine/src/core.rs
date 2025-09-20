@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::time::{Duration};
+use std::time::Duration;
 
 pub mod event;
 pub mod global;

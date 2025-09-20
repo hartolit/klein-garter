@@ -1,7 +1,7 @@
 use ::engine::core::global::Id;
 use uuid::Uuid;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Player {
     pub id: Uuid,
     pub score: u16,

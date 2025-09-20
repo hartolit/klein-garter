@@ -2,22 +2,22 @@
 pub use crate::core::global::{Id, IdCounter, Position};
 
 // Runtime, Stage & Object Model
+pub use crate::core::RuntimeManager;
 pub use crate::core::runtime::{
+    RuntimeCommand,
     stage::{
+        Logic, Stage,
         scene::{
+            Conflict, ObjectIndex, Scene,
+            grid::{CellRef, SpatialGrid, Terrain},
             object::{
+                Destructible, Movable, Object, ObjectExt, Occupant, Spatial, Stateful,
                 state::{State, StateChange},
                 t_cell::{Glyph, TCell},
-                Destructible, Movable, Object, ObjectExt, Occupant, Spatial, Stateful,
             },
-            grid::{CellRef, SpatialGrid, Terrain},
-            Conflict, ObjectIndex, Scene,
         },
-        Logic, Stage,
     },
-    RuntimeCommand,
 };
-pub use crate::core::RuntimeManager;
 
 // Event System
 pub use crate::core::event::{Event, EventHandler, EventManager};

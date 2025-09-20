@@ -18,7 +18,7 @@ pub fn init() {
     let snake_logic = Box::new(SnakeLogic::new(StageKey::Snake));
     let snake_stage: Stage<StageKey> = Stage::new(snake_logic);
     manager.add_stage(StageKey::Snake, snake_stage);
-    
+
     let snake_logic = Box::new(SnakeLogic::new(StageKey::Snake1));
     let snake_stage: Stage<StageKey> = Stage::new(snake_logic);
     manager.add_stage(StageKey::Snake1, snake_stage);

@@ -1,16 +1,9 @@
 use crossterm::style::Color;
-use engine::{core::object::state::State, define_object};
 use rand::Rng;
 
-use ::engine::core::{
-    global::{Id, Position},
-    object::{
-        Object, Occupant,
-        t_cell::{Glyph, TCell},
-    },
-};
+use ::engine::prelude::*;
 
-use super::game_object::Damaging;
+use super::Damaging;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Kind {
@@ -25,9 +18,6 @@ pub struct Bomb {
     kind: Kind,
     damage: u16,
     body: TCell,
-    state: State,
-    is_dead: bool,
-    //pub effect_area: u16,
 }
 
 impl Bomb {
@@ -72,9 +62,7 @@ impl Bomb {
             id: obj_id,
             kind,
             damage,
-            body: TCell::new(Occupant::new(obj_id, Id::new(0)), glyph, Some(pos)),
-            state: State::new(),
-            is_dead: false,
+            body: TCell::new(Occupant::new(obj_id, Id::new(0)), glyph, Some(pos), 0),
         }
     }
 
@@ -94,9 +82,10 @@ define_object! {
     id_field: id,
     t_cells: single(body),
     capabilities: {
+        Spatial {}
+        Destructible {}
     }
 }
-
 
 impl Damaging for Bomb {
     fn get_damage(&self) -> u16 {

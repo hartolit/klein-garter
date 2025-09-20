@@ -40,6 +40,7 @@ Small list for future me:
 * **Asset generation** from pictures and gifs
 * **Better event system**
 * **Make the grid placeable**
+* **Food ghost object** (happens when alot of snakes and food spawns)
 
 ### Current state
 

@@ -1,34 +1,14 @@
 pub mod animation;
+pub mod utils;
 
 use crossterm::style::Color;
 use std::collections::VecDeque;
-use std::hash::Hash;
 
 use engine::prelude::*;
 
-use super::events::{CollisionEvent, DeathEvent};
-use super::game_object::{BodySegment, Orientation, ResizeState};
+use crate::snake_game::events::{CollisionEvent, DeathEvent};
 use animation::Effect;
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-impl Direction {
-    pub fn get_move(&self) -> (i16, i16) {
-        let (dx, dy) = match self {
-            Direction::Up => (0, -1),
-            Direction::Down => (0, 1),
-            Direction::Left => (-1, 0),
-            Direction::Right => (1, 0),
-        };
-        return (dx, dy);
-    }
-}
+pub use utils::{BodySegment, Direction, Orientation, ResizeState};
 
 #[derive(Debug)]
 pub struct Snake {
@@ -48,7 +28,7 @@ pub struct Snake {
     pub base_index: u8,
     pub ignore_death: bool,
     pub ignore_body: bool,
-    pub is_moving: bool
+    pub is_moving: bool,
 }
 
 impl Snake {
@@ -118,7 +98,10 @@ impl Snake {
             return;
         }
 
-        self.pending_resize = Some(ResizeState::Brief { size: new_size, native_size: self.head_size.native_size() });
+        self.pending_resize = Some(ResizeState::Brief {
+            size: new_size,
+            native_size: self.head_size.native_size(),
+        });
     }
 
     pub fn reset_head_size(&mut self) {
@@ -410,10 +393,22 @@ impl Snake {
         let center_y = min_y + (max_y - min_y) / 2;
 
         let top_left = match self.direction {
-            Direction::Up => Position { x: center_x.saturating_sub(half_size), y: max_y.saturating_sub(odd_size as u16 - 1) },
-            Direction::Down => Position { x: center_x.saturating_sub(half_size), y: min_y },
-            Direction::Left => Position { x: max_x.saturating_sub(odd_size as u16 - 1), y: center_y.saturating_sub(half_size) },
-            Direction::Right => Position { x: min_x, y: center_y.saturating_sub(half_size) },
+            Direction::Up => Position {
+                x: center_x.saturating_sub(half_size),
+                y: max_y.saturating_sub(odd_size as u16 - 1),
+            },
+            Direction::Down => Position {
+                x: center_x.saturating_sub(half_size),
+                y: min_y,
+            },
+            Direction::Left => Position {
+                x: max_x.saturating_sub(odd_size as u16 - 1),
+                y: center_y.saturating_sub(half_size),
+            },
+            Direction::Right => Position {
+                x: min_x,
+                y: center_y.saturating_sub(half_size),
+            },
         };
 
         let mut positions = Vec::with_capacity(odd_size * odd_size);
@@ -464,22 +459,22 @@ define_object! {
                             let (new_min_x, new_max_x, new_min_y, new_max_y) = future_head_pos.iter().fold(
                                 (u16::MAX, u16::MIN, u16::MAX, u16::MIN),
                                 |(min_x, max_x, min_y, max_y), pos| {
-                                    (min_x.min(pos.x), max_x.max(pos.x), 
+                                    (min_x.min(pos.x), max_x.max(pos.x),
                                     min_y.min(pos.y), max_y.max(pos.y))
                                 });
-                                
+
                                 let future_move = future_head_pos.into_iter().flat_map(move |pos| {
                                     // A tiny array to hold None or pos + a generated pos
                                     let mut positions_to_yield = [None; 2];
                                     let mut index = 0;
-                                    
+
                                     let is_leading_edge = match self.direction {
                                         Direction::Up => pos.y == new_min_y,
                                         Direction::Down => pos.y == new_max_y,
                                         Direction::Left => pos.x == new_min_x,
                                         Direction::Right => pos.x == new_max_x,
                                     };
-                                    
+
                                     if is_leading_edge {
                                         positions_to_yield[index] = Some(Position {
                                             x: pos.x.saturating_add_signed(dx),
@@ -487,7 +482,7 @@ define_object! {
                                         });
                                         index += 1;
                                     }
-                                    
+
                                     // Expansion check from the current bounding box
                                     let is_expansion = pos.x < curr_min_x
                                     || pos.x > curr_max_x
@@ -496,11 +491,11 @@ define_object! {
                                     if is_expansion {
                                         positions_to_yield[index] = Some(pos);
                                     }
-                                    
+
                                     // Returns an iterator over the yielded positions.
                                     positions_to_yield.into_iter().flatten()
                                 });
-                                
+
                                 Box::new(future_move)
                             } else {
                                 // Returns a single probe targeting our own head cell.
@@ -509,7 +504,7 @@ define_object! {
                                 Box::new(std::iter::once(self.head[0].pos))
                             }
                     } else {
-                        // Predicts the next position for only the leading edge 
+                        // Predicts the next position for only the leading edge
                         let leading_edge = self.head.iter().filter(move |t_cell| match self.direction {
                             Direction::Up => t_cell.pos.y == curr_min_y,
                             Direction::Down => t_cell.pos.y == curr_max_y,
@@ -530,8 +525,8 @@ define_object! {
                     for hit in probe {
                         if let Some(t_cell) = hit.cell.occ_by {
                             if t_cell.occ.obj_id == self.id {
-                                
-                                if self.ignore_body 
+
+                                if self.ignore_body
                                     || self.pending_resize.is_some() // Resize grace period
                                     || self.ignore_death {
                                     continue;
@@ -569,7 +564,7 @@ define_object! {
                         }
                         self.pending_resize = None;
                     }
-                    
+
                     self.slither();
                     self.tick_effect();
 

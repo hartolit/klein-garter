@@ -1,11 +1,11 @@
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
-pub mod stage;
 pub mod renderer;
+pub mod stage;
 
-use crate::prelude::{Scene, Logic, Stage, ObjectIndex};
 use super::ManagerDirective;
+use crate::prelude::{Logic, ObjectIndex, Scene, Stage};
 use renderer::Renderer;
 
 pub enum RuntimeCommand<K: Eq + Hash + Clone> {
@@ -55,13 +55,12 @@ impl Runtime {
                     return directive;
                 } else if self.skip_tick {
                     self.skip_tick = false;
-                    continue;    
+                    continue;
                 }
 
                 self.tick(stage);
                 stage.scene.sync();
                 self.renderer.partial_render(&mut stage.scene);
-
             }
             std::thread::sleep(Duration::from_millis(1));
         }
@@ -150,8 +149,8 @@ impl Runtime {
             RuntimeCommand::Reset => {
                 stage.scene.clear();
                 stage.is_init = false;
-                return Some(ManagerDirective::Refresh)
-            },
+                return Some(ManagerDirective::Refresh);
+            }
             RuntimeCommand::Skip => self.skip_tick = true,
             RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
             RuntimeCommand::None => {}

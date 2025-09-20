@@ -3,7 +3,7 @@ use engine::prelude::*;
 use crossterm::style::Color;
 use rand::Rng;
 
-use super::game_object::Consumable;
+use super::Consumable;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Kind {

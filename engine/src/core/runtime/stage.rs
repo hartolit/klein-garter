@@ -1,10 +1,10 @@
 use std::hash::Hash;
 
-pub mod scene;
 pub mod logic;
+pub mod scene;
 
-pub use scene::Scene;
 pub use logic::Logic;
+pub use scene::Scene;
 
 pub struct Stage<K: Eq + Hash + Clone> {
     pub logic: Box<dyn Logic<K>>,

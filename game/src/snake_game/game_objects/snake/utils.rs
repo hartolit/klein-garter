@@ -1,11 +1,23 @@
 use engine::prelude::TCell;
 
-pub trait Consumable {
-    fn get_meal(&self) -> u16;
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
-pub trait Damaging {
-    fn get_damage(&self) -> u16;
+impl Direction {
+    pub fn get_move(&self) -> (i16, i16) {
+        let (dx, dy) = match self {
+            Direction::Up => (0, -1),
+            Direction::Down => (0, 1),
+            Direction::Left => (-1, 0),
+            Direction::Right => (1, 0),
+        };
+        return (dx, dy);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

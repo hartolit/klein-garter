@@ -1,9 +1,9 @@
 use engine::prelude::{Event, EventHandler, Id, ObjectExt, Scene};
 
-use crate::snake_game::food::Food;
-use crate::snake_game::game_object::Consumable;
-use crate::snake_game::snake::Snake;
-use crate::snake_game::snake::animation::{Effect, EffectStyle, EffectZone};
+use crate::snake_game::game_objects::{
+    snake::animation::{Effect, EffectStyle, EffectZone},
+    {Consumable, Food, Snake},
+};
 
 pub struct FoodEatenEvent {
     pub snake_id: Id,

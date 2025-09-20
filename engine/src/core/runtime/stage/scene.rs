@@ -1,14 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
 pub mod global_state;
-pub mod object;
 pub mod grid;
+pub mod object;
 
 use global_state::GlobalState;
 
-use crate::prelude::{
-    Id, IdCounter, SpatialGrid, Object, StateChange, Event
-};
+use crate::prelude::{Event, Id, IdCounter, Object, SpatialGrid, StateChange};
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ObjectIndex {
