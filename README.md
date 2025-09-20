@@ -34,13 +34,15 @@ Another minor downfall is the event system, which is very likely store duplicate
 
 ---
 
-## TODO's
+### TODO's
 
 Small list for future me:
-* **Asset generation** from pictures and gifs!
+* **Asset generation** from pictures and gifs
 * **Better event system**
 * **Make the grid placeable**
 
-## Current state
+---
+
+### Current state
 
 The project is no longer actively developed on. Dread has the final say and I'm moving on for now.
