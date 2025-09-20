@@ -18,7 +18,7 @@ The engine also provides a few other noteworthy capabilities:
 
 * **Switching between Stages**: A `Stage` is made up of some `Logic` and a `Scene` which holds the objects. So if you have different stages like: `Level1`, `Level2`, etc., you can switch between them within the logic trait by returning `RuntimeCommand::SwitchStage(K)` from the update loop.
 
-* **Replacing Logic or Scenes**: If you want to keep the same `Scene` but use different logic, you can use `RuntimeCommand::ReplaceLogic(Box<dyn Logic<K>>)`. Similarly, you can replace a scene with `RuntimeCommand::ReplaceScene(Box<Scene>)`. All done through the update loop.
+* **Replacing Logic or Scenes**: If you want to keep the same `Scene` but use a different logic, you can use `RuntimeCommand::ReplaceLogic(Box<dyn Logic<K>>)`. Similarly, you can replace a scene with `RuntimeCommand::ReplaceScene(Box<Scene>)`. All done through the update loop.
 
 ---
 
@@ -31,6 +31,15 @@ The state management for objects is a giant, beautiful mess. It obviously suffer
 This was the first project I've built to learn rust. Learning Rust the last few months has been quite the eye opener. This means I didn't dabble in concurrent scenarios until much more recently, so the entire design was built for a single-threaded world, which misses out on a lot of performance benefits.
 
 Another minor downfall is the event system, which is very likely store duplicated events. This could "easily" be fixed by implementing a more complex event system.
+
+---
+
+## TODO's
+
+Small list for future me:
+* **Asset generation** from pictures and gifs!
+* **Better event system**
+* **Make the grid placeable**
 
 ## Current state
 

@@ -48,6 +48,7 @@ pub struct Snake {
     pub base_index: u8,
     pub ignore_death: bool,
     pub ignore_body: bool,
+    pub is_moving: bool
 }
 
 impl Snake {
@@ -89,6 +90,7 @@ impl Snake {
             base_index,
             ignore_death: false,
             ignore_body: false,
+            is_moving: true,
         };
 
         snake.resize_head_native(size);
@@ -438,7 +440,7 @@ define_object! {
         Movable {
             impl {
                 fn probe_move(&self) -> Box<dyn Iterator<Item = Position> + '_> {
-                    if self.head.is_empty() {
+                    if self.head.is_empty() || !self.is_moving {
                         return Box::new(std::iter::empty());
                     }
 

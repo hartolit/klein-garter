@@ -1,75 +1,84 @@
 use crossterm::event::{self, Event, KeyCode};
 use crossterm::style::Color;
-
 use engine::prelude::*;
-
-pub mod events;
-pub mod food;
-pub mod game_object;
-pub mod player;
-pub mod snake;
-pub mod ui;
-
-use food::Food;
-use player::Player;
 use rand::Rng;
-use snake::{Direction, Snake};
 use std::time::{Duration, Instant};
 
-use crate::StageKey;
+mod events;
+mod food;
+mod player;
+mod snake;
+mod ui;
+mod game_object;
+
+
 use events::{CollisionHandler, DeathHandler, FoodEatenHandler};
+use food::Food;
+use player::Player;
+use snake::{Direction, Snake};
 use ui::{logger::Logger, statistics::Statistics};
+use crate::StageKey;
+
+const GAME_SPEED: u64 = 20;
+const PLAYER_SNAKE_POSITION: Position = Position { x: 50, y: 10 };
+const STATS_POSITION: Position = Position { x: 203, y: 1 };
+const LOGGER_POSITION: Position = Position { x: 203, y: 6 };
+const MAX_LOGS: usize = 10;
+const GRID_WIDTH: u16 = 200;
+const GRID_HEIGHT: u16 = 80;
 
 pub struct SnakeLogic {
+    stage_id: StageKey,
+    switch_stage: Option<StageKey>,
     event_manager: EventManager,
     player: Player,
     speed: u64,
     counter: u64,
-    skip: bool,
     quit: bool,
     stats_id: Option<Id>,
     logger_id: Option<Id>,
-    max_logs: usize,
     last_tick: Instant,
     is_debugging: bool,
-    is_reset: bool,
-    switch_stage: bool,
-    stage_switch: u8,
+    is_paused: bool,
 }
 
 impl SnakeLogic {
-    pub fn new() -> Self {
+    pub fn new(key: StageKey) -> Self {
         let mut event_manager = EventManager::new();
-
         event_manager.register(CollisionHandler);
         event_manager.register(FoodEatenHandler);
         event_manager.register(DeathHandler);
 
         Self {
+            stage_id: key,
+            switch_stage: None,
             event_manager,
             player: Player::new(),
-            speed: 20,
+            speed: GAME_SPEED,
             counter: 0,
-            skip: true,
             quit: false,
             stats_id: None,
             logger_id: None,
-            max_logs: 10,
             last_tick: Instant::now(),
             is_debugging: true,
-            is_reset: false,
-            switch_stage: false,
-            stage_switch: 0,
+            is_paused: false,
         }
     }
-}
 
-impl Logic<StageKey> for SnakeLogic {
-    fn setup(&mut self, scene: &mut Scene) {
-        // Attaching spatial grid
-        let grid = SpatialGrid::new(200, 80, 1, |_, is_border| {
+    fn setup_scene(&mut self, scene: &mut Scene) {
+        self.setup_grid(scene);
+        self.setup_ui(scene);
+        self.setup_player_snake(scene);
+    }
+
+    fn setup_grid(&self, scene: &mut Scene) {
+        let grid = SpatialGrid::new(GRID_WIDTH, GRID_HEIGHT, 1, |_, is_border| {
             if is_border {
-                let style = Glyph::new(Some(Color::Rgb { r: 20, g: 20, b: 30 }), Some(Color::Black), '█');
+                let style = Glyph::new(
+                    Some(Color::Rgb { r: 20, g: 20, b: 30 }),
+                    Some(Color::Black),
+                    '█',
+                );
                 Terrain::new(style, 255)
             } else {
                 let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
@@ -77,62 +86,41 @@ impl Logic<StageKey> for SnakeLogic {
             }
         });
         scene.attach_grid(grid);
+    }
 
-        // UI Stats
-        let stats_ui_id = scene.attach_object(
-            |id| Box::new(Statistics::new(id, Position::new(203, 1))),
+    fn setup_ui(&mut self, scene: &mut Scene) {
+        self.stats_id = scene.attach_object(
+            |id| Box::new(Statistics::new(id, STATS_POSITION)),
             Conflict::Ignore,
         );
-        self.stats_id = stats_ui_id;
-
-        // UI Event logger
-        let logger_ui_id = scene.attach_object(
-            |id| Box::new(Logger::new(id, Position::new(203, 6), self.max_logs)),
+        self.logger_id = scene.attach_object(
+            |id| Box::new(Logger::new(id, LOGGER_POSITION, MAX_LOGS)),
             Conflict::Ignore,
         );
-        self.logger_id = logger_ui_id;
+    }
 
-        // Player snake
+    fn setup_player_snake(&mut self, scene: &mut Scene) {
         let snake_id = scene.attach_object(
             |id| {
-                Box::new({
-                    let mut snake = Snake::new(Position::new(50, 10), id, 3);
-                    snake.head_style = Glyph::new(Some(Color::Rgb { r: 255, g: 0, b: 255 }), Some(Color::Black), '█');
-                    snake.body_style = Glyph::new(Some(Color::Rgb { r: 138, g: 43, b: 226 }), Some(Color::Black), '█');
-                    snake.base_index = 20;
-                    snake.ignore_death = true;
-                    snake.ignore_body = false;
-                    snake
-                })
+                let mut snake = Snake::new(PLAYER_SNAKE_POSITION, id, 3);
+                snake.head_style =
+                    Glyph::new(Some(Color::Rgb { r: 255, g: 0, b: 255 }), Some(Color::Black), '█');
+                snake.body_style =
+                    Glyph::new(Some(Color::Rgb { r: 138, g: 43, b: 226 }), Some(Color::Black), '█');
+                snake.base_index = 20;
+                snake.ignore_death = true;
+                Box::new(snake)
             },
             Conflict::Overwrite,
         );
 
-        // Ties snake to player
         if let Some(id) = snake_id {
             self.player.set_snake(id);
             scene.protected_ids.insert(id);
         }
     }
 
-    fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
-        if self.switch_stage {
-            self.switch_stage = false;
-            return match self.stage_switch {
-                1 => RuntimeCommand::SwitchStage(StageKey::Snake),
-                _ => RuntimeCommand::SwitchStage(StageKey::Snake1),
-            };
-        }
-
-        if self.is_reset {
-            self.is_reset = false;
-            return RuntimeCommand::Reset;
-        }
-
-        if self.quit {
-            return RuntimeCommand::Kill;
-        }
-
+    fn update_statistics(&mut self, scene: &mut Scene) {
         if let Some(ui_id) = self.stats_id {
             let now = Instant::now();
             let tick_duration = now.duration_since(self.last_tick);
@@ -153,142 +141,182 @@ impl Logic<StageKey> for SnakeLogic {
                 }
             }
         }
+    }
 
-        self.counter += 1;
-
-        if let Some(snake_id) = self.player.snake {
-            if let None = scene.objects.get_mut(&snake_id) {
-                return RuntimeCommand::Kill;
-            }
+    fn handle_input(&mut self, scene: &mut Scene) -> Option<RuntimeCommand<StageKey>> {
+        if !event::poll(Duration::from_millis(0)).unwrap() {
+            return None;
         }
 
-        let mut rng = rand::rng();
-        if !self.skip {
-            let player_snake_id = self.player.snake;
+        let event = event::read().unwrap();
+        if let Event::Key(key_event) = event {
+            return self.handle_key_event(key_event, scene);
+        }
 
-            for (id, object) in scene.objects.iter_mut() {
-                if Some(*id) == player_snake_id {
-                    continue;
-                }
+        None
+    }
 
+    fn handle_key_event(
+        &mut self,
+        key_event: event::KeyEvent,
+        scene: &mut Scene,
+    ) -> Option<RuntimeCommand<StageKey>> {
+        if let Some(snake_id) = self.player.snake {
+            if let Some(object) = scene.objects.get_mut(&snake_id) {
                 if let Some(snake) = object.get_mut::<Snake>() {
-                    let rnd_dir = rng.random_range(0..4);
-
-                    match rnd_dir {
-                        0 => snake.direction = Direction::Up,
-                        1 => snake.direction = Direction::Left,
-                        2 => snake.direction = Direction::Down,
-                        _ => snake.direction = Direction::Right,
+                    match key_event.code {
+                        KeyCode::Char('w') => snake.direction = Direction::Up,
+                        KeyCode::Char('s') => snake.direction = Direction::Down,
+                        KeyCode::Char('a') => snake.direction = Direction::Left,
+                        KeyCode::Char('d') => snake.direction = Direction::Right,
+                        KeyCode::Char('q') => snake.resize_head_native(snake.head_size.native_size().saturating_sub(2)),
+                        KeyCode::Char('e') => snake.resize_head_native(snake.head_size.native_size().saturating_add(2)),
+                        KeyCode::Char(' ') => snake.is_moving ^= true,
+                        KeyCode::Up => snake.base_index = snake.base_index.saturating_add(2),
+                        KeyCode::Down => snake.base_index = snake.base_index.saturating_sub(2),
+                        KeyCode::Left => self.handle_stage_switch(),
+                        KeyCode::Right => self.handle_stage_switch(),
+                        KeyCode::Char('f') => self.spawn_food(scene, 100),
+                        KeyCode::Tab => self.spawn_snakes(scene, 200),
+                        KeyCode::Char('r') => return Some(RuntimeCommand::Reset),
+                        KeyCode::Esc => self.quit = true,
+                        KeyCode::Char('p') => self.is_paused ^= true,
+                        _ => {}
                     }
                 }
             }
         }
+        None
+    }
 
-        let random_counter = rng.random_range(1..10);
-
-        if self.counter % random_counter == 0 {
-            self.skip = false;
-        } else {
-            self.skip = true;
+    fn handle_stage_switch(&mut self) {
+        self.switch_stage = match self.stage_id {
+            StageKey::Snake => Some(StageKey::Snake1),
+            StageKey::Snake1 => Some(StageKey::Snake),
         }
+    }
+
+    fn spawn_food(&self, scene: &mut Scene, count: usize) {
+        for _ in 0..count {
+            if let Some(grid) = &scene.spatial_grid {
+                if let Some(pos) = grid.random_empty_pos() {
+                    scene.attach_object(|id| Box::new(Food::rng_food(id, pos)), Conflict::Cancel);
+                }
+            }
+        }
+    }
+
+    fn spawn_snakes(&self, scene: &mut Scene, count: usize) {
+        for i in 0..count {
+            if let Some(grid) = &scene.spatial_grid {
+                let i_u16 = i as u16;
+                let x = (self.counter as u16 + i_u16) % grid.game_width;
+                let y = ((self.counter as u16 + i_u16) * i_u16) % grid.game_height;
+                let pos = Position::new(x, y);
+
+                scene.attach_object(
+                    |id| {
+                        let mut snake = Snake::new(pos, id, 1);
+                        snake.ignore_death = true;
+                        snake.ignore_body = true;
+
+                        let color_picker = (self.counter % 255) as u8;
+                        let index = (self.counter % 15) as u8;
+
+                        snake.body_style = Glyph::new(
+                            Some(Color::Rgb { r: color_picker.saturating_sub(50), g: 20, b: 30 }),
+                            Some(Color::Black),
+                            '█',
+                        );
+                        snake.head_style = Glyph::new(
+                            Some(Color::Rgb { r: color_picker, g: 20, b: 30 }),
+                            Some(Color::Black),
+                            '█',
+                        );
+                        snake.base_index = index;
+                        Box::new(snake)
+                    },
+                    Conflict::Overwrite,
+                );
+            }
+        }
+    }
+
+    fn update_ai_snakes(&self, scene: &mut Scene) {
+        let player_snake_id = self.player.snake;
+        let mut rng = rand::rng();
+        
+        // Snakes is the only movable object here
+        // ideally we would use our own indexes
+        let movables = scene
+            .indexes
+            .get(&ObjectIndex::Movable)
+            .into_iter()
+            .flat_map(|hash_set| hash_set.iter());
+
+        for id in movables {
+            if Some(*id) == player_snake_id {
+                continue;
+            }
+
+            if let Some(object) = scene.objects.get_mut(id) {
+                if let Some(snake) = object.get_mut::<Snake>() {
+                    if rng.random_bool(0.1) {
+                        snake.direction = match rng.random_range(0..4) {
+                            0 => Direction::Up,
+                            1 => Direction::Left,
+                            2 => Direction::Down,
+                            _ => Direction::Right,
+                        };
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Logic<StageKey> for SnakeLogic {
+    fn setup(&mut self, scene: &mut Scene) {
+        self.setup_scene(scene);
+    }
+
+    fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
+        if let Some(command) = self.handle_input(scene) {
+            return command;
+        }
+
+        if self.quit {
+            return RuntimeCommand::Kill;
+        }
+
+        if let Some(key) = self.switch_stage {
+            self.switch_stage = None;
+            return RuntimeCommand::SwitchStage(key);
+        }
+
+        if self.is_paused {
+            return RuntimeCommand::Skip;
+        }
+
+        self.update_statistics(scene);
+        self.counter += 1;
+
+        if self.player.snake.is_some() && scene.objects.get(&self.player.snake.unwrap()).is_none() {
+            return RuntimeCommand::Kill;
+        }
+
+        self.update_ai_snakes(scene);
+
         RuntimeCommand::SetTickRate(Duration::from_millis(self.speed))
     }
 
-    fn process_input(&mut self, scene: &mut Scene) {
-        if event::poll(Duration::from_millis(0)).unwrap() {
-            if let Event::Key(key_event) = event::read().unwrap() {
-                if let Some(snake_id) = self.player.snake {
-                    if let Some(snake) = scene.objects.get_mut(&snake_id) {
-                        if let Some(snake) = snake.get_mut::<Snake>() {
-                            match key_event.code {
-                                KeyCode::Char('1') => self.stage_switch = 1,
-                                KeyCode::Char('2') => self.stage_switch = 2,
-                                KeyCode::Char('3') => self.switch_stage = true,
-                                KeyCode::Char('w') => snake.direction = Direction::Up,
-                                KeyCode::Char('s') => snake.direction = Direction::Down,
-                                KeyCode::Char('a') => snake.direction = Direction::Left,
-                                KeyCode::Char('d') => snake.direction = Direction::Right,
-                                KeyCode::Char('q') => snake.resize_head_native(
-                                    snake.head_size.native_size().saturating_sub(2),
-                                ),
-                                KeyCode::Char('e') => snake.resize_head_native(
-                                    snake.head_size.native_size().saturating_add(2),
-                                ),
-                                KeyCode::Char('r') => self.is_reset = true,
-                                KeyCode::Char('+') => {
-                                    snake.base_index = snake.base_index.saturating_add(2)
-                                }
-                                KeyCode::Char('-') => {
-                                    snake.base_index = snake.base_index.saturating_sub(2)
-                                }
-                                KeyCode::Char('f') => {
-                                    for _ in 0..100 {
-                                        let random_pos: Option<Position> = match &scene.spatial_grid
-                                        {
-                                            Some(grid) => grid.random_empty_pos(),
-                                            None => None,
-                                        };
-
-                                        if let Some(pos) = random_pos {
-                                            scene.attach_object(
-                                                |id| Box::new(Food::rng_food(id, pos)),
-                                                Conflict::Cancel,
-                                            );
-                                        }
-                                    }
-                                }
-                                KeyCode::Esc => self.quit = true,
-                                KeyCode::Tab => {
-                                    for i in 0..200 {
-                                        let pos: Option<Position> = match &scene.spatial_grid {
-                                            Some(grid) => {
-                                                let x = (self.counter + i) % grid.game_width as u64;
-                                                let y = (self.counter + i).saturating_mul(i)
-                                                    % grid.game_height as u64;
-
-                                                Some(Position::new(x as u16, y as u16))
-                                            }
-                                            None => None,
-                                        };
-
-                                        if let Some(pos) = pos {
-                                            let _ = scene.attach_object(
-                                                |id| {
-                                                    Box::new({
-                                                        let mut snake = Snake::new(pos, id, (1) as usize);
-                                                        snake.ignore_death = true;
-                                                        snake.ignore_body = true;
-
-                                                        let color_picker = (self.counter % 255) as u8;
-                                                        let index = (self.counter % 15) as u8;
-                                                        
-                                                        snake.body_style = Glyph::new(Some(Color::Rgb { r: color_picker.saturating_sub(50), g: 20, b: 30 }), Some(Color::Black), '█');
-                                                        snake.head_style = Glyph::new(Some(Color::Rgb { r: color_picker, g: 20, b: 30 }), Some(Color::Black), '█');
-                                                        snake.base_index = index;
-                                                        snake
-                                                    })
-                                                },
-                                                Conflict::Overwrite,
-                                            );
-                                        }
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn process_events(&mut self, scene: &mut Scene) {
+    fn dispatch_events(&mut self, scene: &mut Scene) {
         if self.is_debugging {
             if let Some(logger_id) = self.logger_id {
                 if let Some(logger_object) = scene.objects.get_mut(&logger_id) {
                     if let Some(logger_ui) = logger_object.get_mut::<Logger>() {
                         let event_count = scene.event_bus.len();
-                        let start_index = event_count.saturating_sub(self.max_logs);
+                        let start_index = event_count.saturating_sub(MAX_LOGS);
                         for event in &scene.event_bus[start_index..] {
                             logger_ui.add_log(event.log_message());
                         }

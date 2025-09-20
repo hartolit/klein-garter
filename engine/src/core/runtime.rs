@@ -14,6 +14,7 @@ pub enum RuntimeCommand<K: Eq + Hash + Clone> {
     SwitchStage(K),
     SetTickRate(Duration),
     Reset,
+    Skip,
     Kill,
     None,
 }
@@ -22,6 +23,7 @@ pub struct Runtime {
     pub tick_rate: Duration,
     last_update: Instant,
     pub renderer: Renderer,
+    skip_tick: bool,
 }
 
 impl Runtime {
@@ -30,6 +32,7 @@ impl Runtime {
             tick_rate,
             last_update: Instant::now(),
             renderer: Renderer::new(),
+            skip_tick: false,
         }
     }
 
@@ -42,23 +45,23 @@ impl Runtime {
 
         self.last_update = Instant::now();
         loop {
-            stage.logic.process_input(&mut stage.scene);
-
             let now = Instant::now();
             let delta = now.duration_since(self.last_update);
 
             if delta >= self.tick_rate {
                 self.last_update = now;
                 let command = stage.logic.update(&mut stage.scene);
+                if let Some(directive) = self.execute_command(command, stage) {
+                    return directive;
+                } else if self.skip_tick {
+                    self.skip_tick = false;
+                    continue;    
+                }
 
                 self.tick(stage);
                 stage.scene.sync();
                 self.renderer.partial_render(&mut stage.scene);
 
-                // Execute command last
-                if let Some(directive) = self.execute_command(command, stage) {
-                    return directive;
-                }
             }
             std::thread::sleep(Duration::from_millis(1));
         }
@@ -72,12 +75,8 @@ impl Runtime {
     }
 
     fn refresh<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        stage.scene.sync();
         self.renderer.full_render(&mut stage.scene);
-    }
-
-    fn reset<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
-        stage.scene.clear();
-        stage.is_init = false;
     }
 
     fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
@@ -129,7 +128,7 @@ impl Runtime {
 
         stage.scene.event_bus.extend(active_events);
 
-        stage.logic.process_events(&mut stage.scene);
+        stage.logic.dispatch_events(&mut stage.scene);
     }
 
     fn execute_command<K: Eq + Hash + Clone>(
@@ -149,9 +148,11 @@ impl Runtime {
             RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
             RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
             RuntimeCommand::Reset => {
-                self.reset(stage);
+                stage.scene.clear();
+                stage.is_init = false;
                 return Some(ManagerDirective::Refresh)
             },
+            RuntimeCommand::Skip => self.skip_tick = true,
             RuntimeCommand::Kill => return Some(ManagerDirective::Kill),
             RuntimeCommand::None => {}
         }

@@ -41,6 +41,7 @@ impl Renderer {
             }
         }
 
+        //  TODO - Fix
         // Draws non-spatial objects (like UI) on top
         for state in scene.global_state.filtered.non_spatial.iter() {
             if let StateChange::Create { new_t_cell } = *state {

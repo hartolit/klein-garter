@@ -3,6 +3,9 @@ name = "klein-garter"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "app"
+
 [dependencies]
 crossterm = "0.29.0"
 engine ={ path = "../engine" }
