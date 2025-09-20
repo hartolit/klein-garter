@@ -1,9 +1,9 @@
 use engine::prelude::{Event, EventHandler, Id, ObjectExt, Position, Scene};
 
-use super::FoodEatenEvent;
+use super::{FoodEvent, BombEvent};
 
 use crate::snake_game::events::DeathEvent;
-use crate::snake_game::game_objects::{Food, Snake};
+use crate::snake_game::game_objects::{Food, Snake, Bomb};
 
 pub struct CollisionEvent {
     pub actor: Id,
@@ -32,6 +32,7 @@ impl EventHandler<CollisionEvent> for CollisionHandler {
         enum ObjectType {
             Snake,
             Food,
+            Bomb,
             Other,
             None,
         }
@@ -42,6 +43,8 @@ impl EventHandler<CollisionEvent> for CollisionHandler {
                     ObjectType::Snake
                 } else if obj.get::<Food>().is_some() {
                     ObjectType::Food
+                } else if obj.get::<Bomb>().is_some() {
+                    ObjectType::Bomb
                 } else {
                     ObjectType::Other
                 }
@@ -54,20 +57,6 @@ impl EventHandler<CollisionEvent> for CollisionHandler {
         let target_type = get_object_type(&event.target);
 
         match (actor_type, target_type) {
-            // Snake & Food
-            (ObjectType::Snake, ObjectType::Food) => {
-                scene.event_bus.push(Box::new(FoodEatenEvent {
-                    snake_id: event.actor,
-                    food_id: event.target,
-                }));
-            }
-            (ObjectType::Food, ObjectType::Snake) => {
-                scene.event_bus.push(Box::new(FoodEatenEvent {
-                    snake_id: event.target,
-                    food_id: event.actor,
-                }));
-            }
-
             // Snake & Snake
             (ObjectType::Snake, ObjectType::Snake) => {
                 // Prevents death of important or ignored objects
@@ -77,6 +66,34 @@ impl EventHandler<CollisionEvent> for CollisionHandler {
                         pos: event.pos,
                     }));
                 }
+            }
+
+            // Snake & Food
+            (ObjectType::Snake, ObjectType::Food) => {
+                scene.event_bus.push(Box::new(FoodEvent {
+                    snake_id: event.actor,
+                    food_id: event.target,
+                }));
+            }
+            (ObjectType::Food, ObjectType::Snake) => {
+                scene.event_bus.push(Box::new(FoodEvent {
+                    snake_id: event.target,
+                    food_id: event.actor,
+                }));
+            }
+
+            // Snake & Bomb
+            (ObjectType::Snake, ObjectType::Bomb) => {
+                scene.event_bus.push(Box::new(BombEvent {
+                    snake_id: event.actor,
+                    bomb_id: event.target,
+                }));
+            }
+            (ObjectType::Bomb, ObjectType::Snake) => {
+                scene.event_bus.push(Box::new(BombEvent {
+                    snake_id: event.target,
+                    bomb_id: event.actor,
+                }));
             }
             _ => {}
         }

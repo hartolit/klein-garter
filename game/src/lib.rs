@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::{self, Display, Formatter}, time::Duration};
 
 use engine::prelude::{RuntimeManager, Stage};
 
@@ -10,6 +10,15 @@ use snake_game::SnakeLogic;
 pub enum StageKey {
     Snake,
     Snake1,
+}
+
+impl Display for StageKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            StageKey::Snake => write!(f, "Snake"),
+            StageKey::Snake1 => write!(f, "Snake1"),
+        }
+    }
 }
 
 pub fn init() {

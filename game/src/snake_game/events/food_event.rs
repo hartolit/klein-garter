@@ -5,27 +5,27 @@ use crate::snake_game::game_objects::{
     {Consumable, Food, Snake},
 };
 
-pub struct FoodEatenEvent {
+pub struct FoodEvent {
     pub snake_id: Id,
     pub food_id: Id,
 }
 
-impl Event for FoodEatenEvent {
+impl Event for FoodEvent {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
     fn log_message(&self) -> String {
         format!(
-            "[FOOD EATEN]: A:{}, T:{}",
+            "[FOOD]: A:{}, T:{}",
             self.snake_id.value, self.food_id.value,
         )
     }
 }
 
-pub struct FoodEatenHandler;
-impl EventHandler<FoodEatenEvent> for FoodEatenHandler {
-    fn handle_event(&mut self, event: &FoodEatenEvent, scene: &mut Scene) {
+pub struct FoodHandler;
+impl EventHandler<FoodEvent> for FoodHandler {
+    fn handle_event(&mut self, event: &FoodEvent, scene: &mut Scene) {
         let mut meals = 0;
         if let Some(object) = scene.objects.get(&event.food_id) {
             if let Some(food) = object.get::<Food>() {

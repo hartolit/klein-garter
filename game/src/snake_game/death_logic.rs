@@ -4,51 +4,62 @@ use engine::prelude::*;
 use rand::Rng;
 use std::time::{Duration, Instant};
 
+use crate::snake_game::events::BombHandler;
+use crate::snake_game::game_objects::Bomb;
 use crate::StageKey;
-use super::events::{CollisionHandler, DeathHandler, FoodEatenHandler};
+use super::events::{CollisionHandler, DeathHandler, FoodHandler};
 use super::game_objects::{
     snake::Direction,
     Snake,
 };
 use super::player::Player;
-use super::ui::{logger::Logger, statistics::Statistics};
+use super::ui::{Logger, Statistics, InfoPanel};
 
+const STATS_COLOR: Color = Color::Rgb { r: 170, g: 170, b: 170 };
+const LOGGER_COLOR: Color = Color::Rgb { r: 200, g: 100, b: 100 };
 const GAME_SPEED: u64 = 20;
 const MAX_LOGS: usize = 20;
 
 pub struct DeathLogic {
+    stage_id: StageKey,
     event_manager: EventManager,
     player: Player,
     counter: u64,
     quit: bool,
     stats_id: Option<Id>,
     logger_id: Option<Id>,
+    info_id: Option<Id>,
     last_tick: Instant,
     is_debugging: bool,
     is_paused: bool,
     old_logic: Option<Box<dyn Logic<StageKey>>>,
     revert_logic: bool,
+    is_init: bool,
 }
 
 impl DeathLogic {
-    pub fn build(player: Player, stats_id: Option<Id>, logger_id: Option<Id>) -> Self {
+    pub fn build(stage_id: StageKey, player: Player, stats_id: Option<Id>, logger_id: Option<Id>, info_id: Option<Id>) -> Self {
         let mut event_manager = EventManager::new();
         event_manager.register(CollisionHandler);
-        event_manager.register(FoodEatenHandler);
+        event_manager.register(FoodHandler);
         event_manager.register(DeathHandler);
+        event_manager.register(BombHandler);
 
         Self {
+            stage_id,
             event_manager,
             player,
             counter: 0,
             quit: false,
             stats_id,
             logger_id,
+            info_id,
             last_tick: Instant::now(),
             is_debugging: true,
             is_paused: false,
             old_logic: None,
             revert_logic: false,
+            is_init: false,
         }
     }
 
@@ -85,8 +96,9 @@ impl DeathLogic {
                         KeyCode::Char(' ') => snake.is_moving ^= true,
                         KeyCode::Up => snake.base_index = snake.base_index.saturating_add(2),
                         KeyCode::Down => snake.base_index = snake.base_index.saturating_sub(2),
+                        KeyCode::Char('f') => self.spawn_bomb(scene, 100),
                         KeyCode::Char('g') => self.revert_logic = true,
-                        KeyCode::Tab => self.spawn_snakes(scene, 50),
+                        KeyCode::Tab => self.spawn_snakes(scene, 200),
                         KeyCode::Esc => self.quit = true,
                         KeyCode::Char('p') => self.is_paused ^= true,
                         _ => {}
@@ -95,6 +107,16 @@ impl DeathLogic {
             }
         }
         None
+    }
+
+    fn spawn_bomb(&self, scene: &mut Scene, count: usize) {
+        for _ in 0..count {
+            if let Some(grid) = &scene.spatial_grid {
+                if let Some(pos) = grid.random_empty_pos() {
+                    scene.attach_object(|id| Box::new(Bomb::rng_bomb(id, pos)), Conflict::Cancel);
+                }
+            }
+        }
     }
 
     fn spawn_snakes(&self, scene: &mut Scene, count: usize) {
@@ -110,6 +132,7 @@ impl DeathLogic {
                         let mut snake = Snake::new(pos, id, 3);
                         snake.ignore_death = false;
                         snake.ignore_body = true;
+                        snake.meals = 0;
 
                         let color_picker = (self.counter % 255) as u8;
                         let index = (self.counter % 15) as u8;
@@ -174,8 +197,35 @@ impl DeathLogic {
         }
     }
 
+    fn update_info(&mut self, scene: &mut Scene) {
+        if let Some(id) = self.info_id {
+            if let Some(ui_object) = scene.objects.get_mut(&id) {
+                if let Some(panel) = ui_object.get_mut::<InfoPanel>() {
+                    panel.clear();
+                    let title_clr = Some(Color::Rgb { r: 200, g: 50, b: 50 });
+                    let key_clr = Some(Color::Rgb { r: 200, g: 175, b: 175 });
+
+                    panel.add_line(format!(":::[DEATH CONTROLS]:::"), title_clr, None);
+                    panel.add_line(format!("W,A,S,D:        Move Snake"), key_clr, None);
+                    panel.add_line(format!("Q & E:          Resize Head"), key_clr, None);
+                    panel.add_line(format!("Space:          Toggle Move"), key_clr, None);
+                    panel.add_line(format!("P:              Pause Game"), key_clr, None);
+                    panel.add_line(format!("Esc:            Quit Game"), key_clr, None);
+                    panel.add_line(format!(""), None, None); // Spacer
+                    panel.add_line(format!(":::[DEATH DEBUG]:::"), title_clr, None);
+                    panel.add_line(format!("Up & Down:      Change Z-Index"), key_clr, None);
+                    panel.add_line(format!("                NO ESCAPE!"), key_clr, None);
+                    panel.add_line(format!("G:              Switch Logic"), key_clr, None);
+                    panel.add_line(format!("                NO RESET!"), key_clr, None);
+                    panel.add_line(format!("F:              Spawn Bombs"), key_clr, None);
+                    panel.add_line(format!("Tab:            Spawn Snakes"), key_clr, None);
+                }
+            }
+        }
+    }
+
     fn update_statistics(&mut self, scene: &mut Scene) {
-        if let Some(ui_id) = self.stats_id {
+        if let Some(id) = self.stats_id {
             let now = Instant::now();
             let tick_duration = now.duration_since(self.last_tick);
             self.last_tick = now;
@@ -184,15 +234,16 @@ impl DeathLogic {
                 Some(hash_set) => hash_set.len(),
                 None => 0,
             };
-            if let Some(ui_object) = scene.objects.get_mut(&ui_id) {
+            if let Some(ui_object) = scene.objects.get_mut(&id) {
                 if let Some(stats_ui) = ui_object.get_mut::<Statistics>() {
                     let lines = vec![
-                        format!("Logic has switched to death!"),
+                        format!("Current stage: {}", self.stage_id),
+                        format!("Tick Duration: {:.2?}", tick_duration),
                         format!("Object Count: {}", objects_count),
                         format!("Stateful Objects: {}", stateful_count),
-                        format!("Tick Duration: {:.2?}", tick_duration),
                     ];
-                    stats_ui.set_text(lines);
+                    // Colors has no effect due to optimisations
+                    stats_ui.set_text(lines, Some(STATS_COLOR));
                 }
             }
         }
@@ -217,6 +268,11 @@ impl Logic<StageKey> for DeathLogic {
     }
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
+        if !self.is_init {
+            self.is_init = true;
+            self.update_info(scene);
+        }
+        
         if self.revert_logic {
             if let Some(logic) = self.old_logic.take() {
                 return RuntimeCommand::ReplaceLogic(logic);
@@ -257,7 +313,7 @@ impl Logic<StageKey> for DeathLogic {
                         let event_count = scene.event_bus.len();
                         let start_index = event_count.saturating_sub(MAX_LOGS);
                         for event in &scene.event_bus[start_index..] {
-                            logger_ui.add_log(event.log_message());
+                            logger_ui.add_log(event.log_message(), Some(LOGGER_COLOR));
                         }
                     }
                 }

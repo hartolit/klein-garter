@@ -1,6 +1,8 @@
 pub mod buffer;
 
-use crate::prelude::{Scene, StateChange};
+use std::{collections::HashSet};
+
+use crate::prelude::{Scene, StateChange, ObjectIndex};
 
 use buffer::{Buffer, Operation};
 
@@ -41,28 +43,40 @@ impl Renderer {
             }
         }
 
-        //  TODO - Fix
         // Draws non-spatial objects (like UI) on top
-        for state in scene.global_state.filtered.non_spatial.iter() {
-            if let StateChange::Create { new_t_cell } = *state {
-                if scene.spatial_grid.is_none()
-                    || scene
-                        .spatial_grid
-                        .as_ref()
-                        .unwrap()
-                        .get_cell(&new_t_cell.pos)
-                        .is_none()
-                {
-                    self.buffer.upsert(
-                        new_t_cell.pos,
-                        Operation::Draw {
-                            glyph: new_t_cell.style,
-                            z_index: new_t_cell.z_index,
-                        },
-                    );
-                }
+        let empty_set = HashSet::new();
+        let spatial_ids = scene.indexes.get(&ObjectIndex::Spatial).unwrap_or(&empty_set);
+        for (id, object) in &scene.objects {
+            if spatial_ids.contains(id) {
+                continue;
+            }
+
+            for t_cell in object.t_cells() {
+                self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });
             }
         }
+
+        // // Draws non-spatial objects (like UI) on top
+        // for state in scene.global_state.filtered.non_spatial.iter() {
+        //     if let StateChange::Create { new_t_cell } = *state {
+        //         if scene.spatial_grid.is_none()
+        //             || scene
+        //                 .spatial_grid
+        //                 .as_ref()
+        //                 .unwrap()
+        //                 .get_cell(&new_t_cell.pos)
+        //                 .is_none()
+        //         {
+        //             self.buffer.upsert(
+        //                 new_t_cell.pos,
+        //                 Operation::Draw {
+        //                     glyph: new_t_cell.style,
+        //                     z_index: new_t_cell.z_index,
+        //                 },
+        //             );
+        //         }
+        //     }
+        // }
 
         self.buffer.flush();
     }

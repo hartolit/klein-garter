@@ -114,6 +114,7 @@ impl SpatialGrid {
         moves: impl Iterator<Item = (Id, Position)>,
     ) -> HashMap<Id, Vec<CellRef<'a>>> {
         moves
+            .filter(|(_, pos)| self.is_within_game_area(pos))
             .filter_map(|(id, pos)| {
                 self.get_cell(&pos)
                     .map(|cell| (id, CellRef::new(pos, cell)))

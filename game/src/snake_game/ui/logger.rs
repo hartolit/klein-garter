@@ -27,15 +27,15 @@ impl Logger {
         }
     }
 
-    pub fn add_log(&mut self, message: String) {
+    pub fn add_log(&mut self, message: String, fg_clr: Option<Color>) {
         if self.log_messages.len() == self.max_lines {
             self.log_messages.pop_front();
         }
         self.log_messages.push_back(message);
-        self.update_display();
+        self.update_display(fg_clr);
     }
 
-    fn update_display(&mut self) {
+    fn update_display(&mut self, fg_clr: Option<Color>) {
         for t_cell in self.t_cells.drain(..) {
             self.state.upsert_change(StateChange::Delete {
                 occupant: t_cell.occ,
@@ -47,7 +47,7 @@ impl Logger {
             for (x, character) in line.chars().enumerate() {
                 let t_cell = TCell::new(
                     Occupant::new(self.id, self.id_counter.next()),
-                    Glyph::new(Some(Color::White), Some(Color::Black), character),
+                    Glyph::new(fg_clr, None, character),
                     Some(Position::new(self.pos.x + x as u16, self.pos.y + y as u16)),
                     255,
                 );

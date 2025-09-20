@@ -11,24 +11,30 @@ mod player;
 mod ui;
 
 use crate::StageKey;
-use events::{CollisionHandler, DeathHandler, FoodEatenHandler};
+use events::{CollisionHandler, DeathHandler, FoodHandler};
 use game_objects::{
     snake::Direction,
     {Food, Snake},
 };
 use player::Player;
-use ui::{logger::Logger, statistics::Statistics};
+use ui::{Logger, Statistics, InfoPanel};
 use death_logic::DeathLogic;
 
 const GAME_SPEED: u64 = 20;
 const PLAYER_SNAKE_POSITION: Position = Position { x: 50, y: 10 };
-const STATS_POSITION: Position = Position {
+const INFO_PANEL_POSITION: Position = Position {
     x: GRID_WIDTH + 3,
     y: 1,
 };
+const STATS_COLOR: Color = Color::Rgb { r: 170, g: 170, b: 170 };
+const STATS_POSITION: Position = Position {
+    x: GRID_WIDTH + 3,
+    y: 16,
+};
+const LOGGER_COLOR: Color = Color::Rgb { r: 150, g: 150, b: 200 };
 const LOGGER_POSITION: Position = Position {
     x: GRID_WIDTH + 3,
-    y: 6,
+    y: 21,
 };
 const MAX_LOGS: usize = 10;
 const GRID_WIDTH: u16 = 200;
@@ -38,6 +44,7 @@ pub struct SnakeLogic {
     stage_id: StageKey,
     switch_stage: Option<StageKey>,
     switch_logic: bool,
+    has_switched: bool,
     event_manager: EventManager,
     player: Player,
     speed: u64,
@@ -45,6 +52,7 @@ pub struct SnakeLogic {
     quit: bool,
     stats_id: Option<Id>,
     logger_id: Option<Id>,
+    info_id: Option<Id>,
     last_tick: Instant,
     is_debugging: bool,
     is_paused: bool,
@@ -54,13 +62,14 @@ impl SnakeLogic {
     pub fn new(key: StageKey) -> Self {
         let mut event_manager = EventManager::new();
         event_manager.register(CollisionHandler);
-        event_manager.register(FoodEatenHandler);
+        event_manager.register(FoodHandler);
         event_manager.register(DeathHandler);
 
         Self {
             stage_id: key,
             switch_stage: None,
             switch_logic: false,
+            has_switched: true,
             event_manager,
             player: Player::new(),
             speed: GAME_SPEED,
@@ -68,6 +77,7 @@ impl SnakeLogic {
             quit: false,
             stats_id: None,
             logger_id: None,
+            info_id: None,
             last_tick: Instant::now(),
             is_debugging: true,
             is_paused: false,
@@ -110,6 +120,10 @@ impl SnakeLogic {
             |id| Box::new(Logger::new(id, LOGGER_POSITION, MAX_LOGS)),
             Conflict::Ignore,
         );
+        self.info_id = scene.attach_object(
+            |id| Box::new(InfoPanel::new(id, INFO_PANEL_POSITION)),
+            Conflict::Ignore,
+        );
     }
 
     fn setup_player_snake(&mut self, scene: &mut Scene) {
@@ -147,8 +161,35 @@ impl SnakeLogic {
         }
     }
 
+    fn update_info(&mut self, scene: &mut Scene) {
+        if let Some(id) = self.info_id {
+            if let Some(ui_object) = scene.objects.get_mut(&id) {
+                if let Some(panel) = ui_object.get_mut::<InfoPanel>() {
+                    panel.clear();
+                    let key_clr = Some(Color::Rgb { r: 255, g: 255, b: 255 });
+                    let title_clr = Some(Color::Rgb { r: 175, g: 200, b: 200 });
+
+                    panel.add_line(format!(":::[CONTROLS]:::"), title_clr, None);
+                    panel.add_line(format!("W,A,S,D:        Move Snake"), key_clr, None);
+                    panel.add_line(format!("Q & E:          Resize Head"), key_clr, None);
+                    panel.add_line(format!("Space:          Toggle Move"), key_clr, None);
+                    panel.add_line(format!("P:              Pause Game"), key_clr, None);
+                    panel.add_line(format!("Esc:            Quit Game"), key_clr, None);
+                    panel.add_line(format!(""), None, None); // Spacer
+                    panel.add_line(format!(":::[DEBUG]:::"), title_clr, None);
+                    panel.add_line(format!("Up & Down:      Change Z-Index"), key_clr, None);
+                    panel.add_line(format!("Left & Right:   Switch Stage"), key_clr, None);
+                    panel.add_line(format!("G:              Switch Logic"), key_clr, None);
+                    panel.add_line(format!("R:              Reset Stage"), key_clr, None);
+                    panel.add_line(format!("F:              Spawn Food"), key_clr, None);
+                    panel.add_line(format!("Tab:            Spawn Snakes"), key_clr, None);
+                }
+            }
+        }
+    }
+
     fn update_statistics(&mut self, scene: &mut Scene) {
-        if let Some(ui_id) = self.stats_id {
+        if let Some(id) = self.stats_id {
             let now = Instant::now();
             let tick_duration = now.duration_since(self.last_tick);
             self.last_tick = now;
@@ -157,14 +198,15 @@ impl SnakeLogic {
                 Some(hash_set) => hash_set.len(),
                 None => 0,
             };
-            if let Some(ui_object) = scene.objects.get_mut(&ui_id) {
+            if let Some(ui_object) = scene.objects.get_mut(&id) {
                 if let Some(stats_ui) = ui_object.get_mut::<Statistics>() {
                     let lines = vec![
+                        format!("Current stage: {}", self.stage_id),
+                        format!("Tick Duration: {:.2?}", tick_duration),
                         format!("Object Count: {}", objects_count),
                         format!("Stateful Objects: {}", stateful_count),
-                        format!("Tick Duration: {:.2?}", tick_duration),
                     ];
-                    stats_ui.set_text(lines);
+                    stats_ui.set_text(lines, Some(STATS_COLOR));
                 }
             }
         }
@@ -327,14 +369,21 @@ impl Logic<StageKey> for SnakeLogic {
             return RuntimeCommand::Kill;
         }
 
+        if self.has_switched {
+            self.has_switched = false;
+            self.update_info(scene);
+        }
+
         if let Some(key) = self.switch_stage {
             self.switch_stage = None;
+            self.has_switched = true;
             return RuntimeCommand::SwitchStage(key);
         }
 
         if self.switch_logic {
             self.switch_logic = false;
-            let new_logic = DeathLogic::build(self.player.clone(), self.stats_id.clone(), self.logger_id.clone());
+            self.has_switched = true;
+            let new_logic = DeathLogic::build(self.stage_id, self.player, self.stats_id, self.logger_id, self.info_id);
             return RuntimeCommand::ReplaceLogic(Box::new(new_logic));
         }
 
@@ -362,7 +411,7 @@ impl Logic<StageKey> for SnakeLogic {
                         let event_count = scene.event_bus.len();
                         let start_index = event_count.saturating_sub(MAX_LOGS);
                         for event in &scene.event_bus[start_index..] {
-                            logger_ui.add_log(event.log_message());
+                            logger_ui.add_log(event.log_message(), Some(LOGGER_COLOR));
                         }
                     }
                 }
