@@ -34,7 +34,7 @@ pub struct DeathLogic {
     is_paused: bool,
     old_logic: Option<Box<dyn Logic<StageKey>>>,
     revert_logic: bool,
-    is_init: bool,
+    refresh: bool,
 }
 
 impl DeathLogic {
@@ -59,7 +59,7 @@ impl DeathLogic {
             is_paused: false,
             old_logic: None,
             revert_logic: false,
-            is_init: false,
+            refresh: true,
         }
     }
 
@@ -268,8 +268,8 @@ impl Logic<StageKey> for DeathLogic {
     }
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
-        if !self.is_init {
-            self.is_init = true;
+        if self.refresh {
+            self.refresh = false;
             self.update_info(scene);
         }
         

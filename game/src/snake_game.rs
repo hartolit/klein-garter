@@ -44,7 +44,7 @@ pub struct SnakeLogic {
     stage_id: StageKey,
     switch_stage: Option<StageKey>,
     switch_logic: bool,
-    has_switched: bool,
+    refresh: bool,
     event_manager: EventManager,
     player: Player,
     speed: u64,
@@ -69,7 +69,7 @@ impl SnakeLogic {
             stage_id: key,
             switch_stage: None,
             switch_logic: false,
-            has_switched: true,
+            refresh: true,
             event_manager,
             player: Player::new(),
             speed: GAME_SPEED,
@@ -263,8 +263,8 @@ impl SnakeLogic {
 
     fn handle_stage_switch(&mut self) {
         self.switch_stage = match self.stage_id {
-            StageKey::Snake => Some(StageKey::Snake1),
-            StageKey::Snake1 => Some(StageKey::Snake),
+            StageKey::Level0 => Some(StageKey::Level1),
+            StageKey::Level1 => Some(StageKey::Level0),
         }
     }
 
@@ -358,6 +358,7 @@ impl SnakeLogic {
 impl Logic<StageKey> for SnakeLogic {
     fn setup(&mut self, scene: &mut Scene) {
         self.setup_scene(scene);
+        self.refresh = true;
     }
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
@@ -369,20 +370,20 @@ impl Logic<StageKey> for SnakeLogic {
             return RuntimeCommand::Kill;
         }
 
-        if self.has_switched {
-            self.has_switched = false;
+        if self.refresh {
+            self.refresh = false;
             self.update_info(scene);
         }
 
         if let Some(key) = self.switch_stage {
             self.switch_stage = None;
-            self.has_switched = true;
+            self.refresh = true;
             return RuntimeCommand::SwitchStage(key);
         }
 
         if self.switch_logic {
             self.switch_logic = false;
-            self.has_switched = true;
+            self.refresh = true;
             let new_logic = DeathLogic::build(self.stage_id, self.player, self.stats_id, self.logger_id, self.info_id);
             return RuntimeCommand::ReplaceLogic(Box::new(new_logic));
         }
