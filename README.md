@@ -5,7 +5,7 @@
 
 ---
 
-## Wan't to try it out?
+### Wan't to try it out?
 Follow these instructions to get the project up and running:
 1.  **Clone the repository:**
     ```sh
@@ -27,12 +27,12 @@ Follow these instructions to get the project up and running:
 
 ## Engine Architecture
 
-The engine is operating from an `Object` trait system, which provides a set of capability traits for an object to inherit. The idea was to have a flexible way for the engine to efficiently distinguish and process Objects of certain capabilities.
+The engine is operating from an `Object` trait system, which provides a set of capability traits for an object to inherit. The idea was to have a flexible way for the engine to efficiently distinguish and process objects of certain capabilities.
 
 ### Objects, TCells, and StateChanges
-At its core, everything is an `Object`. An object's physical form in the terminal is made up of one or more `TCells` (Terminal Cells). A `TCell` is just a single character with some properties: `Position`, `Glyph` (its symbol and its colors), and a z_index for layering.
+At its core, everything is an `Object`. An object's physical form in the terminal is made up of one or more `TCell` (Terminal Cells). A `TCell` is just a single character with some properties: `Position`, `Glyph` (its symbol and its colors), and a z_index for layering.
 
-An `Object` is by default static but can be made dynamic by giving it the `Stateful` capability trait. Instead of changing an object's properties directly, you record the `StateChange(Create, Update, or Delete)` for one of its `TCells`. The engine then collects these changes and tells the renderer which cells to redraw (this is to avoid re-rendering an entire objects state). If the object also had the `Spatial` capability, the engine would sync these changes to the spatial grid to make it collidable.
+An `Object` is by default static but can be made dynamic by giving it the `Stateful` capability trait. Instead of changing an object's properties directly, you record the `StateChange(Create, Update, or Delete)` for one of its TCells. The engine then collects these changes and tells the renderer which cells to redraw (this is to avoid re-rendering an entire objects state). If the object also had the `Spatial` capability, the engine would sync these changes to the spatial grid to make it collidable.
 The cabilities include: `Stateful`, `Destructible`, `Active`, `Spatial` and `Movable`.
 
 ### Game Logic Layers
@@ -55,7 +55,7 @@ The engine also provides a few other noteworthy capabilities:
 
 There's many performance downfalls in the engine design. The biggest one is cache locality on objects and state management. Using a `HashMap` to iterate through the different objects isn't the best solution as it suffers from cache misses. An ECS architecture instead of my Object-Oriented solution would've performed much better. Something I've yet to fully explore.
 
-The state management for objects is a giant, beautiful mess. It obviously suffers from cache misses, but also its complexity of processing `StateChanges`. It would've been much simpler to make an infinite grid with a snapshot of state changes and just do a "simple" comparison between snapshots to determine a single source of truth. This could have also opened a nice door for concurrency and split the processing between multiple threads. Which brings me to the final downfall.
+The state management for objects is a giant, beautiful mess. It obviously suffers from cache misses, but also its complexity of processing a `StateChange`. It would've been much simpler to make an infinite grid with a snapshot of state changes and just do a "simple" comparison between snapshots to determine a single source of truth. This could have also opened a nice door for concurrency and split processing between multiple threads. Which brings me to the final downfall.
 
 This was the first project I've built to learn rust. Learning Rust the last few months has been quite the eye opener. This means I didn't dabble in concurrent scenarios until much more recently, so the entire design was built for a single-threaded world, which misses out on a lot of performance benefits.
 
