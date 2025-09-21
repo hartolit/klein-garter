@@ -39,8 +39,7 @@ Another minor downfall is the event system, which is very likely store duplicate
 Small list for future me:
 * **Asset generation** from pictures and gifs
 * **Better event system**
-* **Make the grid placeable**
-* **Food ghost object** (happens when alot of snakes and food spawns)
+* **Food ghost object**
 
 ### Current state
 

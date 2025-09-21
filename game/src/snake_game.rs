@@ -20,25 +20,43 @@ use player::Player;
 use ui::{Logger, Statistics, InfoPanel};
 use death_logic::DeathLogic;
 
+// Game
 const GAME_SPEED: u64 = 20;
-const PLAYER_SNAKE_POSITION: Position = Position { x: 50, y: 10 };
-const INFO_PANEL_POSITION: Position = Position {
-    x: GRID_WIDTH + 3,
-    y: 1,
+const PLAYER_SNAKE_POS: Position = Position { x: 50, y: 10 };
+
+// Grid
+const GRID_POS: Position = Position {
+    x: 4,
+    y: 3,
 };
+const GRID_WIDTH: u16 = 180;
+const GRID_HEIGHT: u16 = 60;
+const BORDER_STYLE: Glyph = Glyph {
+    fg_clr: Some(Color::Rgb { r: 200, g: 200, b: 200 }), 
+    bg_clr: None,
+    symbol: '█' 
+};
+
+// Info
+const INFO_POS: Position = Position {
+    x: (GRID_WIDTH + GRID_POS.x) + 3,
+    y: GRID_POS.y,
+};
+
+// Statistics
 const STATS_COLOR: Color = Color::Rgb { r: 170, g: 170, b: 170 };
-const STATS_POSITION: Position = Position {
-    x: GRID_WIDTH + 3,
-    y: 16,
+const STATS_POS: Position = Position {
+    x: (GRID_WIDTH + GRID_POS.x) + 3,
+    y: GRID_POS.y + 15,
 };
+
+// Logger
 const LOGGER_COLOR: Color = Color::Rgb { r: 150, g: 150, b: 200 };
-const LOGGER_POSITION: Position = Position {
-    x: GRID_WIDTH + 3,
-    y: 21,
+const LOGGER_POS: Position = Position {
+    x: (GRID_WIDTH + GRID_POS.x) + 3,
+    y: GRID_POS.y + 20,
 };
 const MAX_LOGS: usize = 10;
-const GRID_WIDTH: u16 = 200;
-const GRID_HEIGHT: u16 = 80;
 
 pub struct SnakeLogic {
     stage_id: StageKey,
@@ -91,37 +109,24 @@ impl SnakeLogic {
     }
 
     fn setup_grid(&self, scene: &mut Scene) {
-        let grid = SpatialGrid::new(GRID_WIDTH, GRID_HEIGHT, 1, |_, is_border| {
-            if is_border {
-                let style = Glyph::new(
-                    Some(Color::Rgb {
-                        r: 20,
-                        g: 20,
-                        b: 30,
-                    }),
-                    Some(Color::Black),
-                    '█',
-                );
-                Terrain::new(style, 255)
-            } else {
-                let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
-                Terrain::new(style, 0)
-            }
+        let grid = SpatialGrid::new(GRID_WIDTH, GRID_HEIGHT, Some(BORDER_STYLE), GRID_POS, |_| {
+            let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
+            Terrain::new(style, 0)
         });
         scene.attach_grid(grid);
     }
 
     fn setup_ui(&mut self, scene: &mut Scene) {
         self.stats_id = scene.attach_object(
-            |id| Box::new(Statistics::new(id, STATS_POSITION)),
+            |id| Box::new(Statistics::new(id, STATS_POS)),
             Conflict::Ignore,
         );
         self.logger_id = scene.attach_object(
-            |id| Box::new(Logger::new(id, LOGGER_POSITION, MAX_LOGS)),
+            |id| Box::new(Logger::new(id, LOGGER_POS, MAX_LOGS)),
             Conflict::Ignore,
         );
         self.info_id = scene.attach_object(
-            |id| Box::new(InfoPanel::new(id, INFO_PANEL_POSITION)),
+            |id| Box::new(InfoPanel::new(id, INFO_POS)),
             Conflict::Ignore,
         );
     }
@@ -129,7 +134,7 @@ impl SnakeLogic {
     fn setup_player_snake(&mut self, scene: &mut Scene) {
         let snake_id = scene.attach_object(
             |id| {
-                let mut snake = Snake::new(PLAYER_SNAKE_POSITION, id, 3);
+                let mut snake = Snake::new(PLAYER_SNAKE_POS, id, 3);
                 snake.head_style = Glyph::new(
                     Some(Color::Rgb {
                         r: 255,
@@ -282,8 +287,8 @@ impl SnakeLogic {
         for i in 0..count {
             if let Some(grid) = &scene.spatial_grid {
                 let i_u16 = i as u16;
-                let x = (self.counter as u16 + i_u16) % grid.game_width;
-                let y = ((self.counter as u16 + i_u16) * i_u16) % grid.game_height;
+                let x = (self.counter as u16 + i_u16) % grid.width;
+                let y = ((self.counter as u16 + i_u16) * i_u16) % grid.height;
                 let pos = Position::new(x, y);
 
                 scene.attach_object(

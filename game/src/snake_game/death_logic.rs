@@ -41,7 +41,6 @@ impl DeathLogic {
     pub fn build(stage_id: StageKey, player: Player, stats_id: Option<Id>, logger_id: Option<Id>, info_id: Option<Id>) -> Self {
         let mut event_manager = EventManager::new();
         event_manager.register(CollisionHandler);
-        event_manager.register(FoodHandler);
         event_manager.register(DeathHandler);
         event_manager.register(BombHandler);
 
@@ -123,8 +122,8 @@ impl DeathLogic {
         for i in 0..count {
             if let Some(grid) = &scene.spatial_grid {
                 let i_u16 = i as u16;
-                let x = (self.counter as u16 + i_u16) % grid.game_width;
-                let y = ((self.counter as u16 + i_u16) * i_u16) % grid.game_height;
+                let x = (self.counter as u16 + i_u16) % grid.width;
+                let y = ((self.counter as u16 + i_u16) * i_u16) % grid.height;
                 let pos = Position::new(x, y);
 
                 scene.attach_object(

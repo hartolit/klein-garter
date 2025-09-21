@@ -24,26 +24,39 @@ impl Renderer {
     pub fn full_render(&mut self, scene: &Scene) {
         self.buffer.clear();
 
-        // Draws grid and spatial objects tied to the grid
-        // TODO - Fix this
+        // Draws grid and spatial objects
         if let Some(grid) = &scene.spatial_grid {
-            for y in 0..grid.full_height {
-                for x in 0..grid.full_width {
-                    let pos = crate::core::global::Position::new(x, y);
-                    let index = (y * grid.full_width + x) as usize;
-                    let (glyph, z_index) = grid.cells[index].top_glyph_and_z();
-                    self.buffer.upsert(
-                        pos,
-                        Operation::Draw {
-                            glyph: *glyph,
-                            z_index,
-                        },
-                    );
+            // Draws border
+            for (pos, glyph) in grid.get_border() {
+                self.buffer.upsert(
+                    pos,
+                    Operation::Draw {
+                        glyph,
+                        z_index: 255,
+                    },
+                );
+            }
+
+            // Draws grid cells and their occupants
+            for y in 0..grid.height {
+                for x in 0..grid.width {
+                    let grid_pos = crate::core::global::Position::new(x, y);
+                    let world_pos = grid.pos_to_world(grid_pos);
+                    if let Some(cell) = grid.get_cell(&world_pos) {
+                        let (glyph, z_index) = cell.top_glyph_and_z();
+                        self.buffer.upsert(
+                            world_pos,
+                            Operation::Draw {
+                                glyph: *glyph,
+                                z_index,
+                            },
+                        );
+                    }
                 }
             }
         }
 
-        // Draws non-spatial objects (like UI) on top
+        // Draws non-spatial objects (like UI)
         let empty_set = HashSet::new();
         let spatial_ids = scene.indexes.get(&ObjectIndex::Spatial).unwrap_or(&empty_set);
         for (id, object) in &scene.objects {
@@ -55,28 +68,6 @@ impl Renderer {
                 self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });
             }
         }
-
-        // // Draws non-spatial objects (like UI) on top
-        // for state in scene.global_state.filtered.non_spatial.iter() {
-        //     if let StateChange::Create { new_t_cell } = *state {
-        //         if scene.spatial_grid.is_none()
-        //             || scene
-        //                 .spatial_grid
-        //                 .as_ref()
-        //                 .unwrap()
-        //                 .get_cell(&new_t_cell.pos)
-        //                 .is_none()
-        //         {
-        //             self.buffer.upsert(
-        //                 new_t_cell.pos,
-        //                 Operation::Draw {
-        //                     glyph: new_t_cell.style,
-        //                     z_index: new_t_cell.z_index,
-        //                 },
-        //             );
-        //         }
-        //     }
-        // }
 
         self.buffer.flush();
     }

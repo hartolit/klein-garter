@@ -308,14 +308,23 @@ impl Snake {
             .push_front(BodySegment::new(orientation, new_body_cells));
 
         if self.meals > 0 {
+            // Growing, do nothing.
             self.meals -= 1;
-        } else {
-            let segments_to_remove = if self.meals == 0 {
-                1
+        } else if self.meals == 0 {
+            // Moving, remove one segment from the tail
+            if let Some(segment) = self.body.pop_back() {
+                for t_cell in segment.t_cells {
+                    self.state.upsert_change(StateChange::Delete {
+                        occupant: t_cell.occ,
+                        init_pos: t_cell.pos,
+                    });
+                }
             } else {
-                self.meals.abs() as usize
-            };
-            for _ in 0..segments_to_remove {
+                self.is_alive = false;
+            }
+        } else {
+            // Damage, remove two segments.
+            for _ in 0..2 {
                 if let Some(segment) = self.body.pop_back() {
                     for t_cell in segment.t_cells {
                         self.state.upsert_change(StateChange::Delete {
@@ -328,6 +337,8 @@ impl Snake {
                     break;
                 }
             }
+            // Heal one point of the damage debt
+            self.meals += 1;
         }
     }
 

@@ -4,7 +4,7 @@ mod cell;
 mod terrain;
 
 use crate::core::global::{Id, Position, SlotMap};
-use crate::prelude::{Object, Occupant, TCell};
+use crate::prelude::{Glyph, Object, Occupant, TCell};
 pub use cell::{Cell, CellRef};
 pub use terrain::Terrain;
 
@@ -12,66 +12,87 @@ pub use terrain::Terrain;
 pub struct SpatialGrid {
     pub cells: Vec<Cell>,
     pub empty_cells: SlotMap<usize>,
-    pub full_width: u16,
-    pub full_height: u16,
-    pub game_width: u16,
-    pub game_height: u16,
-    pub border: u16,
+    pub width: u16,
+    pub height: u16,
+    pub border_style: Option<Glyph>,
+    pub origin: Position, // The top left corner of the grid in world coordinates
 }
 
 impl SpatialGrid {
-    pub fn new<F>(
-        game_width: u16,
-        game_height: u16,
-        mut border: u16,
-        mut terrain_generator: F,
-    ) -> Self
+    pub fn new<F>(width: u16, height: u16, border_style: Option<Glyph>, origin: Position, mut terrain_generator: F) -> Self
     where
-        F: FnMut(Position, bool) -> Terrain,
+        F: FnMut(Position) -> Terrain,
     {
-        if border < 1 {
-            border = 1
-        }
-
-        let full_width = game_width + border * 2;
-        let full_height = game_height + border * 2;
-        let full_size = full_height * full_width;
-
-        let mut cells = Vec::with_capacity(full_size as usize);
+        let size = height * width;
+        let mut cells = Vec::with_capacity(size as usize);
         let mut empty_cells = SlotMap::new();
 
-        for y in 0..full_height {
-            for x in 0..full_width {
-                let pos = Position::new(x, y);
-                let is_border = x < border
-                    || x >= game_width + border
-                    || y < border
-                    || y >= game_height + border;
-
-                let terrain = terrain_generator(pos, is_border);
+        for y in 0..height {
+            for x in 0..width {
+                let terrain = terrain_generator(Position::new(x, y));
                 cells.push(Cell::new(terrain));
-
-                if !is_border {
-                    let index = (y * full_width + x) as usize;
-                    empty_cells.insert(index);
-                }
+                let index = (y * width + x) as usize;
+                empty_cells.insert(index);
             }
         }
 
         SpatialGrid {
             cells,
             empty_cells,
-            full_width,
-            full_height,
-            game_width,
-            game_height,
-            border,
+            width,
+            height,
+            border_style,
+            origin,
         }
     }
 
-    pub fn get_index(&self, pos: &Position) -> Option<usize> {
-        if pos.x < self.full_width && pos.y < self.full_height {
-            Some((pos.y * self.full_width + pos.x) as usize)
+    pub fn pos_to_grid(&self, world_pos: Position) -> Option<Position> {
+        let grid_x = world_pos.x.checked_sub(self.origin.x)?;
+        let grid_y = world_pos.y.checked_sub(self.origin.y)?;
+
+        if grid_x < self.width && grid_y < self.height {
+            Some(Position { x: grid_x, y: grid_y })
+        } else {
+            None
+        }
+    }
+
+    pub fn pos_to_world(&self, grid_pos: Position) -> Position {
+        Position {
+            x: self.origin.x + grid_pos.x,
+            y: self.origin.y + grid_pos.y,
+        }
+    }
+
+    pub fn get_border(&self) -> Vec<(Position, Glyph)> {
+        let Some(glyph) = self.border_style else {
+            return Vec::new();
+        };
+
+        let mut border_elements = Vec::new();
+        let top_y = self.origin.y.saturating_sub(1);
+        let bottom_y = self.origin.y + self.height;
+        let left_x = self.origin.x.saturating_sub(1);
+        let right_x = self.origin.x + self.width;
+
+        // Top & bottom borders
+        for x in left_x..=right_x {
+            border_elements.push((Position::new(x, top_y), glyph));
+            border_elements.push((Position::new(x, bottom_y), glyph));
+        }
+
+        // Left & right borders
+        for y in (top_y + 1)..bottom_y {
+            border_elements.push((Position::new(left_x, y), glyph));
+            border_elements.push((Position::new(right_x, y), glyph));
+        }
+
+        border_elements
+    }
+
+    pub fn get_index(&self, grid_pos: &Position) -> Option<usize> {
+        if grid_pos.x < self.width && grid_pos.y < self.height {
+            Some((grid_pos.y * self.width + grid_pos.x) as usize)
         } else {
             None
         }
@@ -79,30 +100,32 @@ impl SpatialGrid {
 
     pub fn get_pos_from_index(&self, index: usize) -> Option<Position> {
         if index < self.cells.len() {
-            let x = (index % self.full_width as usize) as u16;
-            let y = (index / self.full_width as usize) as u16;
+            let x = (index % self.width as usize) as u16;
+            let y = (index / self.width as usize) as u16;
             Some(Position::new(x, y))
         } else {
             None
         }
     }
 
-    pub fn iter_cell(&self) -> impl Iterator<Item = &Cell> {
-        self.cells.iter()
+    pub fn get_cell(&self, world_pos: &Position) -> Option<&Cell> {
+        self.pos_to_grid(*world_pos)
+            .and_then(|grid_pos| self.get_index(&grid_pos))
+            .map(|index| &self.cells[index])
     }
 
-    pub fn get_cell(&self, pos: &Position) -> Option<&Cell> {
-        self.get_index(pos).map(|index| &self.cells[index])
+    pub fn get_cell_mut(&mut self, world_pos: &Position) -> Option<&mut Cell> {
+        if let Some(grid_pos) = self.pos_to_grid(*world_pos) {
+            if let Some(index) = self.get_index(&grid_pos) {
+                return Some(&mut self.cells[index]);
+            }
+        }
+        None
     }
-
-    pub fn get_cell_mut(&mut self, pos: &Position) -> Option<&mut Cell> {
-        self.get_index(pos).map(move |index| &mut self.cells[index])
-    }
-
-    /// Checks an objects bounds within the game area
+    
     pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
         for t_cell in object.t_cells() {
-            if !self.is_within_game_area(&t_cell.pos) {
+            if self.pos_to_grid(t_cell.pos).is_none() {
                 return false;
             }
         }
@@ -114,18 +137,16 @@ impl SpatialGrid {
         moves: impl Iterator<Item = (Id, Position)>,
     ) -> HashMap<Id, Vec<CellRef<'a>>> {
         moves
-            .filter(|(_, pos)| self.is_within_game_area(pos))
-            .filter_map(|(id, pos)| {
-                self.get_cell(&pos)
-                    .map(|cell| (id, CellRef::new(pos, cell)))
+            .filter_map(|(id, world_pos)| {
+                self.get_cell(&world_pos)
+                    .map(|cell| (id, CellRef::new(world_pos, cell)))
             })
             .fold(HashMap::new(), |mut map, (id, cell_ref)| {
                 map.entry(id).or_default().push(cell_ref);
                 map
             })
     }
-
-    /// Probes an object and gets a vec of collided object Ids
+    
     pub fn probe_object(&self, object: &Box<dyn Object>) -> HashSet<Id> {
         let mut collision_ids: HashSet<Id> = HashSet::new();
         for t_cell in object.t_cells() {
@@ -137,7 +158,6 @@ impl SpatialGrid {
                 }
             }
         }
-
         collision_ids
     }
 
@@ -147,60 +167,38 @@ impl SpatialGrid {
         }
     }
 
-    pub fn remove_object(&mut self, object: &Box<dyn Object>) {
-        for t_cell in object.t_cells() {
-            self.remove_cell_occ(t_cell.occ, t_cell.pos);
+    pub fn remove_cell_occ(&mut self, occ: Occupant, world_pos: Position) -> bool {
+        if let Some(grid_pos) = self.pos_to_grid(world_pos) {
+            if let Some(index) = self.get_index(&grid_pos) {
+                if let Some(t_cell) = self.cells[index].occ_by {
+                    if occ == t_cell.occ {
+                        self.cells[index].occ_by = None;
+                        self.empty_cells.insert(index);
+                        return true;
+                    }
+                }
+            }
         }
+        false
     }
 
-    pub fn remove_cell_occ(&mut self, occ: Occupant, pos: Position) -> bool {
-        if !self.is_within_game_area(&pos) {
-            return false;
-        }
-
-        if let Some(global_index) = self.get_index(&pos) {
-            if let Some(t_cell) = self.cells[global_index].occ_by {
-                if occ == t_cell.occ {
-                    self.cells[global_index].occ_by = None;
-                    self.empty_cells.insert(global_index);
+    pub fn add_cell_occ(&mut self, t_cell: &TCell) -> bool {
+        if let Some(grid_pos) = self.pos_to_grid(t_cell.pos) {
+            if let Some(index) = self.get_index(&grid_pos) {
+                 let (_, curr_z_index) = self.cells[index].top_glyph_and_z();
+                if t_cell.z_index >= curr_z_index {
+                    self.empty_cells.remove(&index);
+                    self.cells[index].occ_by = Some(*t_cell);
                     return true;
                 }
             }
         }
-
-        return false;
-    }
-
-    pub fn add_cell_occ(&mut self, t_cell: &TCell) -> bool {
-        if !self.is_within_game_area(&t_cell.pos) {
-            return false;
-        }
-
-        if let Some(global_index) = self.get_index(&t_cell.pos) {
-            let (_, curr_z_index) = self.cells[global_index].top_glyph_and_z();
-            if t_cell.z_index >= curr_z_index {
-                self.empty_cells.remove(&global_index);
-                self.cells[global_index].occ_by = Some(*t_cell);
-                return true;
-            }
-        }
-
-        return false;
+        false
     }
 
     pub fn random_empty_pos(&self) -> Option<Position> {
-        let random_pos = match self.empty_cells.get_random() {
-            Some(index) => self.get_pos_from_index(index),
-            None => None,
-        };
-
-        random_pos
-    }
-
-    pub fn is_within_game_area(&self, pos: &Position) -> bool {
-        pos.x >= self.border
-            && pos.x < self.game_width + self.border
-            && pos.y >= self.border
-            && pos.y < self.game_height + self.border
+        self.empty_cells.get_random()
+            .and_then(|index| self.get_pos_from_index(index))
+            .map(|grid_pos| self.pos_to_world(grid_pos))
     }
 }
