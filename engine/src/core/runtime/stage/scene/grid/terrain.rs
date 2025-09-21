@@ -4,6 +4,7 @@ use crate::prelude::Glyph;
 pub struct Terrain {
     pub style: Glyph,
     pub z_index: u8,
+    // TODO: pub is_collidable: bool - (leaving out for now)
 }
 
 impl Terrain {

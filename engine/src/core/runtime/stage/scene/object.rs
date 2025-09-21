@@ -134,7 +134,7 @@ pub trait Movable: Object + Stateful + Spatial {
     /// the collision system will treat this overlap as a collision.
     fn probe_move(&self) -> Box<dyn Iterator<Item = Position> + '_>;
 
-    fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>>;
+    fn make_move(&mut self, probe: Option<Vec<CellRef>>) -> Vec<Box<dyn Event>>;
 }
 
 pub trait ObjectExt {

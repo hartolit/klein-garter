@@ -80,29 +80,28 @@ impl Runtime {
 
     fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
         // Gets events from movables (collisions)
-        if let Some(grid) = &mut stage.scene.spatial_grid {
-            let future_moves = stage
-                .scene
-                .indexes
-                .get(&ObjectIndex::Movable)
-                .into_iter()
-                .flat_map(|hash_set| hash_set.iter())
-                .filter_map(|id| {
-                    stage
-                        .scene
-                        .objects
-                        .get(id)
-                        .and_then(|obj| obj.as_movable())
-                        .map(|movable| (*id, movable))
-                })
-                .flat_map(|(id, movable)| movable.probe_move().map(move |pos| (id, pos)));
+        if let Some(grid) = &mut stage.scene.spatial_grid {            
+            if let Some(movable_ids) = stage.scene.indexes.get(&ObjectIndex::Movable) {
+                let future_moves = movable_ids
+                    .iter()
+                    .filter_map(|id| {
+                        stage
+                            .scene
+                            .objects
+                            .get(id)
+                            .and_then(|obj| obj.as_movable())
+                            .map(|movable| (*id, movable))
+                    })
+                    .flat_map(|(id, movable)| movable.probe_move().map(move |pos| (id, pos)));
 
-            let mut probe_map = grid.probe_moves(future_moves);
+                let mut probe_map = grid.probe_moves(future_moves);
 
-            for (id, probe) in probe_map.drain() {
-                if let Some(object) = stage.scene.objects.get_mut(&id) {
-                    if let Some(movable) = object.as_movable_mut() {
-                        stage.scene.event_bus.extend(movable.make_move(probe));
+                for id in movable_ids {
+                    let probe = probe_map.remove(id);
+                    if let Some(object) = stage.scene.objects.get_mut(id) {
+                        if let Some(movable) = object.as_movable_mut() {
+                            stage.scene.event_bus.extend(movable.make_move(probe));
+                        }
                     }
                 }
             }

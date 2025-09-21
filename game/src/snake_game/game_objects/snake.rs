@@ -446,7 +446,7 @@ define_object! {
         Movable {
             impl {
                 fn probe_move(&self) -> Box<dyn Iterator<Item = Position> + '_> {
-                    if self.head.is_empty() || !self.is_moving {
+                    if self.head.is_empty() {
                         return Box::new(std::iter::empty());
                     }
 
@@ -512,7 +512,7 @@ define_object! {
                                 // Returns a single probe targeting our own head cell.
                                 // This is to ensure the engine calls `make_move`.
                                 // The resize "grace period" ignores this collision.
-                                Box::new(std::iter::once(self.head[0].pos))
+                                Box::new(std::iter::empty())
                             }
                     } else {
                         // Predicts the next position for only the leading edge
@@ -530,35 +530,37 @@ define_object! {
                     }
                 }
 
-                fn make_move(&mut self, probe: Vec<CellRef>) -> Vec<Box<dyn Event>> {
+                fn make_move(&mut self, probe: Option<Vec<CellRef>>) -> Vec<Box<dyn Event>> {
                     let mut events: Vec<Box<dyn Event>> = Vec::new();
 
-                    for hit in probe {
-                        if let Some(t_cell) = hit.cell.occ_by {
-                            if t_cell.occ.obj_id == self.id {
-
-                                if self.ignore_body
+                    if let Some(hits) = probe {
+                        for hit in hits {
+                            if let Some(t_cell) = hit.cell.occ_by {
+                                if t_cell.occ.obj_id == self.id {
+                                    
+                                    if self.ignore_body
                                     || self.pending_resize.is_some() // Resize grace period
                                     || self.ignore_death {
-                                    continue;
+                                        continue;
+                                    }
+                                    
+                                    let event = DeathEvent {
+                                        actor: self.id,
+                                        pos: hit.pos,
+                                    };
+                                    events.clear();
+                                    events.push(Box::new(event));
+                                    return events;
                                 }
-
-                                let event = DeathEvent {
-                                    actor: self.id,
-                                    pos: hit.pos,
-                                };
-                                events.clear();
-                                events.push(Box::new(event));
-                                return events;
-                            }
-
-                            let event = CollisionEvent {
+                                
+                                let event = CollisionEvent {
                                     actor: self.id,
                                     target: t_cell.occ.obj_id,
                                     pos: hit.pos,
                                     ignore: self.ignore_death,
                                 };
-                            events.push(Box::new(event));
+                                events.push(Box::new(event));
+                            }
                         }
                     }
 
@@ -576,7 +578,10 @@ define_object! {
                         self.pending_resize = None;
                     }
 
-                    self.slither();
+                    if self.is_moving {
+                        self.slither();
+                    }
+                    
                     self.tick_effect();
 
                     events

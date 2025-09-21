@@ -9,7 +9,7 @@
 
 The engine's main driver is an `Object` trait system, which provides a set of capabilities for an object to inherit. A good example is the `Stateful` trait, which gives an object the ability to be dynamic by announcing the `StateChanges` it's made. These changes are then collected, processed, and synced to the `SpatialGrid` and renderer.
 
-The game specific logic happens through 3 different layers depending its complexity:
+The game specific logic happens through 3 different layers depending on its complexity:
 * **Object**: An object can handle simple collision logic and fire events.
 * **Events**: Events handle more complex scenarios which would be outside the capabilities of an object.
 * **Logic trait**: At last the `Logic<K>` trait provided by the engine provides full control of a tick.
