@@ -1,4 +1,4 @@
-use crossterm::style::Color;
+//use crossterm::style::Color;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum EffectStyle {
@@ -8,20 +8,20 @@ pub enum EffectStyle {
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum EffectZone {
-    Head,
-    Body,
-    Tail,
+    // Head,
+    // Body,
+    // Tail,
     All,
 }
 
-impl EffectStyle {
-    fn color(&self) -> Option<Color> {
-        match self {
-            EffectStyle::Damage => Some(Color::Red),
-            EffectStyle::Grow => None,
-        }
-    }
-}
+// impl EffectStyle {
+//     fn color(&self) -> Option<Color> {
+//         match self {
+//             EffectStyle::Damage => Some(Color::Red),
+//             EffectStyle::Grow => None,
+//         }
+//     }
+// }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Effect {

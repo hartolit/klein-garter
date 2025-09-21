@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use crate::snake_game::events::BombHandler;
 use crate::snake_game::game_objects::Bomb;
 use crate::StageKey;
-use super::events::{CollisionHandler, DeathHandler, FoodHandler};
+use super::events::{CollisionHandler, DeathHandler};
 use super::game_objects::{
     snake::Direction,
     Snake,

@@ -10,12 +10,13 @@ pub use terrain::Terrain;
 
 #[derive(Debug)]
 pub struct SpatialGrid {
-    pub cells: Vec<Cell>,
-    pub empty_cells: SlotMap<usize>,
+    cells: Vec<Cell>,
+    empty_cells: SlotMap<usize>,
     pub width: u16,
     pub height: u16,
     pub border_style: Option<Glyph>,
-    pub origin: Position, // The top left corner of the grid in world coordinates
+    origin: Position, // The top left corner of the grid in world coordinates
+    //is_bounded: bool, // TODO - Make bounding toggle
 }
 
 impl SpatialGrid {
@@ -43,8 +44,13 @@ impl SpatialGrid {
             height,
             border_style,
             origin,
+            //is_bounded: false, // TODO - Make bounding toggle
         }
     }
+
+    // pub fn toggle_bounds(&mut self) {
+    //     self.is_bounded ^= true;
+    // }
 
     pub fn pos_to_grid(&self, world_pos: Position) -> Option<Position> {
         let grid_x = world_pos.x.checked_sub(self.origin.x)?;

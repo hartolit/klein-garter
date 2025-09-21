@@ -1,24 +1,53 @@
 # Klein Garter
 
-> A terminal game "engine" and a proof-of-concept snake game, built in Rust.
+> A terminal game "engine" and a proof-of-concept snake game, built in Rust (for learning).
 > The project is built in an Object-Oriented architecture, which may has its strengths in clarity, but as I later learned, definitely has its downfalls when it comes to cache locality.
+
+---
+
+## Wan't to try it out?
+Follow these instructions to get the project up and running:
+1.  **Clone the repository:**
+    ```sh
+    git clone [https://github.com/hartolit/klein-garter.git](https://github.com/hartolit/klein-garter.git)
+    cd klein-garter
+    ```
+
+2.  **Build the project:**
+    ```sh
+    cargo build --release
+    ```
+
+3.  **Run the game:**
+    ```sh
+    cargo run --release
+    ```
 
 ---
 
 ## Engine Architecture
 
-The engine's main driver is an `Object` trait system, which provides a set of capabilities for an object to inherit. A good example is the `Stateful` trait, which gives an object the ability to be dynamic by announcing the `StateChanges` it's made. These changes are then collected, processed, and synced to the `SpatialGrid` and renderer.
+The engine is operating from an `Object` trait system, which provides a set of capability traits for an object to inherit. The idea was to have a flexible way for the engine to efficiently distinguish and process Objects of certain capabilities.
 
-The game specific logic happens through 3 different layers depending on its complexity:
-* **Object**: An object can handle simple collision logic and fire events.
-* **Events**: Events handle more complex scenarios which would be outside the capabilities of an object.
-* **Logic trait**: At last the `Logic<K>` trait provided by the engine provides full control of a tick.
+### Objects, TCells, and StateChanges
+At its core, everything is an `Object`. An object's physical form in the terminal is made up of one or more `TCells` (Terminal Cells). A `TCell` is just a single character with some properties: `Position`, `Glyph` (its symbol and its colors), and a z_index for layering.
 
+An `Object` is by default static but can be made dynamic by giving it the `Stateful` capability trait. Instead of changing an object's properties directly, you record the `StateChange(Create, Update, or Delete)` for one of its `TCells`. The engine then collects these changes and tells the renderer which cells to redraw (this is to avoid re-rendering an entire objects state). If the object also had the `Spatial` capability, the engine would sync these changes to the spatial grid to make it collidable.
+The cabilities include: `Stateful`, `Destructible`, `Active`, `Spatial` and `Movable`.
+
+### Game Logic Layers
+The game logic can happen through 3 different layers depending on its complexity:
+* **Object-level**: An object can handle simple logic like changing its state, react to collisions and fire events.
+* **Events**: Events handle more complex interactions like handling specific collisions which are outside the capabilities of an object.
+* **Logic trait**: At last the `Logic<K>` trait handles the high-level game flow, like player input, spawning new objects, and managing the overall game state.
+
+### Other
 The engine also provides a few other noteworthy capabilities:
 
 * **Switching between Stages**: A `Stage` is made up of some `Logic` and a `Scene` which holds the objects. So if you have different stages like: `Level1`, `Level2`, etc., you can switch between them within the logic trait by returning `RuntimeCommand::SwitchStage(K)` from the update loop.
 
-* **Replacing Logic or Scenes**: If you want to keep the same `Scene` but use a different logic, you can use `RuntimeCommand::ReplaceLogic(Box<dyn Logic<K>>)`. Similarly, you can replace a scene with `RuntimeCommand::ReplaceScene(Box<Scene>)`. All done through the update loop.
+* **Hot-swapping Logic/Scenes**: If you want to keep the same `Scene` but use a different logic, you can use `RuntimeCommand::ReplaceLogic(Box<dyn Logic<K>>)`. Similarly, you can replace a scene with `RuntimeCommand::ReplaceScene(Box<Scene>)`. All done through the update loop. 
+(The proof-of-concept implements the Logic swap by swapping from main SnakeGame Logic to DeathLogic via key input.)
 
 ---
 
@@ -37,10 +66,13 @@ Another minor downfall is the event system, which is very likely store duplicate
 ### TODO's
 
 Small list for future me:
+* **Unit and integration tests! :D**
 * **Asset generation** from pictures and gifs
+* **Make grid bounds toggle**
+* **Make terrain collidable**
 * **Better event system**
 * **Food ghost object**
 
 ### Current state
 
-The project is no longer actively developed on. Dread has the final say and I'm moving on for now.
+This project is no longer actively developed on. Dread has the final say and I'm moving on for now.
