@@ -32,9 +32,9 @@ const GRID_POS: Position = Position {
 const GRID_WIDTH: u16 = 180;
 const GRID_HEIGHT: u16 = 60;
 const BORDER_STYLE: Glyph = Glyph {
-    fg_clr: Some(Color::Rgb { r: 200, g: 200, b: 200 }), 
+    fg_clr: Some(Color::Rgb { r: 200, g: 200, b: 200 }),
     bg_clr: None,
-    symbol: '█' 
+    symbol: '█'
 };
 
 // Info
@@ -218,15 +218,18 @@ impl SnakeLogic {
     }
 
     fn handle_input(&mut self, scene: &mut Scene) -> Option<RuntimeCommand<StageKey>> {
-        if !event::poll(Duration::from_millis(0)).unwrap() {
-            return None;
-        }
+        while event::poll(Duration::from_millis(0)).unwrap_or(false) {
+            let event = match event::read() {
+                Ok(event) => event,
+                Err(_) => continue,
+            };
 
-        let event = event::read().unwrap();
-        if let Event::Key(key_event) = event {
-            return self.handle_key_event(key_event, scene);
+            if let Event::Key(key_event) = event {
+                if let Some(command) = self.handle_key_event(key_event, scene) {
+                    return Some(command);
+                }
+            }
         }
-
         None
     }
 
@@ -235,6 +238,10 @@ impl SnakeLogic {
         key_event: event::KeyEvent,
         scene: &mut Scene,
     ) -> Option<RuntimeCommand<StageKey>> {
+        if !key_event.is_press() {
+            return None
+        }
+
         if let Some(snake_id) = self.player.snake {
             if let Some(object) = scene.objects.get_mut(&snake_id) {
                 if let Some(snake) = object.get_mut::<Snake>() {

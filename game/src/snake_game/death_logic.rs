@@ -63,15 +63,18 @@ impl DeathLogic {
     }
 
     fn handle_input(&mut self, scene: &mut Scene) -> Option<RuntimeCommand<StageKey>> {
-        if !event::poll(Duration::from_millis(0)).unwrap() {
-            return None;
-        }
+        while event::poll(Duration::from_millis(0)).unwrap_or(false) {
+            let event = match event::read() {
+                Ok(event) => event,
+                Err(_) => continue,
+            };
 
-        let event = event::read().unwrap();
-        if let Event::Key(key_event) = event {
-            return self.handle_key_event(key_event, scene);
+            if let Event::Key(key_event) = event {
+                if let Some(command) = self.handle_key_event(key_event, scene) {
+                    return Some(command);
+                }
+            }
         }
-
         None
     }
 
@@ -80,6 +83,10 @@ impl DeathLogic {
         key_event: event::KeyEvent,
         scene: &mut Scene,
     ) -> Option<RuntimeCommand<StageKey>> {
+        if !key_event.is_press() {
+            return None
+        }
+
         if let Some(snake_id) = self.player.snake {
             if let Some(object) = scene.objects.get_mut(&snake_id) {
                 if let Some(snake) = object.get_mut::<Snake>() {
