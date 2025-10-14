@@ -5,7 +5,15 @@
 
 ---
 
+[![Watch the video](https://img.youtube.com/vi/622laV1JNQc/0.jpg)](https://youtu.be/622laV1JNQc?si=0wQO-GpPfM75b9b8)
+
+---
+
 ### Wan't to try it out?
+Prerequisites:
+* **Rust**: Install the Rust toolchain using [rustup](https://www.rust-lang.org/tools/install).
+* **Git**: Required to clone the project repository. You can get it from [git-scm.com](https://git-scm.com/).
+
 Follow these instructions to get the project up and running:
 1.  **Clone the repository:**
     ```sh
