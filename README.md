@@ -5,7 +5,7 @@
 
 ---
 
-[![Watch the video](https://img.youtube.com/vi/622laV1JNQc/0.jpg)](https://youtu.be/622laV1JNQc?si=0wQO-GpPfM75b9b8)
+https://github.com/user-attachments/assets/930cfabd-54cc-487c-948f-c0bf3c6f3100
 
 ---
 
