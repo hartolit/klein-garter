@@ -16,11 +16,17 @@ pub struct SpatialGrid {
     pub height: u16,
     pub border_style: Option<Glyph>,
     origin: Position, // The top left corner of the grid in world coordinates
-    //is_bounded: bool, // TODO - Make bounding toggle
+                      //is_bounded: bool, // TODO - Make bounding toggle
 }
 
 impl SpatialGrid {
-    pub fn new<F>(width: u16, height: u16, border_style: Option<Glyph>, origin: Position, mut terrain_generator: F) -> Self
+    pub fn new<F>(
+        width: u16,
+        height: u16,
+        border_style: Option<Glyph>,
+        origin: Position,
+        mut terrain_generator: F,
+    ) -> Self
     where
         F: FnMut(Position) -> Terrain,
     {
@@ -57,7 +63,10 @@ impl SpatialGrid {
         let grid_y = world_pos.y.checked_sub(self.origin.y)?;
 
         if grid_x < self.width && grid_y < self.height {
-            Some(Position { x: grid_x, y: grid_y })
+            Some(Position {
+                x: grid_x,
+                y: grid_y,
+            })
         } else {
             None
         }
@@ -128,7 +137,7 @@ impl SpatialGrid {
         }
         None
     }
-    
+
     pub fn check_bounds(&self, object: &Box<dyn Object>) -> bool {
         for t_cell in object.t_cells() {
             if self.pos_to_grid(t_cell.pos).is_none() {
@@ -152,7 +161,7 @@ impl SpatialGrid {
                 map
             })
     }
-    
+
     pub fn probe_object(&self, object: &Box<dyn Object>) -> HashSet<Id> {
         let mut collision_ids: HashSet<Id> = HashSet::new();
         for t_cell in object.t_cells() {
@@ -191,7 +200,7 @@ impl SpatialGrid {
     pub fn add_cell_occ(&mut self, t_cell: &TCell) -> bool {
         if let Some(grid_pos) = self.pos_to_grid(t_cell.pos) {
             if let Some(index) = self.get_index(&grid_pos) {
-                 let (_, curr_z_index) = self.cells[index].top_glyph_and_z();
+                let (_, curr_z_index) = self.cells[index].top_glyph_and_z();
                 if t_cell.z_index >= curr_z_index {
                     self.empty_cells.remove(&index);
                     self.cells[index].occ_by = Some(*t_cell);
@@ -203,7 +212,8 @@ impl SpatialGrid {
     }
 
     pub fn random_empty_pos(&self) -> Option<Position> {
-        self.empty_cells.get_random()
+        self.empty_cells
+            .get_random()
             .and_then(|index| self.get_pos_from_index(index))
             .map(|grid_pos| self.pos_to_world(grid_pos))
     }

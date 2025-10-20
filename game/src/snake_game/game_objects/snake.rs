@@ -537,13 +537,13 @@ define_object! {
                         for hit in hits {
                             if let Some(t_cell) = hit.cell.occ_by {
                                 if t_cell.occ.obj_id == self.id {
-                                    
+
                                     if self.ignore_body
                                     || self.pending_resize.is_some() // Resize grace period
                                     || self.ignore_death {
                                         continue;
                                     }
-                                    
+
                                     let event = DeathEvent {
                                         actor: self.id,
                                         pos: hit.pos,
@@ -552,7 +552,7 @@ define_object! {
                                     events.push(Box::new(event));
                                     return events;
                                 }
-                                
+
                                 let event = CollisionEvent {
                                     actor: self.id,
                                     target: t_cell.occ.obj_id,
@@ -581,7 +581,7 @@ define_object! {
                     if self.is_moving {
                         self.slither();
                     }
-                    
+
                     self.tick_effect();
 
                     events

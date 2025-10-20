@@ -2,7 +2,7 @@ use engine::prelude::{Event, EventHandler, Id, ObjectExt, Scene};
 
 use crate::snake_game::game_objects::{
     snake::animation::{Effect, EffectStyle, EffectZone},
-    {Damaging, Bomb, Snake},
+    {Bomb, Damaging, Snake},
 };
 
 pub struct BombEvent {

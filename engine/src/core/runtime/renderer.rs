@@ -1,8 +1,8 @@
 pub mod buffer;
 
-use std::{collections::HashSet};
+use std::collections::HashSet;
 
-use crate::prelude::{Scene, StateChange, ObjectIndex};
+use crate::prelude::{ObjectIndex, Scene, StateChange};
 
 use buffer::{Buffer, Operation};
 
@@ -58,14 +58,23 @@ impl Renderer {
 
         // Draws non-spatial objects (like UI)
         let empty_set = HashSet::new();
-        let spatial_ids = scene.indexes.get(&ObjectIndex::Spatial).unwrap_or(&empty_set);
+        let spatial_ids = scene
+            .indexes
+            .get(&ObjectIndex::Spatial)
+            .unwrap_or(&empty_set);
         for (id, object) in &scene.objects {
             if spatial_ids.contains(id) {
                 continue;
             }
 
             for t_cell in object.t_cells() {
-                self.buffer.upsert(t_cell.pos, Operation::Draw { glyph: t_cell.style, z_index: t_cell.z_index });
+                self.buffer.upsert(
+                    t_cell.pos,
+                    Operation::Draw {
+                        glyph: t_cell.style,
+                        z_index: t_cell.z_index,
+                    },
+                );
             }
         }
 

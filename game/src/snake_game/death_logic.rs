@@ -4,19 +4,24 @@ use engine::prelude::*;
 use rand::Rng;
 use std::time::{Duration, Instant};
 
+use super::events::{CollisionHandler, DeathHandler};
+use super::game_objects::{Snake, snake::Direction};
+use super::player::Player;
+use super::ui::{InfoPanel, Logger, Statistics};
+use crate::StageKey;
 use crate::snake_game::events::BombHandler;
 use crate::snake_game::game_objects::Bomb;
-use crate::StageKey;
-use super::events::{CollisionHandler, DeathHandler};
-use super::game_objects::{
-    snake::Direction,
-    Snake,
-};
-use super::player::Player;
-use super::ui::{Logger, Statistics, InfoPanel};
 
-const STATS_COLOR: Color = Color::Rgb { r: 170, g: 170, b: 170 };
-const LOGGER_COLOR: Color = Color::Rgb { r: 200, g: 100, b: 100 };
+const STATS_COLOR: Color = Color::Rgb {
+    r: 170,
+    g: 170,
+    b: 170,
+};
+const LOGGER_COLOR: Color = Color::Rgb {
+    r: 200,
+    g: 100,
+    b: 100,
+};
 const GAME_SPEED: u64 = 20;
 const MAX_LOGS: usize = 20;
 
@@ -34,11 +39,16 @@ pub struct DeathLogic {
     is_paused: bool,
     old_logic: Option<Box<dyn Logic<StageKey>>>,
     revert_logic: bool,
-    refresh: bool,
 }
 
 impl DeathLogic {
-    pub fn build(stage_id: StageKey, player: Player, stats_id: Option<Id>, logger_id: Option<Id>, info_id: Option<Id>) -> Self {
+    pub fn build(
+        stage_id: StageKey,
+        player: Player,
+        stats_id: Option<Id>,
+        logger_id: Option<Id>,
+        info_id: Option<Id>,
+    ) -> Self {
         let mut event_manager = EventManager::new();
         event_manager.register(CollisionHandler);
         event_manager.register(DeathHandler);
@@ -58,7 +68,6 @@ impl DeathLogic {
             is_paused: false,
             old_logic: None,
             revert_logic: false,
-            refresh: true,
         }
     }
 
@@ -69,10 +78,16 @@ impl DeathLogic {
                 Err(_) => continue,
             };
 
-            if let Event::Key(key_event) = event {
-                if let Some(command) = self.handle_key_event(key_event, scene) {
-                    return Some(command);
+            match event {
+                Event::Key(key_event) => {
+                    if let Some(command) = self.handle_key_event(key_event, scene) {
+                        return Some(command);
+                    }
                 }
+                Event::Resize(_, _) => {
+                    return Some(RuntimeCommand::Refresh);
+                }
+                _ => {}
             }
         }
         None
@@ -84,7 +99,7 @@ impl DeathLogic {
         scene: &mut Scene,
     ) -> Option<RuntimeCommand<StageKey>> {
         if !key_event.is_press() {
-            return None
+            return None;
         }
 
         if let Some(snake_id) = self.player.snake {
@@ -208,8 +223,16 @@ impl DeathLogic {
             if let Some(ui_object) = scene.objects.get_mut(&id) {
                 if let Some(panel) = ui_object.get_mut::<InfoPanel>() {
                     panel.clear();
-                    let title_clr = Some(Color::Rgb { r: 200, g: 50, b: 50 });
-                    let key_clr = Some(Color::Rgb { r: 200, g: 175, b: 175 });
+                    let title_clr = Some(Color::Rgb {
+                        r: 200,
+                        g: 50,
+                        b: 50,
+                    });
+                    let key_clr = Some(Color::Rgb {
+                        r: 200,
+                        g: 175,
+                        b: 175,
+                    });
 
                     panel.add_line(format!(":::[DEATH CONTROLS]:::"), title_clr, None);
                     panel.add_line(format!("W,A,S,D:        Move Snake"), key_clr, None);
@@ -258,27 +281,26 @@ impl DeathLogic {
 
 impl Logic<StageKey> for DeathLogic {
     fn collect_old_stage(
-            &mut self,
-            _old_scene: Option<Box<Scene>>,
-            _old_logic: Option<Box<dyn Logic<StageKey>>>,
-        ) {
+        &mut self,
+        _old_scene: Option<Box<Scene>>,
+        _old_logic: Option<Box<dyn Logic<StageKey>>>,
+    ) {
         if let Some(old_logic) = _old_logic {
             self.old_logic = Some(old_logic);
         }
     }
 
-    fn setup(&mut self, _scene: &mut Scene) {
+    fn init(&mut self, _scene: &mut Scene) {
         // Revert to old logic as no setup is defined here
         // (We are relying on the old logic)
         self.revert_logic = true
     }
 
+    fn refresh(&mut self, scene: &mut Scene) {
+        self.update_info(scene);
+    }
+
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
-        if self.refresh {
-            self.refresh = false;
-            self.update_info(scene);
-        }
-        
         if self.revert_logic {
             if let Some(logic) = self.old_logic.take() {
                 return RuntimeCommand::ReplaceLogic(logic);

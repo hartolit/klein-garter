@@ -68,7 +68,12 @@ impl Statistics {
         self.lines = new_lines;
     }
 
-    fn create_line_by_char(&mut self, y: usize, new_line: &str, fg_clr: Option<Color>) -> Vec<TCell> {
+    fn create_line_by_char(
+        &mut self,
+        y: usize,
+        new_line: &str,
+        fg_clr: Option<Color>,
+    ) -> Vec<TCell> {
         let mut t_cells = Vec::with_capacity(new_line.len());
         for (x, character) in new_line.chars().enumerate() {
             let t_cell = TCell::new(
@@ -78,12 +83,19 @@ impl Statistics {
                 255,
             );
             t_cells.push(t_cell);
-            self.state.upsert_change(StateChange::Create { new_t_cell: t_cell });
+            self.state
+                .upsert_change(StateChange::Create { new_t_cell: t_cell });
         }
         t_cells
     }
-    
-    fn update_line_by_char(&mut self, y: usize, mut old_t_cells: Vec<TCell>, new_line: &str, fg_clr: Option<Color>) -> Vec<TCell> {
+
+    fn update_line_by_char(
+        &mut self,
+        y: usize,
+        mut old_t_cells: Vec<TCell>,
+        new_line: &str,
+        fg_clr: Option<Color>,
+    ) -> Vec<TCell> {
         let old_len = old_t_cells.len();
         let new_chars: Vec<char> = new_line.chars().collect();
         let new_len = new_chars.len();
@@ -94,26 +106,32 @@ impl Statistics {
             let new_char = new_chars[i];
             if t_cell.style.symbol != new_char {
                 t_cell.style.symbol = new_char;
-                self.state.upsert_change(StateChange::Update { t_cell: *t_cell, init_pos: t_cell.pos });
+                self.state.upsert_change(StateChange::Update {
+                    t_cell: *t_cell,
+                    init_pos: t_cell.pos,
+                });
             }
         }
-        
+
         if new_len > old_len {
             for i in old_len..new_len {
-                 let new_char = new_chars[i];
-                 let t_cell = TCell::new(
+                let new_char = new_chars[i];
+                let t_cell = TCell::new(
                     Occupant::new(self.id, self.id_counter.next()),
                     Glyph::new(fg_clr, None, new_char),
                     Some(Position::new(self.pos.x + i as u16, self.pos.y + y as u16)),
                     255,
                 );
                 old_t_cells.push(t_cell);
-                self.state.upsert_change(StateChange::Create { new_t_cell: t_cell });
+                self.state
+                    .upsert_change(StateChange::Create { new_t_cell: t_cell });
             }
-        } 
-        else if new_len < old_len {
+        } else if new_len < old_len {
             for t_cell in old_t_cells.drain(new_len..) {
-                self.state.upsert_change(StateChange::Delete { occupant: t_cell.occ, init_pos: t_cell.pos });
+                self.state.upsert_change(StateChange::Delete {
+                    occupant: t_cell.occ,
+                    init_pos: t_cell.pos,
+                });
             }
         }
 

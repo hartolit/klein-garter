@@ -13,6 +13,7 @@ pub enum RuntimeCommand<K: Eq + Hash + Clone> {
     ReplaceLogic(Box<dyn Logic<K>>),
     SwitchStage(K),
     SetTickRate(Duration),
+    Refresh,
     Reset,
     Skip,
     Kill,
@@ -67,20 +68,21 @@ impl Runtime {
     }
 
     fn initialize<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
-        stage.logic.setup(&mut stage.scene);
+        stage.logic.init(&mut stage.scene);
         stage.scene.sync();
         self.renderer.full_render(&mut stage.scene);
         stage.is_init = true;
     }
 
     fn refresh<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
+        stage.logic.refresh(&mut stage.scene);
         stage.scene.sync();
         self.renderer.full_render(&mut stage.scene);
     }
 
     fn tick<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
         // Gets events from movables (collisions)
-        if let Some(grid) = &mut stage.scene.spatial_grid {            
+        if let Some(grid) = &mut stage.scene.spatial_grid {
             if let Some(movable_ids) = stage.scene.indexes.get(&ObjectIndex::Movable) {
                 let future_moves = movable_ids
                     .iter()
@@ -138,13 +140,16 @@ impl Runtime {
             RuntimeCommand::ReplaceScene(scene) => {
                 let old_scene = stage.replace_scene(scene);
                 stage.logic.collect_old_stage(Some(old_scene), None);
+                stage.logic.refresh(&mut stage.scene);
             }
             RuntimeCommand::ReplaceLogic(logic) => {
                 let old_logic = stage.replace_logic(logic);
                 stage.logic.collect_old_stage(None, Some(old_logic));
+                stage.logic.refresh(&mut stage.scene);
             }
             RuntimeCommand::SwitchStage(key) => return Some(ManagerDirective::Switch(key)),
             RuntimeCommand::SetTickRate(tick_rate) => self.tick_rate = tick_rate,
+            RuntimeCommand::Refresh => self.refresh(stage),
             RuntimeCommand::Reset => {
                 stage.scene.clear();
                 stage.is_init = false;

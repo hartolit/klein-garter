@@ -1,10 +1,11 @@
-use std::{fmt::{self, Display, Formatter}, time::Duration};
-
 use engine::prelude::{RuntimeManager, Stage};
+use snake_game::SnakeLogic;
+use std::{
+    fmt::{self, Display, Formatter},
+    time::Duration,
+};
 
 mod snake_game;
-
-use snake_game::SnakeLogic;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum StageKey {

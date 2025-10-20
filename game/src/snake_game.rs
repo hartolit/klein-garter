@@ -4,37 +4,38 @@ use engine::prelude::*;
 use rand::Rng;
 use std::time::{Duration, Instant};
 
+mod death_logic;
 mod events;
 mod game_objects;
-mod death_logic;
 mod player;
 mod ui;
 
 use crate::StageKey;
+use death_logic::DeathLogic;
 use events::{CollisionHandler, DeathHandler, FoodHandler};
 use game_objects::{
     snake::Direction,
     {Food, Snake},
 };
 use player::Player;
-use ui::{Logger, Statistics, InfoPanel};
-use death_logic::DeathLogic;
+use ui::{InfoPanel, Logger, Statistics};
 
 // Game
 const GAME_SPEED: u64 = 20;
 const PLAYER_SNAKE_POS: Position = Position { x: 50, y: 10 };
 
 // Grid
-const GRID_POS: Position = Position {
-    x: 4,
-    y: 3,
-};
+const GRID_POS: Position = Position { x: 4, y: 3 };
 const GRID_WIDTH: u16 = 180;
 const GRID_HEIGHT: u16 = 60;
 const BORDER_STYLE: Glyph = Glyph {
-    fg_clr: Some(Color::Rgb { r: 200, g: 200, b: 200 }),
+    fg_clr: Some(Color::Rgb {
+        r: 200,
+        g: 200,
+        b: 200,
+    }),
     bg_clr: None,
-    symbol: '█'
+    symbol: '█',
 };
 
 // Info
@@ -44,14 +45,22 @@ const INFO_POS: Position = Position {
 };
 
 // Statistics
-const STATS_COLOR: Color = Color::Rgb { r: 170, g: 170, b: 170 };
+const STATS_COLOR: Color = Color::Rgb {
+    r: 170,
+    g: 170,
+    b: 170,
+};
 const STATS_POS: Position = Position {
     x: (GRID_WIDTH + GRID_POS.x) + 3,
     y: GRID_POS.y + 15,
 };
 
 // Logger
-const LOGGER_COLOR: Color = Color::Rgb { r: 150, g: 150, b: 200 };
+const LOGGER_COLOR: Color = Color::Rgb {
+    r: 150,
+    g: 150,
+    b: 200,
+};
 const LOGGER_POS: Position = Position {
     x: (GRID_WIDTH + GRID_POS.x) + 3,
     y: GRID_POS.y + 20,
@@ -62,7 +71,6 @@ pub struct SnakeLogic {
     stage_id: StageKey,
     switch_stage: Option<StageKey>,
     switch_logic: bool,
-    refresh: bool,
     event_manager: EventManager,
     player: Player,
     speed: u64,
@@ -87,7 +95,6 @@ impl SnakeLogic {
             stage_id: key,
             switch_stage: None,
             switch_logic: false,
-            refresh: true,
             event_manager,
             player: Player::new(),
             speed: GAME_SPEED,
@@ -109,10 +116,16 @@ impl SnakeLogic {
     }
 
     fn setup_grid(&self, scene: &mut Scene) {
-        let grid = SpatialGrid::new(GRID_WIDTH, GRID_HEIGHT, Some(BORDER_STYLE), GRID_POS, |_| {
-            let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
-            Terrain::new(style, 0)
-        });
+        let grid = SpatialGrid::new(
+            GRID_WIDTH,
+            GRID_HEIGHT,
+            Some(BORDER_STYLE),
+            GRID_POS,
+            |_| {
+                let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
+                Terrain::new(style, 0)
+            },
+        );
         scene.attach_grid(grid);
     }
 
@@ -129,6 +142,8 @@ impl SnakeLogic {
             |id| Box::new(InfoPanel::new(id, INFO_POS)),
             Conflict::Ignore,
         );
+
+        self.update_info(scene);
     }
 
     fn setup_player_snake(&mut self, scene: &mut Scene) {
@@ -171,8 +186,16 @@ impl SnakeLogic {
             if let Some(ui_object) = scene.objects.get_mut(&id) {
                 if let Some(panel) = ui_object.get_mut::<InfoPanel>() {
                     panel.clear();
-                    let key_clr = Some(Color::Rgb { r: 255, g: 255, b: 255 });
-                    let title_clr = Some(Color::Rgb { r: 175, g: 200, b: 200 });
+                    let key_clr = Some(Color::Rgb {
+                        r: 255,
+                        g: 255,
+                        b: 255,
+                    });
+                    let title_clr = Some(Color::Rgb {
+                        r: 175,
+                        g: 200,
+                        b: 200,
+                    });
 
                     panel.add_line(format!(":::[CONTROLS]:::"), title_clr, None);
                     panel.add_line(format!("W,A,S,D:        Move Snake"), key_clr, None);
@@ -224,10 +247,16 @@ impl SnakeLogic {
                 Err(_) => continue,
             };
 
-            if let Event::Key(key_event) = event {
-                if let Some(command) = self.handle_key_event(key_event, scene) {
-                    return Some(command);
+            match event {
+                Event::Key(key_event) => {
+                    if let Some(command) = self.handle_key_event(key_event, scene) {
+                        return Some(command);
+                    }
                 }
+                Event::Resize(_, _) => {
+                    return Some(RuntimeCommand::Refresh);
+                }
+                _ => {}
             }
         }
         None
@@ -239,7 +268,7 @@ impl SnakeLogic {
         scene: &mut Scene,
     ) -> Option<RuntimeCommand<StageKey>> {
         if !key_event.is_press() {
-            return None
+            return None;
         }
 
         if let Some(snake_id) = self.player.snake {
@@ -368,9 +397,12 @@ impl SnakeLogic {
 }
 
 impl Logic<StageKey> for SnakeLogic {
-    fn setup(&mut self, scene: &mut Scene) {
+    fn init(&mut self, scene: &mut Scene) {
         self.setup_scene(scene);
-        self.refresh = true;
+    }
+
+    fn refresh(&mut self, scene: &mut Scene) {
+        self.update_info(scene);
     }
 
     fn update(&mut self, scene: &mut Scene) -> RuntimeCommand<StageKey> {
@@ -382,21 +414,20 @@ impl Logic<StageKey> for SnakeLogic {
             return RuntimeCommand::Kill;
         }
 
-        if self.refresh {
-            self.refresh = false;
-            self.update_info(scene);
-        }
-
         if let Some(key) = self.switch_stage {
             self.switch_stage = None;
-            self.refresh = true;
             return RuntimeCommand::SwitchStage(key);
         }
 
         if self.switch_logic {
             self.switch_logic = false;
-            self.refresh = true;
-            let new_logic = DeathLogic::build(self.stage_id, self.player, self.stats_id, self.logger_id, self.info_id);
+            let new_logic = DeathLogic::build(
+                self.stage_id,
+                self.player,
+                self.stats_id,
+                self.logger_id,
+                self.info_id,
+            );
             return RuntimeCommand::ReplaceLogic(Box::new(new_logic));
         }
 

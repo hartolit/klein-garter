@@ -1,9 +1,9 @@
 use engine::prelude::{Event, EventHandler, Id, ObjectExt, Position, Scene};
 
-use super::{FoodEvent, BombEvent};
+use super::{BombEvent, FoodEvent};
 
 use crate::snake_game::events::DeathEvent;
-use crate::snake_game::game_objects::{Food, Snake, Bomb};
+use crate::snake_game::game_objects::{Bomb, Food, Snake};
 
 pub struct CollisionEvent {
     pub actor: Id,
