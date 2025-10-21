@@ -13,11 +13,12 @@ https://github.com/user-attachments/assets/930cfabd-54cc-487c-948f-c0bf3c6f3100
 > Note: You can resize the game by changing the terminal font size, usually with: `ctrl` + `+/-`
 
 Simply install the binary release specific to your system and run it. If you're on Mac or wan't to compile the code yourself follow these steps: 
-Prerequisites:
+
+#### Prerequisites
 * **Rust**: Install the Rust toolchain using [rustup](https://www.rust-lang.org/tools/install).
 * **Git**: Required to clone the project repository. You can get it from [git-scm.com](https://git-scm.com/).
 
-Follow these instructions to get the project up and running:
+#### Build & Run
 1.  **Clone the repository:**
     ```sh
     git clone [https://github.com/hartolit/klein-garter.git](https://github.com/hartolit/klein-garter.git)
