@@ -1,8 +1,5 @@
-use std::{
-    collections::HashMap,
-    io::{Stdout, Write, stdout},
-};
-
+use std::io::{Stdout, Write, stdout};
+use rustc_hash::FxHashMap;
 use crossterm::{QueueableCommand, cursor, execute, style, terminal};
 
 use crate::prelude::{Glyph, Position};
@@ -18,7 +15,7 @@ pub enum Operation {
 // due to previous states not being reflected into its current states.
 pub struct Buffer {
     stdout: Stdout,
-    frame_buffer: HashMap<Position, Operation>,
+    frame_buffer: FxHashMap<Position, Operation>,
 }
 
 impl Buffer {
@@ -30,7 +27,7 @@ impl Buffer {
 
         Self {
             stdout,
-            frame_buffer: HashMap::new(),
+            frame_buffer: FxHashMap::default(),
         }
     }
 

@@ -1,4 +1,5 @@
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::{hash_map::Entry};
+use rustc_hash::FxHashMap;
 use std::mem;
 
 use super::Occupant;
@@ -32,13 +33,13 @@ impl StateChange {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct State {
-    pub changes: HashMap<Occupant, StateChange>,
+    pub changes: FxHashMap<Occupant, StateChange>,
 }
 
 impl State {
     pub fn new() -> Self {
         Self {
-            changes: HashMap::new(),
+            changes: FxHashMap::default(),
         }
     }
 
@@ -96,7 +97,7 @@ impl State {
         }
     }
 
-    pub fn drain_changes(&mut self) -> HashMap<Occupant, StateChange> {
+    pub fn drain_changes(&mut self) -> FxHashMap<Occupant, StateChange> {
         mem::take(&mut self.changes)
     }
 

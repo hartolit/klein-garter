@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 mod cell;
 mod terrain;
@@ -150,20 +150,20 @@ impl SpatialGrid {
     pub fn probe_moves<'a>(
         &'a self,
         moves: impl Iterator<Item = (Id, Position)>,
-    ) -> HashMap<Id, Vec<CellRef<'a>>> {
+    ) -> FxHashMap<Id, Vec<CellRef<'a>>> {
         moves
             .filter_map(|(id, world_pos)| {
                 self.get_cell(&world_pos)
                     .map(|cell| (id, CellRef::new(world_pos, cell)))
             })
-            .fold(HashMap::new(), |mut map, (id, cell_ref)| {
+            .fold(FxHashMap::default(), |mut map, (id, cell_ref)| {
                 map.entry(id).or_default().push(cell_ref);
                 map
             })
     }
 
-    pub fn probe_object(&self, object: &Box<dyn Object>) -> HashSet<Id> {
-        let mut collision_ids: HashSet<Id> = HashSet::new();
+    pub fn probe_object(&self, object: &Box<dyn Object>) -> FxHashSet<Id> {
+        let mut collision_ids: FxHashSet<Id> = FxHashSet::default();
         for t_cell in object.t_cells() {
             if let Some(cell) = self.get_cell(&t_cell.pos) {
                 if let Some(occupant_t_cell) = &cell.occ_by {

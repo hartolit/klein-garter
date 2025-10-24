@@ -3,7 +3,6 @@ pub mod utils;
 
 use crossterm::style::Color;
 use std::collections::VecDeque;
-
 use engine::prelude::*;
 
 use crate::snake_game::events::{CollisionEvent, DeathEvent};

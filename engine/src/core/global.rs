@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::hash::Hash;
 
 use rand::Rng;
@@ -56,14 +56,14 @@ impl Position {
 #[derive(Debug)]
 pub struct SlotMap<T: Eq + Hash + Copy> {
     items: Vec<T>,
-    map: HashMap<T, usize>,
+    map: FxHashMap<T, usize>,
 }
 
 impl<T: Eq + Hash + Copy> SlotMap<T> {
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
-            map: HashMap::new(),
+            map: FxHashMap::default(),
         }
     }
 

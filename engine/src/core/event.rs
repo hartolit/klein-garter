@@ -1,6 +1,6 @@
 use crate::prelude::Scene;
 use std::any::{Any, TypeId};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 // TODO - Fix event duplications
 // Self notes - (EventBus, EventKey, HashMap + Vec for O(1))
@@ -17,13 +17,13 @@ pub trait EventHandler<E: Event> {
 }
 
 pub struct EventManager {
-    handlers: HashMap<TypeId, Vec<Box<dyn FnMut(&dyn Any, &mut Scene)>>>,
+    handlers: FxHashMap<TypeId, Vec<Box<dyn FnMut(&dyn Any, &mut Scene)>>>,
 }
 
 impl EventManager {
     pub fn new() -> Self {
         Self {
-            handlers: HashMap::new(),
+            handlers: FxHashMap::default(),
         }
     }
 

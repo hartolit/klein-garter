@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::hash::Hash;
 use std::time::Duration;
 
@@ -18,7 +18,7 @@ pub enum ManagerDirective<K: Eq + Hash + Clone> {
 
 pub struct RuntimeManager<K: Eq + Hash + Clone> {
     runtime: Runtime,
-    stages: HashMap<K, Stage<K>>,
+    stages: FxHashMap<K, Stage<K>>,
     active_key: Option<K>,
 }
 
@@ -26,7 +26,7 @@ impl<K: Eq + Hash + Clone> RuntimeManager<K> {
     pub fn new(tick_rate: Duration) -> Self {
         Self {
             runtime: Runtime::new(tick_rate),
-            stages: HashMap::new(),
+            stages: FxHashMap::default(),
             active_key: None,
         }
     }

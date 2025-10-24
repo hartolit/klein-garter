@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub mod global_state;
 pub mod grid;
@@ -26,9 +26,9 @@ pub enum Conflict {
 
 pub struct Scene {
     pub id_counter: IdCounter,
-    pub objects: HashMap<Id, Box<dyn Object>>,
-    pub indexes: HashMap<ObjectIndex, HashSet<Id>>,
-    pub protected_ids: HashSet<Id>,
+    pub objects: FxHashMap<Id, Box<dyn Object>>,
+    pub indexes: FxHashMap<ObjectIndex, FxHashSet<Id>>,
+    pub protected_ids: FxHashSet<Id>,
     pub spatial_grid: Option<SpatialGrid>,
     pub global_state: GlobalState,
     pub event_bus: Vec<Box<dyn Event>>,
@@ -38,9 +38,9 @@ impl Scene {
     pub fn new() -> Self {
         Self {
             id_counter: IdCounter::new(),
-            objects: HashMap::new(),
-            indexes: HashMap::new(),
-            protected_ids: HashSet::new(),
+            objects: FxHashMap::default(),
+            indexes: FxHashMap::default(),
+            protected_ids: FxHashSet::default(),
             spatial_grid: None,
             global_state: GlobalState::new(),
             event_bus: Vec::new(),
@@ -72,7 +72,7 @@ impl Scene {
         // Special logic for grid objects <3
         if new_object.as_spatial().is_some() {
             // Probes grid for conflicts
-            let mut collisions: HashSet<Id> = HashSet::new();
+            let mut collisions: FxHashSet<Id> = FxHashSet::default();
             if let Some(grid) = &self.spatial_grid {
                 if !grid.check_bounds(&new_object) {
                     return None;

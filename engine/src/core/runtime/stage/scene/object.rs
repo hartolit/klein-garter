@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fmt::Debug;
 
 pub mod state;
@@ -30,7 +30,7 @@ pub trait Object: Debug {
     fn t_cells(&self) -> Box<dyn Iterator<Item = &TCell> + '_>;
 
     /// Creates a brief creation state (used for a first render)
-    fn init(&self) -> HashMap<Occupant, StateChange> {
+    fn init(&self) -> FxHashMap<Occupant, StateChange> {
         self.t_cells()
             .map(|t_cell| {
                 let change = StateChange::Create {
@@ -95,8 +95,8 @@ pub trait Stateful: Object {
 /// stateful, to be removed safely.
 pub trait Destructible: Object {
     /// Creates a brief state for destruction of an object
-    fn kill(&mut self) -> HashMap<Occupant, StateChange> {
-        let mut kill_changes = HashMap::new();
+    fn kill(&mut self) -> FxHashMap<Occupant, StateChange> {
+        let mut kill_changes = FxHashMap::default();
 
         if let Some(stateful) = self.as_stateful_mut() {
             kill_changes.extend(stateful.state_mut().drain_changes());

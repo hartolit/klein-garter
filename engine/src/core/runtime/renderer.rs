@@ -1,9 +1,7 @@
 pub mod buffer;
 
-use std::collections::HashSet;
-
+use rustc_hash::FxHashSet;
 use crate::prelude::{ObjectIndex, Scene, StateChange};
-
 use buffer::{Buffer, Operation};
 
 pub struct Renderer {
@@ -57,7 +55,7 @@ impl Renderer {
         }
 
         // Draws non-spatial objects (like UI)
-        let empty_set = HashSet::new();
+        let empty_set = FxHashSet::default();
         let spatial_ids = scene
             .indexes
             .get(&ObjectIndex::Spatial)
