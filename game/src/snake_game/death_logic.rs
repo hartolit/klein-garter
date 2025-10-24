@@ -39,6 +39,7 @@ pub struct DeathLogic {
     is_paused: bool,
     old_logic: Option<Box<dyn Logic<StageKey>>>,
     revert_logic: bool,
+    grid_pos: Position,
 }
 
 impl DeathLogic {
@@ -48,6 +49,7 @@ impl DeathLogic {
         stats_id: Option<Id>,
         logger_id: Option<Id>,
         info_id: Option<Id>,
+        grid_pos: Position,
     ) -> Self {
         let mut event_manager = EventManager::new();
         event_manager.register(CollisionHandler);
@@ -68,6 +70,7 @@ impl DeathLogic {
             is_paused: false,
             old_logic: None,
             revert_logic: false,
+            grid_pos
         }
     }
 
@@ -141,12 +144,15 @@ impl DeathLogic {
     }
 
     fn spawn_snakes(&self, scene: &mut Scene, count: usize) {
+        let gx = self.grid_pos.x;
+        let gy = self.grid_pos.y;
+        
         for i in 0..count {
             if let Some(grid) = &scene.spatial_grid {
                 let i_u16 = i as u16;
                 let x = (self.counter as u16 + i_u16) % grid.width;
                 let y = ((self.counter as u16 + i_u16) * i_u16) % grid.height;
-                let pos = Position::new(x, y);
+                let pos = Position::new(x.saturating_add(gx), y.saturating_add(gy));
 
                 scene.attach_object(
                     |id| {

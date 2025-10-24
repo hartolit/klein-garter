@@ -519,6 +519,7 @@ impl Logic<StageKey> for SnakeLogic {
                 self.stats_id,
                 self.logger_id,
                 self.info_id,
+                self.grid_pos,
             );
             return RuntimeCommand::ReplaceLogic(Box::new(new_logic));
         }
