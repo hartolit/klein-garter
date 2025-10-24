@@ -77,6 +77,7 @@ impl Runtime {
     fn refresh<K: Eq + Hash + Clone>(&mut self, stage: &mut Stage<K>) {
         stage.logic.refresh(&mut stage.scene);
         stage.scene.sync();
+        stage.scene.resync_grid();
         self.renderer.full_render(&mut stage.scene);
     }
 

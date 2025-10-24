@@ -235,18 +235,16 @@ impl DeathLogic {
                     });
 
                     panel.add_line(format!(":::[DEATH CONTROLS]:::"), title_clr, None);
-                    panel.add_line(format!("W,A,S,D:        Move Snake"), key_clr, None);
-                    panel.add_line(format!("Q & E:          Resize Head"), key_clr, None);
+                    panel.add_line(format!("w,a,s,d:        Move Snake"), key_clr, None);
+                    panel.add_line(format!("q & e:          Resize Head"), key_clr, None);
                     panel.add_line(format!("Space:          Toggle Move"), key_clr, None);
-                    panel.add_line(format!("P:              Pause Game"), key_clr, None);
+                    panel.add_line(format!("p:              Pause Game"), key_clr, None);
                     panel.add_line(format!("Esc:            Quit Game"), key_clr, None);
                     panel.add_line(format!(""), None, None); // Spacer
                     panel.add_line(format!(":::[DEATH DEBUG]:::"), title_clr, None);
                     panel.add_line(format!("Up & Down:      Change Z-Index"), key_clr, None);
-                    panel.add_line(format!("                NO ESCAPE!"), key_clr, None);
-                    panel.add_line(format!("G:              Switch Logic"), key_clr, None);
-                    panel.add_line(format!("                NO RESET!"), key_clr, None);
-                    panel.add_line(format!("F:              Spawn Bombs"), key_clr, None);
+                    panel.add_line(format!("g:              Switch Logic"), key_clr, None);
+                    panel.add_line(format!("f:              Spawn Bombs"), key_clr, None);
                     panel.add_line(format!("Tab:            Spawn Snakes"), key_clr, None);
                 }
             }

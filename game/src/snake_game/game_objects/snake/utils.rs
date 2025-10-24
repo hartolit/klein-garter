@@ -9,14 +9,16 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn get_move(&self) -> (i16, i16) {
+    pub fn get_move(&self, distance: u8) -> (i16, i16) {
         let (dx, dy) = match self {
             Direction::Up => (0, -1),
             Direction::Down => (0, 1),
             Direction::Left => (-1, 0),
             Direction::Right => (1, 0),
         };
-        return (dx, dy);
+
+        let distance = distance as i16;
+        return (dx * distance, dy * distance);
     }
 }
 

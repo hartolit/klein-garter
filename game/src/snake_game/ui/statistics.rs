@@ -8,7 +8,7 @@ pub struct Statistics {
     id_counter: IdCounter,
     state: State,
     t_cells_per_line: Vec<Vec<TCell>>,
-    pos: Position,
+    pub pos: Position,
     lines: Vec<String>,
 }
 
@@ -22,6 +22,11 @@ impl Statistics {
             pos,
             lines: Vec::new(),
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.t_cells_per_line.clear();
+        self.lines.clear();
     }
 
     pub fn set_text(&mut self, new_lines: Vec<String>, fg_clr: Option<Color>) {

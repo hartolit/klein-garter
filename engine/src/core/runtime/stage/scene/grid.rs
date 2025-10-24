@@ -15,8 +15,8 @@ pub struct SpatialGrid {
     pub width: u16,
     pub height: u16,
     pub border_style: Option<Glyph>,
-    origin: Position, // The top left corner of the grid in world coordinates
-                      //is_bounded: bool, // TODO - Make bounding toggle
+    pub origin: Position,   // The top left corner of the grid in world coordinates
+                            //is_bounded: bool, // TODO - Make bounding toggle
 }
 
 impl SpatialGrid {
@@ -216,5 +216,14 @@ impl SpatialGrid {
             .get_random()
             .and_then(|index| self.get_pos_from_index(index))
             .map(|grid_pos| self.pos_to_world(grid_pos))
+    }
+
+    pub fn clear(&mut self) {
+        self.empty_cells.clear();
+
+        for (index, cell) in self.cells.iter_mut().enumerate() {
+            cell.occ_by = None;
+            self.empty_cells.insert(index);
+        }
     }
 }

@@ -201,7 +201,7 @@ impl Snake {
             },
         );
 
-        let (dx, dy) = self.direction.get_move();
+        let (dx, dy) = self.direction.get_move(1);
 
         let mut new_body_cells: Vec<TCell> = Vec::new();
 
@@ -458,7 +458,7 @@ define_object! {
                             });
 
 
-                    let (dx, dy) = self.direction.get_move();
+                    let (dx, dy) = self.direction.get_move(1);
 
                     if let Some(resize) = self.pending_resize {
                         let new_size = resize.current_size();

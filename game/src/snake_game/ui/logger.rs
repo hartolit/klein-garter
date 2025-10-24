@@ -9,7 +9,7 @@ pub struct Logger {
     id_counter: IdCounter,
     state: State,
     t_cells: Vec<TCell>,
-    pos: Position,
+    pub pos: Position,
     log_messages: VecDeque<String>,
     max_lines: usize,
 }
@@ -25,6 +25,11 @@ impl Logger {
             log_messages: VecDeque::with_capacity(max_lines),
             max_lines,
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.log_messages.clear();
+        self.t_cells.clear();
     }
 
     pub fn add_log(&mut self, message: String, fg_clr: Option<Color>) {

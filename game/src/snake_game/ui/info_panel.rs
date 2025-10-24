@@ -7,7 +7,7 @@ pub struct InfoPanel {
     id_counter: IdCounter,
     state: State,
     t_cells: Vec<TCell>,
-    start_pos: Position,
+    pub start_pos: Position,
     line_offset: u16,
 }
 

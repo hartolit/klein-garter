@@ -22,7 +22,6 @@ use ui::{InfoPanel, Logger, Statistics};
 
 // Game
 const GAME_SPEED: u64 = 20;
-const PLAYER_SNAKE_POS: Position = Position { x: 50, y: 10 };
 
 // Grid
 const GRID_POS: Position = Position { x: 4, y: 3 };
@@ -38,21 +37,11 @@ const BORDER_STYLE: Glyph = Glyph {
     symbol: '█',
 };
 
-// Info
-const INFO_POS: Position = Position {
-    x: (GRID_WIDTH + GRID_POS.x) + 3,
-    y: GRID_POS.y,
-};
-
 // Statistics
 const STATS_COLOR: Color = Color::Rgb {
     r: 170,
     g: 170,
     b: 170,
-};
-const STATS_POS: Position = Position {
-    x: (GRID_WIDTH + GRID_POS.x) + 3,
-    y: GRID_POS.y + 15,
 };
 
 // Logger
@@ -60,10 +49,6 @@ const LOGGER_COLOR: Color = Color::Rgb {
     r: 150,
     g: 150,
     b: 200,
-};
-const LOGGER_POS: Position = Position {
-    x: (GRID_WIDTH + GRID_POS.x) + 3,
-    y: GRID_POS.y + 20,
 };
 const MAX_LOGS: usize = 10;
 
@@ -82,6 +67,9 @@ pub struct SnakeLogic {
     last_tick: Instant,
     is_debugging: bool,
     is_paused: bool,
+    grid_pos: Position,
+    grid_width: u16,
+    grid_height: u16,
 }
 
 impl SnakeLogic {
@@ -106,6 +94,9 @@ impl SnakeLogic {
             last_tick: Instant::now(),
             is_debugging: true,
             is_paused: false,
+            grid_pos: GRID_POS,
+            grid_height: GRID_HEIGHT,
+            grid_width: GRID_WIDTH,
         }
     }
 
@@ -117,10 +108,10 @@ impl SnakeLogic {
 
     fn setup_grid(&self, scene: &mut Scene) {
         let grid = SpatialGrid::new(
-            GRID_WIDTH,
-            GRID_HEIGHT,
+            self.grid_width,
+            self.grid_height,
             Some(BORDER_STYLE),
-            GRID_POS,
+            self.grid_pos,
             |_| {
                 let style = Glyph::new(Some(Color::Black), Some(Color::Black), ' ');
                 Terrain::new(style, 0)
@@ -131,25 +122,33 @@ impl SnakeLogic {
 
     fn setup_ui(&mut self, scene: &mut Scene) {
         self.stats_id = scene.attach_object(
-            |id| Box::new(Statistics::new(id, STATS_POS)),
-            Conflict::Ignore,
-        );
-        self.logger_id = scene.attach_object(
-            |id| Box::new(Logger::new(id, LOGGER_POS, MAX_LOGS)),
-            Conflict::Ignore,
-        );
-        self.info_id = scene.attach_object(
-            |id| Box::new(InfoPanel::new(id, INFO_POS)),
+            |id| Box::new(Statistics::new(id, Position::empty())),
             Conflict::Ignore,
         );
 
+        self.logger_id = scene.attach_object(
+            |id| Box::new(Logger::new(id, Position::empty(), MAX_LOGS)),
+            Conflict::Ignore,
+        );
+
+        self.info_id = scene.attach_object(
+            |id| Box::new(InfoPanel::new(id, Position::empty())),
+            Conflict::Ignore,
+        );
+
+        self.update_ui_pos(scene);
         self.update_info(scene);
     }
 
     fn setup_player_snake(&mut self, scene: &mut Scene) {
         let snake_id = scene.attach_object(
             |id| {
-                let mut snake = Snake::new(PLAYER_SNAKE_POS, id, 3);
+                let snake_pos = Position {
+                    x: self.grid_pos.x.saturating_add(50),
+                    y: self.grid_pos.y.saturating_add(10)
+                };
+
+                let mut snake = Snake::new(snake_pos, id, 3);
                 snake.head_style = Glyph::new(
                     Some(Color::Rgb {
                         r: 255,
@@ -181,6 +180,44 @@ impl SnakeLogic {
         }
     }
 
+    fn update_ui_pos(&mut self, scene: &mut Scene) {
+        if let Some(stats_id) = self.stats_id {
+            if let Some(object) = scene.objects.get_mut(&stats_id) {
+                if let Some(stats) = object.get_mut::<Statistics>() {
+                    let stats_pos = Position {
+                        x: (self.grid_width + self.grid_pos.x) + 3,
+                        y: self.grid_pos.y + 17,
+                    };
+                    stats.pos = stats_pos;
+                }
+            }
+        }
+
+        if let Some(logger_id) = self.logger_id {
+            if let Some(object) = scene.objects.get_mut(&logger_id) {
+                if let Some(logger) = object.get_mut::<Logger>() {
+                    let logger_pos = Position {
+                        x: (self.grid_width + self.grid_pos.x) + 3,
+                        y: self.grid_pos.y + 22,
+                    };
+                    logger.pos = logger_pos;
+                }
+            }
+        }
+
+        if let Some(info_id) = self.info_id {
+            if let Some(object) = scene.objects.get_mut(&info_id) {
+                if let Some(info) = object.get_mut::<InfoPanel>() {
+                    let info_pos = Position {
+                        x: (self.grid_width + self.grid_pos.x) + 3,
+                        y: self.grid_pos.y,
+                    };
+                    info.start_pos = info_pos;
+                }
+            }
+        }
+    }
+
     fn update_info(&mut self, scene: &mut Scene) {
         if let Some(id) = self.info_id {
             if let Some(ui_object) = scene.objects.get_mut(&id) {
@@ -198,18 +235,20 @@ impl SnakeLogic {
                     });
 
                     panel.add_line(format!(":::[CONTROLS]:::"), title_clr, None);
-                    panel.add_line(format!("W,A,S,D:        Move Snake"), key_clr, None);
-                    panel.add_line(format!("Q & E:          Resize Head"), key_clr, None);
+                    panel.add_line(format!("w,a,s,d:        Move Snake"), key_clr, None);
+                    panel.add_line(format!("q & e:          Resize Head"), key_clr, None);
                     panel.add_line(format!("Space:          Toggle Move"), key_clr, None);
-                    panel.add_line(format!("P:              Pause Game"), key_clr, None);
+                    panel.add_line(format!("p:              Pause Game"), key_clr, None);
                     panel.add_line(format!("Esc:            Quit Game"), key_clr, None);
                     panel.add_line(format!(""), None, None); // Spacer
                     panel.add_line(format!(":::[DEBUG]:::"), title_clr, None);
+                    panel.add_line(format!("W,A,S,D:        Move camera"), key_clr, None);
+                    panel.add_line(format!("Q & E:          Resize camera"), key_clr, None);
                     panel.add_line(format!("Up & Down:      Change Z-Index"), key_clr, None);
                     panel.add_line(format!("Left & Right:   Switch Stage"), key_clr, None);
-                    panel.add_line(format!("G:              Switch Logic"), key_clr, None);
-                    panel.add_line(format!("R:              Reset Stage"), key_clr, None);
-                    panel.add_line(format!("F:              Spawn Food"), key_clr, None);
+                    panel.add_line(format!("g:              Switch Logic"), key_clr, None);
+                    panel.add_line(format!("r:              Reset Stage"), key_clr, None);
+                    panel.add_line(format!("f:              Spawn Food"), key_clr, None);
                     panel.add_line(format!("Tab:            Spawn Snakes"), key_clr, None);
                 }
             }
@@ -279,10 +318,16 @@ impl SnakeLogic {
                         KeyCode::Char('s') => snake.direction = Direction::Down,
                         KeyCode::Char('a') => snake.direction = Direction::Left,
                         KeyCode::Char('d') => snake.direction = Direction::Right,
+                        KeyCode::Char('W') => return Some(self.handle_grid_move(Direction::Up, scene)),
+                        KeyCode::Char('S') => return Some(self.handle_grid_move(Direction::Down, scene)),
+                        KeyCode::Char('A') => return Some(self.handle_grid_move(Direction::Left, scene)),
+                        KeyCode::Char('D') => return Some(self.handle_grid_move(Direction::Right, scene)),
                         KeyCode::Char('q') => snake
                             .resize_head_native(snake.head_size.native_size().saturating_sub(2)),
                         KeyCode::Char('e') => snake
                             .resize_head_native(snake.head_size.native_size().saturating_add(2)),
+                        KeyCode::Char('Q') => return Some(self.handle_new_grid(scene, false)),
+                        KeyCode::Char('E') => return Some(self.handle_new_grid(scene, true)),
                         KeyCode::Char(' ') => snake.is_moving ^= true,
                         KeyCode::Up => snake.base_index = snake.base_index.saturating_add(2),
                         KeyCode::Down => snake.base_index = snake.base_index.saturating_sub(2),
@@ -300,6 +345,33 @@ impl SnakeLogic {
             }
         }
         None
+    }
+
+    fn handle_new_grid(&mut self, scene: &mut Scene, is_grow: bool) -> RuntimeCommand<StageKey> {
+        if is_grow {
+            self.grid_height = self.grid_height.saturating_add(2);
+            self.grid_width = self.grid_width.saturating_add(2);
+        } else {
+            self.grid_height = self.grid_height.saturating_sub(2);
+            self.grid_width = self.grid_width.saturating_sub(2);
+        }
+
+        self.setup_grid(scene);
+        return RuntimeCommand::Refresh;
+    }
+
+    fn handle_grid_move(&mut self, direction: Direction, scene: &mut Scene) -> RuntimeCommand<StageKey> {
+        if let Some(grid) = &mut scene.spatial_grid {
+            let (dx, dy) = direction.get_move(5);
+
+            self.grid_pos.x = self.grid_pos.x.saturating_add_signed(dx);
+            self.grid_pos.y = self.grid_pos.y.saturating_add_signed(dy);
+
+            grid.origin = self.grid_pos;
+            return RuntimeCommand::Refresh;
+        }
+
+        return RuntimeCommand::None;
     }
 
     fn handle_stage_switch(&mut self) {
@@ -320,12 +392,15 @@ impl SnakeLogic {
     }
 
     fn spawn_snakes(&self, scene: &mut Scene, count: usize) {
+        let gx = self.grid_pos.x;
+        let gy = self.grid_pos.y;
+
         for i in 0..count {
             if let Some(grid) = &scene.spatial_grid {
                 let i_u16 = i as u16;
                 let x = (self.counter as u16 + i_u16) % grid.width;
                 let y = ((self.counter as u16 + i_u16) * i_u16) % grid.height;
-                let pos = Position::new(x, y);
+                let pos = Position::new(x.saturating_add(gx), y.saturating_add(gy));
 
                 scene.attach_object(
                     |id| {
@@ -402,6 +477,23 @@ impl Logic<StageKey> for SnakeLogic {
     }
 
     fn refresh(&mut self, scene: &mut Scene) {
+        if let Some(stats_id) = self.stats_id {
+            if let Some(object) = scene.objects.get_mut(&stats_id) {
+                if let Some(stats) = object.get_mut::<Statistics>() {
+                    stats.clear();
+                }
+            }
+        }
+
+        if let Some(logger_id) = self.logger_id {
+            if let Some(object) = scene.objects.get_mut(&logger_id) {
+                if let Some(logger) = object.get_mut::<Logger>() {
+                    logger.clear();
+                }
+            }
+        }
+
+        self.update_ui_pos(scene);
         self.update_info(scene);
     }
 

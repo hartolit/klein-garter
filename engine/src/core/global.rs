@@ -47,6 +47,10 @@ impl Position {
     pub fn new(x: u16, y: u16) -> Self {
         Self { x, y }
     }
+
+    pub fn empty() -> Self {
+        Self { x: 0, y: 0 }
+    }
 }
 
 #[derive(Debug)]
@@ -102,5 +106,10 @@ impl<T: Eq + Hash + Copy> SlotMap<T> {
         let mut rng = rand::rng();
         let random_index = rng.random_range(0..self.items.len());
         Some(self.items[random_index])
+    }
+
+    pub fn clear(&mut self) {
+        self.items.clear();
+        self.map.clear();
     }
 }

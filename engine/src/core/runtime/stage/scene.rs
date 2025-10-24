@@ -59,6 +59,7 @@ impl Scene {
 
     pub fn attach_grid(&mut self, grid: SpatialGrid) {
         self.spatial_grid = Some(grid);
+        self.resync_grid();
     }
 
     pub fn attach_object<F>(&mut self, create_fn: F, on_conflict: Conflict) -> Option<Id>
@@ -205,6 +206,21 @@ impl Scene {
         self.global_state.process(false);
     }
 
+    pub fn resync_grid(&mut self) {
+        if let Some(grid) = &mut self.spatial_grid {
+            grid.clear();
+
+            let spatial_ids = self.indexes.get(&ObjectIndex::Spatial);
+            if let Some(ids) = spatial_ids {
+                for id in ids {
+                    if let Some(object) = self.objects.get(id) {
+                        grid.add_object(object);
+                    }
+                }
+            }
+        }
+    }
+    
     pub fn set_overwrite_exemption(&mut self, id: Id, is_exempt: bool) {
         if is_exempt {
             self.protected_ids.insert(id);
