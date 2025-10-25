@@ -1,32 +1,83 @@
-pub mod buffer;
+pub mod frame_thread;
 
-use rustc_hash::FxHashSet;
-use crate::prelude::{ObjectIndex, Scene, StateChange};
-use buffer::{Buffer, Operation};
+use std::{sync::mpsc::{sync_channel, SyncSender, TrySendError}, thread};
+use rustc_hash::{FxHashMap, FxHashSet};
+use crate::prelude::{ObjectIndex, Position, Scene, StateChange};
+use frame_thread::{FrameThread, Operation};
+
+pub enum RenderCommand {
+    Draw(FxHashMap<Position, Operation>, bool),
+    Kill
+}
 
 pub struct Renderer {
-    buffer: Buffer,
+    tx: SyncSender<RenderCommand>,
+    frame_buffer: FxHashMap<Position, Operation>,
+    render_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl Renderer {
     pub fn new() -> Self {
+        let (tx, rx) = sync_channel::<RenderCommand>(1);
+
+        let render_handle = thread::spawn(move || {
+            let mut frame_thread = FrameThread::new();
+            frame_thread.run(rx);
+        });
+
         Self {
-            buffer: Buffer::new(),
+            tx,
+            frame_buffer: FxHashMap::default(),
+            render_handle: Some(render_handle),
         }
     }
 
     pub fn kill(&mut self) {
-        self.buffer.kill();
+        if self.tx.send(RenderCommand::Kill).is_ok() {
+            if let Some(handle) = self.render_handle.take() {
+                handle.join().unwrap();
+            }
+        } else {
+            panic!("Failed to send kill to renderer");
+        }
     }
 
+    pub fn upsert(&mut self, pos: Position, new_op: Operation) {
+        use std::collections::hash_map::Entry;
+
+        let new_z = match &new_op {
+            Operation::Clear => 0,
+            Operation::Draw { z_index, .. } => *z_index,
+        };
+
+        match self.frame_buffer.entry(pos) {
+            Entry::Vacant(entry) => {
+                entry.insert(new_op);
+            }
+            Entry::Occupied(mut entry) => {
+                let existing_op = entry.get_mut();
+                let existing_z = match existing_op {
+                    Operation::Clear => 0,
+                    Operation::Draw { z_index, .. } => *z_index,
+                };
+
+                if new_z > existing_z {
+                    *existing_op = new_op;
+                }
+            }
+        }
+    }
+
+
+
     pub fn full_render(&mut self, scene: &Scene) {
-        self.buffer.clear();
+        self.frame_buffer.clear();
 
         // Draws grid and spatial objects
         if let Some(grid) = &scene.spatial_grid {
             // Draws border
             for (pos, glyph) in grid.get_border() {
-                self.buffer.upsert(
+                self.upsert(
                     pos,
                     Operation::Draw {
                         glyph,
@@ -42,7 +93,7 @@ impl Renderer {
                     let world_pos = grid.pos_to_world(grid_pos);
                     if let Some(cell) = grid.get_cell(&world_pos) {
                         let (glyph, z_index) = cell.top_glyph_and_z();
-                        self.buffer.upsert(
+                        self.upsert(
                             world_pos,
                             Operation::Draw {
                                 glyph: *glyph,
@@ -66,7 +117,7 @@ impl Renderer {
             }
 
             for t_cell in object.t_cells() {
-                self.buffer.upsert(
+                self.upsert(
                     t_cell.pos,
                     Operation::Draw {
                         glyph: t_cell.style,
@@ -76,7 +127,7 @@ impl Renderer {
             }
         }
 
-        self.buffer.flush();
+        self.send_frame(true);
     }
 
     pub fn partial_render(&mut self, scene: &Scene) {
@@ -92,7 +143,7 @@ impl Renderer {
                     StateChange::Delete { init_pos, .. } => {
                         if let Some(cell) = grid.get_cell(init_pos) {
                             let (glyph, z_index) = cell.top_glyph_and_z();
-                            self.buffer.upsert(
+                            self.upsert(
                                 *init_pos,
                                 Operation::Draw {
                                     glyph: *glyph,
@@ -105,7 +156,7 @@ impl Renderer {
                         if t_cell.pos != *init_pos {
                             if let Some(cell) = grid.get_cell(init_pos) {
                                 let (glyph, z_index) = cell.top_glyph_and_z();
-                                self.buffer.upsert(
+                                self.upsert(
                                     *init_pos,
                                     Operation::Draw {
                                         glyph: *glyph,
@@ -117,7 +168,7 @@ impl Renderer {
 
                         if let Some(cell) = grid.get_cell(&t_cell.pos) {
                             let (glyph, z_index) = cell.top_glyph_and_z();
-                            self.buffer.upsert(
+                            self.upsert(
                                 t_cell.pos,
                                 Operation::Draw {
                                     glyph: *glyph,
@@ -129,7 +180,7 @@ impl Renderer {
                     StateChange::Create { new_t_cell } => {
                         if let Some(cell) = grid.get_cell(&new_t_cell.pos) {
                             let (glyph, z_index) = cell.top_glyph_and_z();
-                            self.buffer.upsert(
+                            self.upsert(
                                 new_t_cell.pos,
                                 Operation::Draw {
                                     glyph: *glyph,
@@ -146,13 +197,13 @@ impl Renderer {
         for state in scene.global_state.filtered.non_spatial.iter() {
             match state {
                 StateChange::Delete { init_pos, .. } => {
-                    self.buffer.upsert(*init_pos, Operation::Clear);
+                    self.upsert(*init_pos, Operation::Clear);
                 }
                 StateChange::Update { t_cell, init_pos } => {
                     if t_cell.pos != *init_pos {
-                        self.buffer.upsert(*init_pos, Operation::Clear);
+                        self.upsert(*init_pos, Operation::Clear);
                     }
-                    self.buffer.upsert(
+                    self.upsert(
                         t_cell.pos,
                         Operation::Draw {
                             glyph: t_cell.style,
@@ -161,7 +212,7 @@ impl Renderer {
                     );
                 }
                 StateChange::Create { new_t_cell } => {
-                    self.buffer.upsert(
+                    self.upsert(
                         new_t_cell.pos,
                         Operation::Draw {
                             glyph: new_t_cell.style,
@@ -172,6 +223,26 @@ impl Renderer {
             }
         }
 
-        self.buffer.flush();
+        self.send_frame(false);
+    }
+
+    fn send_frame(&mut self, is_full_render: bool) {
+        if !self.frame_buffer.is_empty() {
+            let frame = std::mem::take(&mut self.frame_buffer);
+
+            if let Err(e) = self.tx.try_send(RenderCommand::Draw(frame, is_full_render)) {
+                match e {
+                    TrySendError::Full(RenderCommand::Draw(frame_buffer, .. )) => {
+                        // Render thread is busy, drop the frame.
+                        // Puts the map back so we can reuse its allocation.
+                        self.frame_buffer = frame_buffer;
+                    },
+                    TrySendError::Disconnected(_) => {
+                        eprintln!("Render thread disconnected: {}", e);
+                    },
+                    _ => {}
+                }
+            }
+        }
     }
 }

@@ -1,8 +1,7 @@
-use std::io::{Stdout, Write, stdout};
-use rustc_hash::FxHashMap;
+use std::{io::{stdout, Stdout, Write}, sync::mpsc::Receiver};
 use crossterm::{QueueableCommand, cursor, execute, style, terminal};
 
-use crate::prelude::{Glyph, Position};
+use crate::{core::runtime::renderer::RenderCommand, prelude::{Glyph, Position}};
 
 pub enum Operation {
     Clear,
@@ -13,12 +12,11 @@ pub enum Operation {
 // Right now the Operations outside of a grid is only reflected in its current StateChanges for the tick.
 // That is to say previous states with a higher index than the current StateChanges might get overriden
 // due to previous states not being reflected into its current states.
-pub struct Buffer {
+pub struct FrameThread {
     stdout: Stdout,
-    frame_buffer: FxHashMap<Position, Operation>,
 }
 
-impl Buffer {
+impl FrameThread {
     pub fn new() -> Self {
         let mut stdout = stdout();
 
@@ -27,59 +25,36 @@ impl Buffer {
 
         Self {
             stdout,
-            frame_buffer: FxHashMap::default(),
         }
     }
 
-    pub fn upsert(&mut self, pos: Position, new_op: Operation) {
-        use std::collections::hash_map::Entry;
+    pub fn run(&mut self, rx: Receiver<RenderCommand>) {
+        for command in rx {
+            match command {
+                RenderCommand::Draw(frame_buffer, is_full_render) => {
+                    if is_full_render {
+                        self.stdout
+                            .queue(terminal::Clear(terminal::ClearType::All))
+                            .unwrap();
+                    }
 
-        let new_z = match &new_op {
-            Operation::Clear => 0,
-            Operation::Draw { z_index, .. } => *z_index,
-        };
-
-        match self.frame_buffer.entry(pos) {
-            Entry::Vacant(entry) => {
-                entry.insert(new_op);
-            }
-            Entry::Occupied(mut entry) => {
-                let existing_op = entry.get_mut();
-                let existing_z = match existing_op {
-                    Operation::Clear => 0,
-                    Operation::Draw { z_index, .. } => *z_index,
-                };
-
-                if new_z > existing_z {
-                    *existing_op = new_op;
+                    for (pos, operation) in frame_buffer {
+                        match operation {
+                            Operation::Clear => Self::clear_glyph(&mut self.stdout, pos),
+                            Operation::Draw { glyph, .. } => Self::draw_glyph(&mut self.stdout, glyph, pos),
+                        }
+                    }
+                    self.stdout.flush().unwrap();
+                },
+                RenderCommand::Kill => {
+                    terminal::disable_raw_mode().unwrap();
+                    execute!(self.stdout, cursor::Show).unwrap();
                 }
             }
         }
     }
 
-    pub fn kill(&mut self) {
-        terminal::disable_raw_mode().unwrap();
-        execute!(self.stdout, cursor::Show).unwrap();
-    }
-
-    pub fn clear(&mut self) {
-        self.frame_buffer.clear();
-        self.stdout
-            .queue(terminal::Clear(terminal::ClearType::All))
-            .unwrap();
-    }
-
-    pub fn flush(&mut self) {
-        for (pos, operation) in self.frame_buffer.drain() {
-            match operation {
-                Operation::Clear => Self::clear_glyph(&mut self.stdout, pos),
-                Operation::Draw { glyph, .. } => Self::draw_glyph(&mut self.stdout, glyph, pos),
-            };
-        }
-        self.stdout.flush().unwrap();
-    }
-
-    pub fn draw_glyph(stdout: &mut Stdout, glyph: Glyph, pos: Position) {
+    fn draw_glyph(stdout: &mut Stdout, glyph: Glyph, pos: Position) {
         if let Some(fg_color) = glyph.fg_clr {
             stdout.queue(style::SetForegroundColor(fg_color)).unwrap();
         } else {
