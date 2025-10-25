@@ -232,9 +232,10 @@ impl Renderer {
 
             if let Err(e) = self.tx.try_send(RenderCommand::Draw(frame, is_full_render)) {
                 match e {
-                    TrySendError::Full(RenderCommand::Draw(frame_buffer, .. )) => {
+                    TrySendError::Full(RenderCommand::Draw(mut frame_buffer, .. )) => {
                         // Render thread is busy, drop the frame.
                         // Puts the map back so we can reuse its allocation.
+                        frame_buffer.clear();
                         self.frame_buffer = frame_buffer;
                     },
                     TrySendError::Disconnected(_) => {
